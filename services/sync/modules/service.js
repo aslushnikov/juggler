@@ -76,6 +76,9 @@ const { DeclinedEngines } = ChromeUtils.import(
 const { Status } = ChromeUtils.import("resource://services-sync/status.js");
 ChromeUtils.import("resource://services-sync/telemetry.js");
 const { Svc, Utils } = ChromeUtils.import("resource://services-sync/util.js");
+const { fxAccounts } = ChromeUtils.import(
+  "resource://gre/modules/FxAccounts.jsm"
+);
 
 function getEngineModules() {
   let result = {
@@ -497,6 +500,43 @@ Sync11Service.prototype = {
     this.engineManager.setDeclined(declined);
   },
 
+  /**
+   * This method updates the local engines state from an existing meta/global
+   * when Sync is disabled.
+   * Running this code if sync is enabled would end up in very weird results
+   * (but we're nice and we check before doing anything!).
+   */
+  async updateLocalEnginesState() {
+    await this.promiseInitialized;
+
+    // Sanity check, this method is not meant to be run if Sync is enabled!
+    if (Svc.Prefs.get("username", "")) {
+      throw new Error("Sync is enabled!");
+    }
+
+    // For historical reasons the behaviour of setCluster() is bizarre,
+    // so just check what we care about - the meta URL.
+    if (!this.metaURL) {
+      await this.identity.setCluster();
+      if (!this.metaURL) {
+        this._log.warn("Could not find a cluster.");
+        return;
+      }
+    }
+    // Clear the cache so we always fetch the latest meta/global.
+    this.recordManager.clearCache();
+    let meta = await this.recordManager.get(this.metaURL);
+    if (!meta) {
+      this._log.info("Meta record is null, aborting engine state update.");
+      return;
+    }
+    const declinedEngines = meta.payload.declined;
+    const allEngines = this.engineManager.getAll().map(e => e.name);
+    for (const engine of allEngines) {
+      Svc.Prefs.set(`engine.${engine}`, !declinedEngines.includes(engine));
+    }
+  },
+
   QueryInterface: ChromeUtils.generateQI([
     Ci.nsIObserver,
     Ci.nsISupportsWeakReference,
@@ -909,6 +949,22 @@ Sync11Service.prototype = {
     }
   },
 
+  // configures/enabled/turns-on sync. There must be an FxA user signed in.
+  async configure() {
+    // We don't, and must not, throw if sync is already configured, because we
+    // might end up being called as part of a "reconnect" flow. We also want to
+    // avoid checking the FxA user is the same as the pref because the email
+    // address for the FxA account can change - we'd need to use the uid.
+    let user = await fxAccounts.getSignedInUser();
+    if (!user) {
+      throw new Error("No FxA user is signed in");
+    }
+    this._log.info("Configuring sync with current FxA user");
+    Svc.Prefs.set("username", user.email);
+    Svc.Obs.notify("weave:connected");
+  },
+
+  // resets/turns-off sync.
   async startOver() {
     this._log.trace("Invoking Service.startOver.");
     await this._stopTracking();
@@ -930,10 +986,6 @@ Sync11Service.prototype = {
       this._log.debug("Skipping client data removal: no cluster URL.");
     }
 
-    // We want let UI consumers of the following notification know as soon as
-    // possible, so let's fake for the CLIENT_NOT_CONFIGURED status for now
-    // by emptying the passphrase (we still need the password).
-    this._log.info("Service.startOver dropping sync key and logging out.");
     this.identity.resetCredentials();
     this.status.login = LOGIN_FAILED_NO_USERNAME;
     this.logout();
@@ -951,8 +1003,6 @@ Sync11Service.prototype = {
     this.clusterURL = null;
 
     Svc.Prefs.set("lastversion", WEAVE_VERSION);
-
-    this.identity.deleteSyncCredentials();
 
     try {
       this.identity.finalize();

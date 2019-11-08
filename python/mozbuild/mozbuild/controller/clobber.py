@@ -108,7 +108,7 @@ class Clobberer(object):
         try:
             for p in os.listdir(root):
                 if p not in exclude:
-                    paths.append(os.path.join(root, p).encode('utf-8'))
+                    paths.append(os.path.join(root, p))
         except OSError as e:
             if e.errno != errno.ENOENT:
                 raise
@@ -153,8 +153,7 @@ class Clobberer(object):
         no_clobber |= rust_targets
 
         if full:
-            # mozfile doesn't like unicode arguments (bug 818783).
-            paths = [self.topobjdir.encode('utf-8')]
+            paths = [self.topobjdir]
         else:
             paths = self.collect_subdirs(self.topobjdir, no_clobber)
 

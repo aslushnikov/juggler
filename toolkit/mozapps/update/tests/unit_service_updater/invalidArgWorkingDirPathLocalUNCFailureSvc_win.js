@@ -9,15 +9,9 @@ async function run_test() {
   if (!setupTestCommon()) {
     return;
   }
-  // The service cannot safely write update.status for this failure because the
-  // check is done before validating the installed updater.
-  const STATE_AFTER_RUNUPDATE_BASE = STATE_FAILED_INVALID_WORKING_DIR_PATH_ERROR;
-  const STATE_AFTER_RUNUPDATE_SERVICE = AppConstants.EARLY_BETA_OR_EARLIER
-    ? STATE_PENDING_SVC
-    : STATE_FAILED_SERVICE_INVALID_WORKING_DIR_PATH_ERROR;
   const STATE_AFTER_RUNUPDATE = gIsServiceTest
-    ? STATE_AFTER_RUNUPDATE_SERVICE
-    : STATE_AFTER_RUNUPDATE_BASE;
+    ? STATE_FAILED_SERVICE_INVALID_WORKING_DIR_PATH_ERROR
+    : STATE_FAILED_INVALID_WORKING_DIR_PATH_ERROR;
   gTestFiles = gTestFilesCompleteSuccess;
   gTestDirs = gTestDirsCompleteSuccess;
   setTestFilesAndDirsForFailure();
@@ -29,17 +23,14 @@ async function run_test() {
   checkFilesAfterUpdateFailure(getApplyDirFile);
   await waitForUpdateXMLFiles();
   if (gIsServiceTest) {
-    if (AppConstants.EARLY_BETA_OR_EARLIER) {
-      checkUpdateManager(STATE_NONE, false, STATE_PENDING_SVC, 0, 1);
-    } else {
-      checkUpdateManager(
-        STATE_NONE,
-        false,
-        STATE_FAILED,
-        SERVICE_INVALID_WORKING_DIR_PATH_ERROR,
-        1
-      );
-    }
+    // The invalid argument service tests launch the maintenance service
+    // directly so the unelevated updater doesn't handle the invalid argument.
+    // By doing this it is possible to test that the maintenance service
+    // properly handles the invalid argument but since the updater isn't used to
+    // launch the maintenance service the update.status file isn't copied from
+    // the secure log directory to the patch directory and the update manager
+    // won't read the failure from the update.status file.
+    checkUpdateManager(STATE_NONE, false, STATE_PENDING_SVC, 0, 1);
   } else {
     checkUpdateManager(
       STATE_NONE,

@@ -1,20 +1,31 @@
-import { actionCreators as ac } from "common/Actions.jsm";
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this file,
+ * You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+import {
+  actionCreators as ac,
+  actionTypes as at,
+  ASRouterActions as ra,
+} from "common/Actions.jsm";
 import { OUTGOING_MESSAGE_NAME as AS_GENERAL_OUTGOING_MESSAGE_NAME } from "content-src/lib/init-store";
 import { generateBundles } from "./rich-text-strings";
 import { ImpressionsWrapper } from "./components/ImpressionsWrapper/ImpressionsWrapper";
 import { LocalizationProvider } from "fluent-react";
 import { NEWTAB_DARK_THEME } from "content-src/lib/constants";
-import { OnboardingMessage } from "./templates/OnboardingMessage/OnboardingMessage";
 import React from "react";
 import ReactDOM from "react-dom";
-import { ReturnToAMO } from "./templates/ReturnToAMO/ReturnToAMO";
 import { SnippetsTemplates } from "./templates/template-manifest";
-import { StartupOverlay } from "./templates/StartupOverlay/StartupOverlay";
-import { Trailhead } from "./templates/Trailhead/Trailhead";
+import { FirstRun } from "./templates/FirstRun/FirstRun";
 
 const INCOMING_MESSAGE_NAME = "ASRouter:parent-to-child";
 const OUTGOING_MESSAGE_NAME = "ASRouter:child-to-parent";
-const TEMPLATES_ABOVE_PAGE = ["trailhead"];
+const TEMPLATES_ABOVE_PAGE = [
+  "trailhead",
+  "full_page_interrupt",
+  "return_to_amo_overlay",
+  "extended_triplets",
+];
+const FIRST_RUN_TEMPLATES = TEMPLATES_ABOVE_PAGE;
 const TEMPLATES_BELOW_SEARCH = ["simple_below_search_snippet"];
 
 export const ASRouterUtils = {
@@ -41,9 +52,6 @@ export const ASRouterUtils = {
   },
   dismissById(id) {
     ASRouterUtils.sendMessage({ type: "DISMISS_MESSAGE_BY_ID", data: { id } });
-  },
-  dismissBundle(bundle) {
-    ASRouterUtils.sendMessage({ type: "DISMISS_BUNDLE", data: { bundle } });
   },
   executeAction(button_action) {
     ASRouterUtils.sendMessage({
@@ -105,7 +113,10 @@ export class ASRouterUISurface extends React.PureComponent {
     this.sendClick = this.sendClick.bind(this);
     this.sendImpression = this.sendImpression.bind(this);
     this.sendUserActionTelemetry = this.sendUserActionTelemetry.bind(this);
-    this.state = { message: {}, bundle: {} };
+    this.onUserAction = this.onUserAction.bind(this);
+    this.fetchFlowParams = this.fetchFlowParams.bind(this);
+
+    this.state = { message: {}, interruptCleared: false };
     if (props.document) {
       this.headerPortal = props.document.getElementById(
         "header-asrouter-container"
@@ -116,15 +127,54 @@ export class ASRouterUISurface extends React.PureComponent {
     }
   }
 
-  sendUserActionTelemetry(extraProps = {}) {
-    const { message, bundle } = this.state;
-    if (!message && !extraProps.message_id) {
-      throw new Error(`You must provide a message_id for bundled messages`);
+  async fetchFlowParams(params = {}) {
+    let result = {};
+    const { fxaEndpoint, dispatch } = this.props;
+    if (!fxaEndpoint) {
+      const err =
+        "Tried to fetch flow params before fxaEndpoint pref was ready";
+      console.error(err); // eslint-disable-line no-console
     }
-    // snippets_user_event, onboarding_user_event
-    const eventType = `${message.provider || bundle.provider}_user_event`;
+
+    try {
+      const urlObj = new URL(fxaEndpoint);
+      urlObj.pathname = "metrics-flow";
+      Object.keys(params).forEach(key => {
+        urlObj.searchParams.append(key, params[key]);
+      });
+      const response = await fetch(urlObj.toString(), { credentials: "omit" });
+      if (response.status === 200) {
+        const { deviceId, flowId, flowBeginTime } = await response.json();
+        result = { deviceId, flowId, flowBeginTime };
+      } else {
+        console.error("Non-200 response", response); // eslint-disable-line no-console
+        dispatch(
+          ac.OnlyToMain({
+            type: at.TELEMETRY_UNDESIRED_EVENT,
+            data: {
+              event: "FXA_METRICS_FETCH_ERROR",
+              value: response.status,
+            },
+          })
+        );
+      }
+    } catch (error) {
+      console.error(error); // eslint-disable-line no-console
+      dispatch(
+        ac.OnlyToMain({
+          type: at.TELEMETRY_UNDESIRED_EVENT,
+          data: { event: "FXA_METRICS_ERROR" },
+        })
+      );
+    }
+    return result;
+  }
+
+  sendUserActionTelemetry(extraProps = {}) {
+    const { message } = this.state;
+    const eventType = `${message.provider}_user_event`;
     ASRouterUtils.sendTelemetry({
-      message_id: message.id || extraProps.message_id,
+      message_id: message.id,
       source: extraProps.id,
       action: eventType,
       ...extraProps,
@@ -176,26 +226,6 @@ export class ASRouterUISurface extends React.PureComponent {
     return () => ASRouterUtils.dismissById(id);
   }
 
-  dismissBundle(bundle) {
-    return () => {
-      ASRouterUtils.dismissBundle(bundle);
-      this.sendUserActionTelemetry({
-        event: "DISMISS",
-        id: "onboarding-cards",
-        message_id: bundle.map(m => m.id).join(","),
-        // Passing the action because some bundles (Trailhead) don't have a provider set
-        action: "onboarding_user_event",
-      });
-    };
-  }
-
-  triggerOnboarding() {
-    ASRouterUtils.sendMessage({
-      type: "TRIGGER",
-      data: { trigger: { id: "showOnboarding" } },
-    });
-  }
-
   clearMessage(id) {
     if (id === this.state.message.id) {
       this.setState({ message: {} });
@@ -209,8 +239,8 @@ export class ASRouterUISurface extends React.PureComponent {
       case "SET_MESSAGE":
         this.setState({ message: action.data });
         break;
-      case "SET_BUNDLED_MESSAGES":
-        this.setState({ bundle: action.data });
+      case "CLEAR_INTERRUPT":
+        this.setState({ interruptCleared: true });
         break;
       case "CLEAR_MESSAGE":
         this.clearMessage(action.data.id);
@@ -220,13 +250,8 @@ export class ASRouterUISurface extends React.PureComponent {
           this.setState({ message: {} });
         }
         break;
-      case "CLEAR_BUNDLE":
-        if (this.state.bundle.bundle) {
-          this.setState({ bundle: {} });
-        }
-        break;
       case "CLEAR_ALL":
-        this.setState({ message: {}, bundle: {} });
+        this.setState({ message: {} });
         break;
       case "AS_ROUTER_TARGETING_UPDATE":
         action.data.forEach(id => this.clearMessage(id));
@@ -256,7 +281,7 @@ export class ASRouterUISurface extends React.PureComponent {
       });
     } else {
       ASRouterUtils.sendMessage({
-        type: "SNIPPETS_REQUEST",
+        type: "NEWTAB_MESSAGE_REQUEST",
         data: { endpoint },
       });
     }
@@ -266,16 +291,38 @@ export class ASRouterUISurface extends React.PureComponent {
     ASRouterUtils.removeListener(this.onMessageFromParent);
   }
 
+  async getMonitorUrl({ url, flowRequestParams = {} }) {
+    const flowValues = await this.fetchFlowParams(flowRequestParams);
+
+    // Note that flowParams are actually added dynamically on the page
+    const urlObj = new URL(url);
+    ["deviceId", "flowId", "flowBeginTime"].forEach(key => {
+      if (key in flowValues) {
+        urlObj.searchParams.append(key, flowValues[key]);
+      }
+    });
+
+    return urlObj.toString();
+  }
+
+  async onUserAction(action) {
+    switch (action.type) {
+      // This needs to be handled locally because its
+      case ra.ENABLE_FIREFOX_MONITOR:
+        const url = await this.getMonitorUrl(action.data.args);
+        ASRouterUtils.executeAction({ type: ra.OPEN_URL, data: { args: url } });
+        break;
+      default:
+        ASRouterUtils.executeAction(action);
+    }
+  }
+
   renderSnippets() {
-    if (
-      this.state.bundle.template === "onboarding" ||
-      this.state.message.template === "fxa_overlay" ||
-      this.state.message.template === "return_to_amo_overlay" ||
-      this.state.message.template === "trailhead"
-    ) {
+    const { message } = this.state;
+    if (!SnippetsTemplates[message.template]) {
       return null;
     }
-    const SnippetComponent = SnippetsTemplates[this.state.message.template];
+    const SnippetComponent = SnippetsTemplates[message.template];
     const { content } = this.state.message;
 
     return (
@@ -293,77 +340,13 @@ export class ASRouterUISurface extends React.PureComponent {
             UISurface="NEWTAB_FOOTER_BAR"
             onBlock={this.onBlockById(this.state.message.id)}
             onDismiss={this.onDismissById(this.state.message.id)}
-            onAction={ASRouterUtils.executeAction}
+            onAction={this.onUserAction}
             sendClick={this.sendClick}
             sendUserActionTelemetry={this.sendUserActionTelemetry}
           />
         </LocalizationProvider>
       </ImpressionsWrapper>
     );
-  }
-
-  renderOnboarding() {
-    if (this.state.bundle.template === "onboarding") {
-      return (
-        <OnboardingMessage
-          {...this.state.bundle}
-          UISurface="NEWTAB_OVERLAY"
-          onAction={ASRouterUtils.executeAction}
-          onDismissBundle={this.dismissBundle(this.state.bundle.bundle)}
-          sendUserActionTelemetry={this.sendUserActionTelemetry}
-        />
-      );
-    }
-    return null;
-  }
-
-  renderFirstRunOverlay() {
-    const { message } = this.state;
-    if (message.template === "fxa_overlay") {
-      global.document.body.classList.add("fxa");
-      return (
-        <StartupOverlay
-          onReady={this.triggerOnboarding}
-          onBlock={this.onDismissById(message.id)}
-          dispatch={this.props.dispatch}
-        />
-      );
-    } else if (message.template === "return_to_amo_overlay") {
-      global.document.body.classList.add("amo");
-      return (
-        <LocalizationProvider
-          bundles={generateBundles({ amo_html: message.content.text })}
-        >
-          <ReturnToAMO
-            {...message}
-            UISurface="NEWTAB_OVERLAY"
-            onReady={this.triggerOnboarding}
-            onBlock={this.onDismissById(message.id)}
-            onAction={ASRouterUtils.executeAction}
-            sendUserActionTelemetry={this.sendUserActionTelemetry}
-          />
-        </LocalizationProvider>
-      );
-    }
-    return null;
-  }
-
-  renderTrailhead() {
-    const { message } = this.state;
-    if (message.template === "trailhead") {
-      return (
-        <Trailhead
-          document={this.props.document}
-          message={message}
-          onAction={ASRouterUtils.executeAction}
-          onDismissBundle={this.dismissBundle(this.state.message.bundle)}
-          sendUserActionTelemetry={this.sendUserActionTelemetry}
-          dispatch={this.props.dispatch}
-          fxaEndpoint={this.props.fxaEndpoint}
-        />
-      );
-    }
-    return null;
   }
 
   renderPreviewBanner() {
@@ -379,9 +362,40 @@ export class ASRouterUISurface extends React.PureComponent {
     );
   }
 
+  renderFirstRun() {
+    const { message } = this.state;
+    if (FIRST_RUN_TEMPLATES.includes(message.template)) {
+      return (
+        <ImpressionsWrapper
+          id="FIRST_RUN"
+          message={this.state.message}
+          sendImpression={this.sendImpression}
+          shouldSendImpressionOnUpdate={shouldSendImpressionOnUpdate}
+          // This helps with testing
+          document={this.props.document}
+        >
+          <FirstRun
+            document={this.props.document}
+            interruptCleared={this.state.interruptCleared}
+            message={message}
+            sendUserActionTelemetry={this.sendUserActionTelemetry}
+            executeAction={ASRouterUtils.executeAction}
+            dispatch={this.props.dispatch}
+            onBlockById={ASRouterUtils.blockById}
+            onDismiss={this.onDismissById(this.state.message.id)}
+            fxaEndpoint={this.props.fxaEndpoint}
+            appUpdateChannel={this.props.appUpdateChannel}
+            fetchFlowParams={this.fetchFlowParams}
+          />
+        </ImpressionsWrapper>
+      );
+    }
+    return null;
+  }
+
   render() {
-    const { message, bundle } = this.state;
-    if (!message.id && !bundle.template) {
+    const { message } = this.state;
+    if (!message.id) {
       return null;
     }
     const shouldRenderBelowSearch = TEMPLATES_BELOW_SEARCH.includes(
@@ -393,16 +407,16 @@ export class ASRouterUISurface extends React.PureComponent {
 
     return shouldRenderBelowSearch ? (
       // Render special below search snippets in place;
-      <div className="below-search-snippet">{this.renderSnippets()}</div>
+      <div className="below-search-snippet-wrapper">
+        {this.renderSnippets()}
+      </div>
     ) : (
       // For onboarding, regular snippets etc. we should render
       // everything in our footer container.
       ReactDOM.createPortal(
         <>
           {this.renderPreviewBanner()}
-          {this.renderTrailhead()}
-          {this.renderFirstRunOverlay()}
-          {this.renderOnboarding()}
+          {this.renderFirstRun()}
           {this.renderSnippets()}
         </>,
         shouldRenderInHeader ? this.headerPortal : this.footerPortal

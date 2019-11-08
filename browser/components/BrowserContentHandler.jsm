@@ -16,9 +16,12 @@ const { AppConstants } = ChromeUtils.import(
 );
 
 XPCOMUtils.defineLazyModuleGetters(this, {
+  AboutPrivateBrowsingHandler:
+    "resource:///modules/aboutpages/AboutPrivateBrowsingHandler.jsm",
   BrowserWindowTracker: "resource:///modules/BrowserWindowTracker.jsm",
   HeadlessShell: "resource:///modules/HeadlessShell.jsm",
   HomePage: "resource:///modules/HomePage.jsm",
+  FirstStartup: "resource://gre/modules/FirstStartup.jsm",
   LaterRun: "resource:///modules/LaterRun.jsm",
   PrivateBrowsingUtils: "resource://gre/modules/PrivateBrowsingUtils.jsm",
   SessionStartup: "resource:///modules/sessionstore/SessionStartup.jsm",
@@ -33,6 +36,12 @@ XPCOMUtils.defineLazyServiceGetter(
   "@mozilla.org/windows-ui-utils;1",
   "nsIWindowsUIUtils"
 );
+XPCOMUtils.defineLazyServiceGetter(
+  this,
+  "UpdateManager",
+  "@mozilla.org/updates/update-manager;1",
+  "nsIUpdateManager"
+);
 
 XPCOMUtils.defineLazyGetter(this, "gSystemPrincipal", () =>
   Services.scriptSecurityManager.getSystemPrincipal()
@@ -40,6 +49,10 @@ XPCOMUtils.defineLazyGetter(this, "gSystemPrincipal", () =>
 XPCOMUtils.defineLazyGlobalGetters(this, [URL]);
 
 const NEWINSTALL_PAGE = "about:newinstall";
+
+// One-time startup homepage override configurations
+const ONCE_DOMAINS = ["mozilla.org", "firefox.com"];
+const ONCE_PREF = "browser.startup.homepage_override.once";
 
 function shouldLoadURI(aURI) {
   if (aURI && !aURI.schemeIs("chrome")) {
@@ -81,6 +94,8 @@ function resolveURIInternal(aCmdLine, aArgument) {
 
   return uri;
 }
+
+let gKiosk = false;
 
 let gRemoteInstallPage = null;
 
@@ -159,29 +174,14 @@ function needHomepageOverride(prefb) {
 /**
  * Gets the override page for the first run after the application has been
  * updated.
+ * @param  update
+ *         The nsIUpdate for the update that has been applied.
  * @param  defaultOverridePage
  *         The default override page.
  * @return The override page.
  */
-function getPostUpdateOverridePage(defaultOverridePage) {
-  var um = Cc["@mozilla.org/updates/update-manager;1"].getService(
-    Ci.nsIUpdateManager
-  );
-  // The active update should be present when this code is called. If for
-  // whatever reason it isn't fallback to the latest update in the update
-  // history.
-  if (um.activeUpdate) {
-    var update = um.activeUpdate.QueryInterface(Ci.nsIWritablePropertyBag);
-  } else {
-    // If the updates.xml file is deleted then getUpdateAt will throw.
-    try {
-      update = um.getUpdateAt(0).QueryInterface(Ci.nsIWritablePropertyBag);
-    } catch (e) {
-      Cu.reportError("Unable to find update: " + e);
-      return defaultOverridePage;
-    }
-  }
-
+function getPostUpdateOverridePage(update, defaultOverridePage) {
+  update = update.QueryInterface(Ci.nsIWritablePropertyBag);
   let actions = update.getProperty("actions");
   // When the update doesn't specify actions fallback to the original behavior
   // of displaying the default override page.
@@ -240,20 +240,18 @@ function openBrowserWindow(
   forcePrivate = false
 ) {
   let chromeURL = AppConstants.BROWSER_CHROME_URL;
+  const isStartup =
+    cmdLine && cmdLine.state == Ci.nsICommandLine.STATE_INITIAL_LAUNCH;
 
   let args;
   if (!urlOrUrlList) {
     // Just pass in the defaultArgs directly. We'll use system principal on the other end.
-    args = [gBrowserContentHandler.defaultArgs];
+    args = [gBrowserContentHandler.getArgs(isStartup)];
   } else {
     let pService = Cc["@mozilla.org/toolkit/profile-service;1"].getService(
       Ci.nsIToolkitProfileService
     );
-    if (
-      cmdLine &&
-      cmdLine.state == Ci.nsICommandLine.STATE_INITIAL_LAUNCH &&
-      pService.createdAlternateProfile
-    ) {
+    if (isStartup && pService.createdAlternateProfile) {
       let url = getNewInstallPage();
       if (Array.isArray(urlOrUrlList)) {
         urlOrUrlList.unshift(url);
@@ -304,7 +302,7 @@ function openBrowserWindow(
     }
   }
 
-  if (cmdLine && cmdLine.state == Ci.nsICommandLine.STATE_INITIAL_LAUNCH) {
+  if (isStartup) {
     let win = Services.wm.getMostRecentWindow("navigator:blank");
     if (win) {
       // Remove the windowtype of our blank window so that we don't close it
@@ -369,17 +367,25 @@ async function doSearch(searchTerm, cmdLine) {
   // be handled synchronously. Then load the search URI when the
   // SearchService has loaded.
   let win = openBrowserWindow(cmdLine, gSystemPrincipal, "about:blank");
-  var engine = await Services.search.getDefault();
-  var countId = (engine.identifier || "other-" + engine.name) + ".system";
-  var count = Services.telemetry.getKeyedHistogramById("SEARCH_COUNTS");
-  count.add(countId);
-
-  var submission = engine.getSubmission(searchTerm, null, "system");
-
-  win.gBrowser.selectedBrowser.loadURI(submission.uri.spec, {
-    triggeringPrincipal: gSystemPrincipal,
-    postData: submission.postData,
+  await new Promise(resolve => {
+    Services.obs.addObserver(function observe(subject) {
+      if (subject == win) {
+        Services.obs.removeObserver(
+          observe,
+          "browser-delayed-startup-finished"
+        );
+        resolve();
+      }
+    }, "browser-delayed-startup-finished");
   });
+
+  win.BrowserSearch.loadSearchFromCommandLine(
+    searchTerm,
+    PrivateBrowsingUtils.isInTemporaryAutoStartMode ||
+      PrivateBrowsingUtils.isWindowPrivate(win),
+    gSystemPrincipal,
+    win.gBrowser.selectedBrowser.csp
+  ).catch(Cu.reportError);
 }
 
 function nsBrowserContentHandler() {
@@ -399,6 +405,9 @@ nsBrowserContentHandler.prototype = {
 
   /* nsICommandLineHandler */
   handle: function bch_handle(cmdLine) {
+    if (cmdLine.handleFlag("kiosk", false)) {
+      gKiosk = true;
+    }
     if (cmdLine.handleFlag("browser", false)) {
       openBrowserWindow(cmdLine, gSystemPrincipal);
       cmdLine.preventDefault = true;
@@ -506,6 +515,9 @@ nsBrowserContentHandler.prototype = {
         false
       );
       if (privateWindowParam) {
+        // Ensure we initialize the handler before trying to load
+        // about:privatebrowsing.
+        AboutPrivateBrowsingHandler.init();
         let forcePrivate = true;
         let resolvedURI;
         if (!PrivateBrowsingUtils.enabled) {
@@ -531,6 +543,9 @@ nsBrowserContentHandler.prototype = {
       }
       // NS_ERROR_INVALID_ARG is thrown when flag exists, but has no param.
       if (cmdLine.handleFlag("private-window", false)) {
+        // Ensure we initialize the handler before trying to load
+        // about:privatebrowsing.
+        AboutPrivateBrowsingHandler.init();
         openBrowserWindow(
           cmdLine,
           gSystemPrincipal,
@@ -563,6 +578,10 @@ nsBrowserContentHandler.prototype = {
     }
     if (cmdLine.handleFlag("setDefaultBrowser", false)) {
       ShellService.setDefaultBrowser(true, true);
+    }
+
+    if (cmdLine.handleFlag("first-startup", false)) {
+      FirstStartup.init();
     }
 
     var fileParam = cmdLine.handleFlagWithParam("file", false);
@@ -606,12 +625,19 @@ nsBrowserContentHandler.prototype = {
     info +=
       "  --search <term>    Search <term> with your default search engine.\n";
     info += "  --setDefaultBrowser Set this app as the default browser.\n";
+    info +=
+      "  --first-startup    Run post-install actions before opening a new window.\n";
+    info += "  --kiosk Start the browser in kiosk mode.\n";
     return info;
   },
 
   /* nsIBrowserHandler */
 
   get defaultArgs() {
+    return this.getArgs();
+  },
+
+  getArgs(isStartup = false) {
     var prefb = Services.prefs;
 
     if (!gFirstWindow) {
@@ -670,9 +696,12 @@ nsBrowserContentHandler.prototype = {
             overridePage = Services.urlFormatter.formatURLPref(
               "startup.homepage_override_url"
             );
-            if (prefb.prefHasUserValue("app.update.postupdate")) {
-              prefb.clearUserPref("app.update.postupdate");
-              overridePage = getPostUpdateOverridePage(overridePage);
+            let update = UpdateManager.activeUpdate;
+            if (
+              update &&
+              Services.vc.compare(update.appVersion, old_mstone) > 0
+            ) {
+              overridePage = getPostUpdateOverridePage(update, overridePage);
               // Send the update ping to signal that the update was successful.
               UpdatePing.handleUpdateSuccess(old_mstone, old_buildId);
             }
@@ -680,8 +709,7 @@ nsBrowserContentHandler.prototype = {
             overridePage = overridePage.replace("%OLD_VERSION%", old_mstone);
             break;
           case OVERRIDE_NEW_BUILD_ID:
-            if (prefb.prefHasUserValue("app.update.postupdate")) {
-              prefb.clearUserPref("app.update.postupdate");
+            if (UpdateManager.activeUpdate) {
               // Send the update ping to signal that the update was successful.
               UpdatePing.handleUpdateSuccess(old_mstone, old_buildId);
             }
@@ -693,6 +721,50 @@ nsBrowserContentHandler.prototype = {
     // formatURLPref might return "about:blank" if getting the pref fails
     if (overridePage == "about:blank") {
       overridePage = "";
+    }
+
+    // Allow showing a one-time startup override if we're not showing one
+    if (isStartup && overridePage == "" && prefb.prefHasUserValue(ONCE_PREF)) {
+      try {
+        // Show if we haven't passed the expiration or there's no expiration
+        const { expire, url } = JSON.parse(
+          Services.urlFormatter.formatURLPref(ONCE_PREF)
+        );
+        if (!(Date.now() > expire)) {
+          // Only set allowed urls as override pages
+          overridePage = url
+            .split("|")
+            .map(val => {
+              try {
+                return new URL(val);
+              } catch (ex) {
+                // Invalid URL, so filter out below
+                Cu.reportError(`Invalid once url: ${ex}`);
+                return null;
+              }
+            })
+            .filter(
+              parsed =>
+                parsed &&
+                parsed.protocol == "https:" &&
+                // Only accept exact hostname or subdomain; without port
+                ONCE_DOMAINS.includes(
+                  Services.eTLD.getBaseDomainFromHost(parsed.host)
+                )
+            )
+            .join("|");
+
+          // Be noisy as properly configured urls should be unchanged
+          if (overridePage != url) {
+            Cu.reportError(`Mismatched once urls: ${url}`);
+          }
+        }
+      } catch (ex) {
+        // Invalid json pref, so ignore (and clear below)
+        Cu.reportError(`Invalid once pref: ${ex}`);
+      } finally {
+        prefb.clearUserPref(ONCE_PREF);
+      }
     }
 
     if (!additionalPage) {
@@ -771,6 +843,10 @@ nsBrowserContentHandler.prototype = {
     return this.mFeatures;
   },
 
+  get kiosk() {
+    return gKiosk;
+  },
+
   /* nsIContentHandler */
 
   handleContent: function bch_handleContent(contentType, context, request) {
@@ -800,17 +876,16 @@ nsBrowserContentHandler.prototype = {
 
   /* nsICommandLineValidator */
   validate: function bch_validate(cmdLine) {
-    // Other handlers may use osint so only handle the osint flag if the url
-    // flag is also present and the command line is valid.
-    var osintFlagIdx = cmdLine.findFlag("osint", false);
     var urlFlagIdx = cmdLine.findFlag("url", false);
     if (
       urlFlagIdx > -1 &&
-      (osintFlagIdx > -1 ||
-        cmdLine.state == Ci.nsICommandLine.STATE_REMOTE_EXPLICIT)
+      cmdLine.state == Ci.nsICommandLine.STATE_REMOTE_EXPLICIT
     ) {
       var urlParam = cmdLine.getArgument(urlFlagIdx + 1);
-      if (cmdLine.length != urlFlagIdx + 2 || /firefoxurl:/i.test(urlParam)) {
+      if (
+        cmdLine.length != urlFlagIdx + 2 ||
+        /firefoxurl(-[a-f0-9]+)?:/i.test(urlParam)
+      ) {
         throw Cr.NS_ERROR_ABORT;
       }
       var isDefault = false;
@@ -827,7 +902,6 @@ nsBrowserContentHandler.prototype = {
         // We don't have to show the instruction page.
         throw Cr.NS_ERROR_ABORT;
       }
-      cmdLine.handleFlag("osint", false);
     }
   },
 };
@@ -991,6 +1065,19 @@ nsDefaultCommandLineHandler.prototype = {
       if (win) {
         win.close();
       }
+      // If this is a silent run where we do not open any window, we must
+      // notify shutdown so that the quit-application-granted notification
+      // will happen.  This is required in the AddonManager to properly
+      // handle shutdown blockers for Telemetry and XPIDatabase.
+      // Some command handlers open a window asynchronously, so lets give
+      // that time and then verify that a window was not opened before
+      // quiting.
+      Services.tm.idleDispatchToMainThread(() => {
+        win = Services.wm.getMostRecentWindow(null);
+        if (!win) {
+          Services.startup.quit(Services.startup.eForceQuit);
+        }
+      }, 1);
     }
   },
 

@@ -890,7 +890,7 @@ bool VectorImage::MaybeRestrictSVGContext(
 
     if (overridePAR) {
       // The SVGImageContext must take account of the preserveAspectRatio
-      // overide:
+      // override:
       MOZ_ASSERT(!aSVGContext->GetPreserveAspectRatio(),
                  "FLAG_FORCE_PRESERVEASPECTRATIO_NONE is not expected if a "
                  "preserveAspectRatio override is supplied");
@@ -1102,8 +1102,7 @@ already_AddRefed<SourceSurface> VectorImage::CreateSurface(
   auto frame = MakeNotNull<RefPtr<imgFrame>>();
   nsresult rv = frame->InitWithDrawable(
       aSVGDrawable, aParams.size, SurfaceFormat::B8G8R8A8,
-      SamplingFilter::POINT, aParams.flags, backend,
-      aParams.context ? aParams.context->GetDrawTarget() : nullptr);
+      SamplingFilter::POINT, aParams.flags, backend);
 
   // If we couldn't create the frame, it was probably because it would end
   // up way too big. Generally it also wouldn't fit in the cache, but the prefs
@@ -1282,6 +1281,11 @@ VectorImage::RequestDiscard() {
   if (mDiscardable && mLockCount == 0) {
     SurfaceCache::RemoveImage(ImageKey(this));
     mProgressTracker->OnDiscard();
+  }
+
+  if (Document* doc =
+          mSVGDocumentWrapper ? mSVGDocumentWrapper->GetDocument() : nullptr) {
+    doc->ReportUseCounters();
   }
 
   return NS_OK;
@@ -1503,12 +1507,6 @@ void VectorImage::PropagateUseCounters(Document* aParentDocument) {
   Document* doc = mSVGDocumentWrapper->GetDocument();
   if (doc) {
     doc->PropagateUseCounters(aParentDocument);
-  }
-}
-
-void VectorImage::ReportUseCounters() {
-  if (Document* doc = mSVGDocumentWrapper->GetDocument()) {
-    doc->ReportUseCounters();
   }
 }
 

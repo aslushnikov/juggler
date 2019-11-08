@@ -1,3 +1,7 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this file,
+ * You can obtain one at http://mozilla.org/MPL/2.0/. */
+
 import React from "react";
 import { RichText } from "../../components/RichText/RichText";
 
@@ -11,12 +15,19 @@ export class ReturnToAMO extends React.PureComponent {
     this.onBlockButton = this.onBlockButton.bind(this);
   }
 
+  componentWillMount() {
+    global.document.body.classList.add("amo");
+  }
+
   componentDidMount() {
-    this.props.onReady();
     this.props.sendUserActionTelemetry({
       event: "IMPRESSION",
       id: this.props.UISurface,
     });
+    // Hide the page content from screen readers while the modal is open
+    this.props.document
+      .getElementById("root")
+      .setAttribute("aria-hidden", "true");
   }
 
   onClickAddExtension() {
@@ -34,6 +45,10 @@ export class ReturnToAMO extends React.PureComponent {
       event: "BLOCK",
       id: this.props.UISurface,
     });
+    // Re-enable the document for screen readers
+    this.props.document
+      .getElementById("root")
+      .setAttribute("aria-hidden", "false");
   }
 
   renderText() {

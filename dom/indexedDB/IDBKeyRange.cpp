@@ -21,8 +21,11 @@ namespace {
 
 void GetKeyFromJSVal(JSContext* aCx, JS::Handle<JS::Value> aVal, Key& aKey,
                      ErrorResult& aRv) {
-  aKey.SetFromJSVal(aCx, aVal, aRv);
-  if (aRv.Failed()) {
+  auto result = aKey.SetFromJSVal(aCx, aVal, aRv);
+  if (!result.Is(Ok, aRv)) {
+    if (result.Is(Invalid, aRv)) {
+      aRv.Throw(NS_ERROR_DOM_INDEXEDDB_DATA_ERR);
+    }
     return;
   }
 
@@ -110,72 +113,6 @@ void IDBKeyRange::ToSerialized(SerializedKeyRange& aKeyRange) const {
   if (!IsOnly()) {
     aKeyRange.upper() = Upper();
   }
-}
-
-void IDBKeyRange::GetBindingClause(const nsACString& aKeyColumnName,
-                                   nsACString& _retval) const {
-  NS_NAMED_LITERAL_CSTRING(andStr, " AND ");
-  NS_NAMED_LITERAL_CSTRING(spacecolon, " :");
-  NS_NAMED_LITERAL_CSTRING(lowerKey, "lower_key");
-
-  if (IsOnly()) {
-    // Both keys are set and they're equal.
-    _retval = andStr + aKeyColumnName + NS_LITERAL_CSTRING(" =") + spacecolon +
-              lowerKey;
-    return;
-  }
-
-  nsAutoCString clause;
-
-  if (!Lower().IsUnset()) {
-    // Lower key is set.
-    clause.Append(andStr + aKeyColumnName);
-    clause.AppendLiteral(" >");
-    if (!LowerOpen()) {
-      clause.Append('=');
-    }
-    clause.Append(spacecolon + lowerKey);
-  }
-
-  if (!Upper().IsUnset()) {
-    // Upper key is set.
-    clause.Append(andStr + aKeyColumnName);
-    clause.AppendLiteral(" <");
-    if (!UpperOpen()) {
-      clause.Append('=');
-    }
-    clause.Append(spacecolon + NS_LITERAL_CSTRING("upper_key"));
-  }
-
-  _retval = clause;
-}
-
-nsresult IDBKeyRange::BindToStatement(mozIStorageStatement* aStatement) const {
-  MOZ_ASSERT(aStatement);
-
-  NS_NAMED_LITERAL_CSTRING(lowerKey, "lower_key");
-
-  if (IsOnly()) {
-    return Lower().BindToStatement(aStatement, lowerKey);
-  }
-
-  nsresult rv;
-
-  if (!Lower().IsUnset()) {
-    rv = Lower().BindToStatement(aStatement, lowerKey);
-    if (NS_WARN_IF(NS_FAILED(rv))) {
-      return rv;
-    }
-  }
-
-  if (!Upper().IsUnset()) {
-    rv = Upper().BindToStatement(aStatement, NS_LITERAL_CSTRING("upper_key"));
-    if (NS_WARN_IF(NS_FAILED(rv))) {
-      return rv;
-    }
-  }
-
-  return NS_OK;
 }
 
 NS_IMPL_CYCLE_COLLECTION_CLASS(IDBKeyRange)

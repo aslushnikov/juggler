@@ -13,14 +13,12 @@ const {
   getUrlBaseName,
   parseQueryString,
 } = require("../utils/request-utils");
+const {
+  hasMatchingBlockingRequestPattern,
+} = require("../utils/request-blocking");
 
 loader.lazyRequireGetter(this, "Curl", "devtools/client/shared/curl", true);
-loader.lazyRequireGetter(
-  this,
-  "saveAs",
-  "devtools/client/shared/file-saver",
-  true
-);
+loader.lazyRequireGetter(this, "saveAs", "devtools/shared/DevToolsUtils", true);
 loader.lazyRequireGetter(
   this,
   "copyString",
@@ -40,16 +38,17 @@ loader.lazyRequireGetter(
   true
 );
 
+const OS = Services.appinfo.OS;
+
 class RequestListContextMenu {
   constructor(props) {
     this.props = props;
   }
 
   /* eslint-disable complexity */
-  open(event, clickedRequest, requests) {
+  open(event, clickedRequest, requests, blockedUrls) {
     const {
       id,
-      blockedReason,
       isCustom,
       formDataSections,
       method,
@@ -66,14 +65,15 @@ class RequestListContextMenu {
       url,
     } = clickedRequest;
     const {
-      blockSelectedRequestURL,
       connector,
       cloneRequest,
       openDetailsPanelTab,
       sendCustomRequest,
       openStatistics,
       openRequestInTab,
-      unblockSelectedRequestURL,
+      openRequestBlockingAndAddUrl,
+      openRequestBlockingAndDisableUrls,
+      removeBlockedUrl,
     } = this.props;
     const menu = [];
     const copySubmenu = [];
@@ -107,23 +107,69 @@ class RequestListContextMenu {
       click: () => this.copyPostData(id, formDataSections, requestPostData),
     });
 
-    copySubmenu.push({
-      id: "request-list-context-copy-as-curl",
-      label: L10N.getStr("netmonitor.context.copyAsCurl"),
-      accesskey: L10N.getStr("netmonitor.context.copyAsCurl.accesskey"),
-      // Menu item will be visible even if data hasn't arrived, so we need to check
-      // *Available property and then fetch data lazily once user triggers the action.
-      visible: !!clickedRequest,
-      click: () =>
-        this.copyAsCurl(
-          id,
-          url,
-          method,
-          httpVersion,
-          requestHeaders,
-          requestPostData
+    if (OS === "WINNT") {
+      copySubmenu.push({
+        id: "request-list-context-copy-as-curl-win",
+        label: L10N.getFormatStr(
+          "netmonitor.context.copyAsCurl.win",
+          L10N.getStr("netmonitor.context.copyAsCurl")
         ),
-    });
+        accesskey: L10N.getStr("netmonitor.context.copyAsCurl.win.accesskey"),
+        // Menu item will be visible even if data hasn't arrived, so we need to check
+        // *Available property and then fetch data lazily once user triggers the action.
+        visible: !!clickedRequest,
+        click: () =>
+          this.copyAsCurl(
+            id,
+            url,
+            method,
+            httpVersion,
+            requestHeaders,
+            requestPostData,
+            "WINNT"
+          ),
+      });
+
+      copySubmenu.push({
+        id: "request-list-context-copy-as-curl-posix",
+        label: L10N.getFormatStr(
+          "netmonitor.context.copyAsCurl.posix",
+          L10N.getStr("netmonitor.context.copyAsCurl")
+        ),
+        accesskey: L10N.getStr("netmonitor.context.copyAsCurl.posix.accesskey"),
+        // Menu item will be visible even if data hasn't arrived, so we need to check
+        // *Available property and then fetch data lazily once user triggers the action.
+        visible: !!clickedRequest,
+        click: () =>
+          this.copyAsCurl(
+            id,
+            url,
+            method,
+            httpVersion,
+            requestHeaders,
+            requestPostData,
+            "Linux"
+          ),
+      });
+    } else {
+      copySubmenu.push({
+        id: "request-list-context-copy-as-curl",
+        label: L10N.getStr("netmonitor.context.copyAsCurl"),
+        accesskey: L10N.getStr("netmonitor.context.copyAsCurl.accesskey"),
+        // Menu item will be visible even if data hasn't arrived, so we need to check
+        // *Available property and then fetch data lazily once user triggers the action.
+        visible: !!clickedRequest,
+        click: () =>
+          this.copyAsCurl(
+            id,
+            url,
+            method,
+            httpVersion,
+            requestHeaders,
+            requestPostData
+          ),
+      });
+    }
 
     copySubmenu.push({
       id: "request-list-context-copy-as-fetch",
@@ -266,18 +312,28 @@ class RequestListContextMenu {
     menu.push({
       id: "request-list-context-block-url",
       label: L10N.getStr("netmonitor.context.blockURL"),
-      visible: !!(clickedRequest && !blockedReason),
+      visible: !hasMatchingBlockingRequestPattern(
+        blockedUrls,
+        clickedRequest.url
+      ),
       click: () => {
-        blockSelectedRequestURL(clickedRequest);
+        openRequestBlockingAndAddUrl(clickedRequest.url);
       },
     });
 
     menu.push({
       id: "request-list-context-unblock-url",
       label: L10N.getStr("netmonitor.context.unblockURL"),
-      visible: !!(clickedRequest && blockedReason),
+      visible: hasMatchingBlockingRequestPattern(
+        blockedUrls,
+        clickedRequest.url
+      ),
       click: () => {
-        unblockSelectedRequestURL(clickedRequest);
+        if (blockedUrls.find(blockedUrl => blockedUrl === clickedRequest.url)) {
+          removeBlockedUrl(clickedRequest.url);
+        } else {
+          openRequestBlockingAndDisableUrls(clickedRequest.url);
+        }
       },
     });
 
@@ -345,7 +401,6 @@ class RequestListContextMenu {
       screenY: event.screenY,
     });
   }
-  /* eslint-enable complexity */
 
   /**
    * Opens selected item in the debugger
@@ -423,7 +478,8 @@ class RequestListContextMenu {
     method,
     httpVersion,
     requestHeaders,
-    requestPostData
+    requestPostData,
+    platform
   ) {
     requestHeaders =
       requestHeaders ||
@@ -441,7 +497,7 @@ class RequestListContextMenu {
       httpVersion,
       postDataText: requestPostData ? requestPostData.postData.text : "",
     };
-    copyString(Curl.generateCommand(data));
+    copyString(Curl.generateCommand(data, platform));
   }
 
   /**
@@ -611,9 +667,9 @@ class RequestListContextMenu {
         data[i] = decoded.charCodeAt(i);
       }
     } else {
-      data = text;
+      data = new TextEncoder().encode(text);
     }
-    saveAs(new Blob([data]), fileName, document);
+    saveAs(window, data, fileName);
   }
 
   /**

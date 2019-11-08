@@ -24,6 +24,7 @@
 #include "mozilla/ScopeExit.h"
 #include "mozilla/Services.h"
 #include "mozilla/Telemetry.h"
+#include "mozilla/Utf8.h"
 #include "mozilla/intl/LocaleService.h"
 #include "mozilla/recordreplay/ParentIPC.h"
 #include "mozilla/JSONWriter.h"
@@ -69,7 +70,6 @@
 #include "nsIConsoleService.h"
 #include "nsIContentHandler.h"
 #include "nsIDialogParamBlock.h"
-#include "nsIDOMWindow.h"
 #include "mozilla/ModuleUtils.h"
 #include "nsIIOService.h"
 #include "nsIObserverService.h"
@@ -97,6 +97,7 @@
 #include "nsIWidget.h"
 #include "nsIDocShell.h"
 #include "nsAppShellCID.h"
+#include "mozilla/dom/quota/QuotaManager.h"
 #include "mozilla/scache/StartupCache.h"
 #include "gfxPlatform.h"
 
@@ -112,6 +113,7 @@
 #  include "mozilla/WinHeaderOnlyUtils.h"
 #  include "mozilla/mscom/ProcessRuntime.h"
 #  include "mozilla/widget/AudioSession.h"
+#  include "WinTokenUtils.h"
 
 #  if defined(MOZ_LAUNCHER_PROCESS)
 #    include "mozilla/LauncherRegistryInfo.h"
@@ -254,7 +256,7 @@ static const char kPrefHealthReportUploadEnabled[] =
 int gArgc;
 char** gArgv;
 
-static const char gToolkitVersion[] = NS_STRINGIFY(GRE_MILESTONE);
+static const char gToolkitVersion[] = MOZ_STRINGIFY(GRE_MILESTONE);
 // The gToolkitBuildID global is defined to MOZ_BUILDID via gen_buildid.py
 // in toolkit/library. See related comment in toolkit/library/moz.build.
 extern const char gToolkitBuildID[];
@@ -320,6 +322,7 @@ using namespace mozilla::startup;
 using mozilla::Unused;
 using mozilla::dom::ContentChild;
 using mozilla::dom::ContentParent;
+using mozilla::dom::quota::QuotaManager;
 using mozilla::intl::LocaleService;
 using mozilla::scache::StartupCache;
 
@@ -851,7 +854,7 @@ nsXULAppInfo::GetIsOfficialBranding(bool* aResult) {
 
 NS_IMETHODIMP
 nsXULAppInfo::GetDefaultUpdateChannel(nsACString& aResult) {
-  aResult.AssignLiteral(NS_STRINGIFY(MOZ_UPDATE_CHANNEL));
+  aResult.AssignLiteral(MOZ_STRINGIFY(MOZ_UPDATE_CHANNEL));
   return NS_OK;
 }
 
@@ -1001,18 +1004,13 @@ nsXULAppInfo::GetServerURL(nsIURL** aServerURL) {
 
 NS_IMETHODIMP
 nsXULAppInfo::SetServerURL(nsIURL* aServerURL) {
-  bool schemeOk;
-  // only allow https or http URLs
-  nsresult rv = aServerURL->SchemeIs("https", &schemeOk);
-  NS_ENSURE_SUCCESS(rv, rv);
-  if (!schemeOk) {
-    rv = aServerURL->SchemeIs("http", &schemeOk);
-    NS_ENSURE_SUCCESS(rv, rv);
-
-    if (!schemeOk) return NS_ERROR_INVALID_ARG;
+  // Only allow https or http URLs
+  if (!aServerURL->SchemeIs("http") && !aServerURL->SchemeIs("https")) {
+    return NS_ERROR_INVALID_ARG;
   }
+
   nsAutoCString spec;
-  rv = aServerURL->GetSpec(spec);
+  nsresult rv = aServerURL->GetSpec(spec);
   NS_ENSURE_SUCCESS(rv, rv);
 
   return CrashReporter::SetServerURL(spec);
@@ -1452,7 +1450,7 @@ static inline void DumpVersion() {
 
   // Use the displayed version
   // For example, for beta, we would display 42.0b2 instead of 42.0
-  printf("%s", NS_STRINGIFY(MOZ_APP_VERSION_DISPLAY));
+  printf("%s", MOZ_STRINGIFY(MOZ_APP_VERSION_DISPLAY));
 
   if (gAppData->copyright) {
     printf(", %s", (const char*)gAppData->copyright);
@@ -1980,26 +1978,12 @@ static nsresult SelectProfile(nsToolkitProfileService* aProfileSvc,
 
   // reset-profile and migration args need to be checked before any profiles are
   // chosen below.
-  ArgResult ar = CheckArg("reset-profile", nullptr,
-                          CheckArgFlag::CheckOSInt | CheckArgFlag::RemoveArg);
-  if (ar == ARG_BAD) {
-    PR_fprintf(PR_STDERR,
-               "Error: argument --reset-profile is invalid when argument "
-               "--osint is specified\n");
-    return NS_ERROR_FAILURE;
-  }
+  ArgResult ar = CheckArg("reset-profile");
   if (ar == ARG_FOUND) {
     gDoProfileReset = true;
   }
 
-  ar = CheckArg("migration", nullptr,
-                CheckArgFlag::CheckOSInt | CheckArgFlag::RemoveArg);
-  if (ar == ARG_BAD) {
-    PR_fprintf(PR_STDERR,
-               "Error: argument --migration is invalid when argument --osint "
-               "is specified\n");
-    return NS_ERROR_FAILURE;
-  }
+  ar = CheckArg("migration");
   if (ar == ARG_FOUND) {
     gDoMigration = true;
   }
@@ -2171,7 +2155,8 @@ static void SubmitDowngradeTelemetry(const nsCString& aLastVersion,
       w.StringProperty("buildId", gAppData->buildID);
       w.StringProperty("name", gAppData->name);
       w.StringProperty("version", gAppData->version);
-      w.StringProperty("displayVersion", NS_STRINGIFY(MOZ_APP_VERSION_DISPLAY));
+      w.StringProperty("displayVersion",
+                       MOZ_STRINGIFY(MOZ_APP_VERSION_DISPLAY));
       w.StringProperty("vendor", gAppData->vendor);
       w.StringProperty("platformVersion", gToolkitVersion);
 #  ifdef TARGET_XPCOM_ABI
@@ -2302,7 +2287,7 @@ static ReturnAbortOnError CheckDowngrade(nsIFile* aProfileDir,
     nsCString profileName;
     profileName.AssignLiteral("default");
 #  ifdef MOZ_DEDICATED_PROFILES
-    profileName.Append("-" NS_STRINGIFY(MOZ_UPDATE_CHANNEL));
+    profileName.Append("-" MOZ_STRINGIFY(MOZ_UPDATE_CHANNEL));
 #  endif
     nsCOMPtr<nsIToolkitProfile> newProfile;
     rv = aProfileSvc->CreateUniqueProfile(nullptr, profileName,
@@ -2732,11 +2717,6 @@ static void MOZ_gdk_display_close(GdkDisplay* display) {
   if (gtk_check_version(3, 9, 8) != NULL) skip_display_close = true;
 #    endif
 
-  // Get a (new) Pango context that holds a reference to the fontmap that
-  // GTK has been using.  gdk_pango_context_get() must be called while GTK
-  // has a default display.
-  PangoContext* pangoContext = gdk_pango_context_get();
-
   bool buggyCairoShutdown = cairo_version() < CAIRO_VERSION_ENCODE(1, 4, 0);
 
   if (!buggyCairoShutdown) {
@@ -2746,26 +2726,6 @@ static void MOZ_gdk_display_close(GdkDisplay* display) {
     // references to Display objects (see bug 469831).
     if (!skip_display_close) gdk_display_close(display);
   }
-
-  // Clean up PangoCairo's default fontmap.
-  // This pango_fc_font_map_shutdown call (and the associated code to
-  // get the font map) really shouldn't be needed anymore, except that
-  // it's needed to avoid having cairo_debug_reset_static_data fatally
-  // assert if we've leaked other things that hold on to the fontmap,
-  // which is something that currently happens in mochitest-plugins.
-  // Even if it didn't happen in mochitest-plugins, we probably want to
-  // avoid the crash-on-leak problem since it makes it harder to use
-  // many of our leak tools to debug leaks.
-
-  // This doesn't take a reference.
-  PangoFontMap* fontmap = pango_context_get_font_map(pangoContext);
-  // Do some shutdown of the fontmap, which releases the fonts, clearing a
-  // bunch of circular references from the fontmap through the fonts back to
-  // itself.  The shutdown that this does is much less than what's done by
-  // the fontmap's finalize, though.
-  if (PANGO_IS_FC_FONT_MAP(fontmap))
-    pango_fc_font_map_shutdown(PANGO_FC_FONT_MAP(fontmap));
-  g_object_unref(pangoContext);
 
   // Tell PangoCairo to release its default fontmap.
   pango_cairo_font_map_set_default(nullptr);
@@ -3024,6 +2984,21 @@ int XREMain::XRE_mainInit(bool* aExitFlag) {
   DisableAppNap();
 #endif
 
+#ifndef ANDROID
+  if (PR_GetEnv("MOZ_RUN_GTEST")
+#  ifdef FUZZING
+      || PR_GetEnv("FUZZER")
+#  endif
+  ) {
+    // Enable headless mode and assert that it worked, since gfxPlatform
+    // uses a static bool set after the first call to `IsHeadless`.
+    // Note: Android gtests seem to require an Activity and fail to start
+    // with headless mode enabled.
+    PR_SetEnv("MOZ_HEADLESS=1");
+    MOZ_ASSERT(gfxPlatform::IsHeadless());
+  }
+#endif  // ANDROID
+
   if (PR_GetEnv("MOZ_CHAOSMODE")) {
     ChaosFeature feature = ChaosFeature::Any;
     long featureInt = strtol(PR_GetEnv("MOZ_CHAOSMODE"), nullptr, 16);
@@ -3134,8 +3109,7 @@ int XREMain::XRE_mainInit(bool* aExitFlag) {
 
   // Check for application.ini overrides
   const char* override = nullptr;
-  ar = CheckArg("override", &override,
-                CheckArgFlag::CheckOSInt | CheckArgFlag::RemoveArg);
+  ar = CheckArg("override", &override);
   if (ar == ARG_BAD) {
     Output(true, "Incorrect number of arguments passed to --override");
     return 1;
@@ -3232,7 +3206,7 @@ int XREMain::XRE_mainInit(bool* aExitFlag) {
       CrashReporter::AnnotateCrashReport(CrashReporter::Annotation::BuildID,
                                          nsDependentCString(mAppData->buildID));
 
-    nsDependentCString releaseChannel(NS_STRINGIFY(MOZ_UPDATE_CHANNEL));
+    nsDependentCString releaseChannel(MOZ_STRINGIFY(MOZ_UPDATE_CHANNEL));
     CrashReporter::AnnotateCrashReport(
         CrashReporter::Annotation::ReleaseChannel, releaseChannel);
 #ifdef MOZ_LINKER
@@ -3422,14 +3396,7 @@ int XREMain::XRE_mainInit(bool* aExitFlag) {
   // Handle --no-remote and --new-instance command line arguments. Setup
   // the environment to better accommodate other components and various
   // restart scenarios.
-  ar = CheckArg("no-remote", nullptr,
-                CheckArgFlag::CheckOSInt | CheckArgFlag::RemoveArg);
-  if (ar == ARG_BAD) {
-    PR_fprintf(PR_STDERR,
-               "Error: argument --no-remote is invalid when argument --osint "
-               "is specified\n");
-    return 1;
-  }
+  ar = CheckArg("no-remote");
   if (ar == ARG_FOUND || EnvHasValue("MOZ_NO_REMOTE")) {
     mDisableRemoteClient = true;
     mDisableRemoteServer = true;
@@ -3438,14 +3405,7 @@ int XREMain::XRE_mainInit(bool* aExitFlag) {
     }
   }
 
-  ar = CheckArg("new-instance", nullptr,
-                CheckArgFlag::CheckOSInt | CheckArgFlag::RemoveArg);
-  if (ar == ARG_BAD) {
-    PR_fprintf(PR_STDERR,
-               "Error: argument --new-instance is invalid when argument "
-               "--osint is specified\n");
-    return 1;
-  }
+  ar = CheckArg("new-instance");
   if (ar == ARG_FOUND || EnvHasValue("MOZ_NEW_INSTANCE")) {
     mDisableRemoteClient = true;
   }
@@ -3456,15 +3416,7 @@ int XREMain::XRE_mainInit(bool* aExitFlag) {
   CheckArg("new-instance");
 #endif
 
-  ar = CheckArg("offline", nullptr,
-                CheckArgFlag::CheckOSInt | CheckArgFlag::RemoveArg);
-  if (ar == ARG_BAD) {
-    PR_fprintf(PR_STDERR,
-               "Error: argument --offline is invalid when argument --osint is "
-               "specified\n");
-    return 1;
-  }
-
+  ar = CheckArg("offline");
   if (ar || EnvHasValue("XRE_START_OFFLINE")) {
     mStartOffline = true;
   }
@@ -3662,7 +3614,7 @@ static void SetShutdownChecks() {
   gShutdownChecks = SCM_CRASH;
 #  endif  // MOZ_CODE_COVERAGE
 #else
-  const char* releaseChannel = NS_STRINGIFY(MOZ_UPDATE_CHANNEL);
+  const char* releaseChannel = MOZ_STRINGIFY(MOZ_UPDATE_CHANNEL);
   if (strcmp(releaseChannel, "nightly") == 0 ||
       strcmp(releaseChannel, "default") == 0) {
     gShutdownChecks = SCM_RECORD;
@@ -3761,7 +3713,7 @@ int XREMain::XRE_mainStartup(bool* aExitFlag) {
   mozilla::Telemetry::InitIOReporting(gAppData->xreDirectory);
 #  else
   {
-    const char* releaseChannel = NS_STRINGIFY(MOZ_UPDATE_CHANNEL);
+    const char* releaseChannel = MOZ_STRINGIFY(MOZ_UPDATE_CHANNEL);
     if (strcmp(releaseChannel, "nightly") == 0 ||
         strcmp(releaseChannel, "default") == 0) {
       mozilla::Telemetry::InitIOReporting(gAppData->xreDirectory);
@@ -4237,6 +4189,8 @@ int XREMain::XRE_mainStartup(bool* aExitFlag) {
   bool startupCacheValid = true;
 
   if (!cachesOK || !versionOK) {
+    QuotaManager::InvalidateQuotaCache();
+
     startupCacheValid = RemoveComponentRegistries(mProfD, mProfLD, false);
 
     // Rewrite compatibility.ini to match the current build. The next run
@@ -4436,7 +4390,7 @@ nsresult XREMain::XRE_mainRun() {
   nsAutoCString path;
   rv = mDirProvider.GetProfileStartupDir(getter_AddRefs(profileDir));
   if (NS_SUCCEEDED(rv) && NS_SUCCEEDED(profileDir->GetNativePath(path)) &&
-      !IsUTF8(path)) {
+      !IsUtf8(path)) {
     PR_fprintf(
         PR_STDERR,
         "Error: The profile path is not valid UTF-8. Unable to continue.\n");
@@ -4626,6 +4580,15 @@ nsresult XREMain::XRE_mainRun() {
       CrashReporter::Annotation::ContentSandboxCapabilities, flagsString);
 #endif /* MOZ_SANDBOX && XP_LINUX */
 
+#if defined(XP_WIN)
+  LauncherResult<bool> isAdminWithoutUac = IsAdminWithoutUac();
+  if (isAdminWithoutUac.isOk()) {
+    Telemetry::ScalarSet(
+        Telemetry::ScalarID::OS_ENVIRONMENT_IS_ADMIN_WITHOUT_UAC,
+        isAdminWithoutUac.unwrap());
+  }
+#endif /* XP_WIN */
+
 #if defined(MOZ_SANDBOX)
   AddSandboxAnnotations();
 #endif /* MOZ_SANDBOX */
@@ -4649,9 +4612,12 @@ nsresult XREMain::XRE_mainRun() {
  *            .app/Contents/Resources.
  */
 int XREMain::XRE_main(int argc, char* argv[], const BootstrapConfig& aConfig) {
+  gArgc = argc;
+  gArgv = argv;
+
   ScopedLogging log;
 
-  mozilla::LogModule::Init(argc, argv);
+  mozilla::LogModule::Init(gArgc, gArgv);
 
 #ifdef MOZ_CODE_COVERAGE
   CodeCoverageHandler::Init();
@@ -4662,9 +4628,6 @@ int XREMain::XRE_main(int argc, char* argv[], const BootstrapConfig& aConfig) {
   AUTO_PROFILER_LABEL("XREMain::XRE_main", OTHER);
 
   nsresult rv = NS_OK;
-
-  gArgc = argc;
-  gArgv = argv;
 
   if (aConfig.appData) {
     mAppData = MakeUnique<XREAppData>(*aConfig.appData);
@@ -4891,13 +4854,10 @@ nsresult XRE_InitCommandLine(int aArgc, char* aArgv[]) {
   recordreplay::parent::InitializeUIProcess(gArgc, gArgv);
 
   const char* path = nullptr;
-  ArgResult ar = CheckArg("greomni", &path,
-                          CheckArgFlag::CheckOSInt | CheckArgFlag::RemoveArg);
+  ArgResult ar = CheckArg("greomni", &path);
   if (ar == ARG_BAD) {
     PR_fprintf(PR_STDERR,
-               "Error: argument --greomni requires a path argument or the "
-               "--osint argument was specified with the --appomni argument "
-               "which is invalid\n");
+               "Error: argument --greomni requires a path argument\n");
     return NS_ERROR_FAILURE;
   }
 
@@ -4910,13 +4870,10 @@ nsresult XRE_InitCommandLine(int aArgc, char* aArgv[]) {
     return rv;
   }
 
-  ar = CheckArg("appomni", &path,
-                CheckArgFlag::CheckOSInt | CheckArgFlag::RemoveArg);
+  ar = CheckArg("appomni", &path);
   if (ar == ARG_BAD) {
     PR_fprintf(PR_STDERR,
-               "Error: argument --appomni requires a path argument or the "
-               "--osint argument was specified with the --appomni argument "
-               "which is invalid\n");
+               "Error: argument --appomni requires a path argument\n");
     return NS_ERROR_FAILURE;
   }
 
@@ -4947,7 +4904,12 @@ GeckoProcessType XRE_GetProcessType() {
 }
 
 bool XRE_IsE10sParentProcess() {
+#ifdef MOZ_WIDGET_ANDROID
+  return XRE_IsParentProcess() && BrowserTabsRemoteAutostart() &&
+         mozilla::jni::IsAvailable();
+#else
   return XRE_IsParentProcess() && BrowserTabsRemoteAutostart();
+#endif
 }
 
 #define GECKO_PROCESS_TYPE(enum_name, string_name, xre_name, bin_type) \
@@ -4964,15 +4926,7 @@ bool XRE_UseNativeEventProcessing() {
   }
 #endif
   if (XRE_IsContentProcess()) {
-    static bool sInited = false;
-    static bool sUseNativeEventProcessing = false;
-    if (!sInited) {
-      Preferences::AddBoolVarCache(&sUseNativeEventProcessing,
-                                   "dom.ipc.useNativeEventProcessing.content");
-      sInited = true;
-    }
-
-    return sUseNativeEventProcessing;
+    return StaticPrefs::dom_ipc_useNativeEventProcessing_content();
   }
 
   return true;

@@ -10,7 +10,6 @@ SOURCES += [
     'maintenanceservice.cpp',
     'servicebase.cpp',
     'serviceinstall.cpp',
-    'usertoken.cpp',
     'workmonitor.cpp',
 ]
 
@@ -27,7 +26,6 @@ DEFINES['NS_NO_XPCOM'] = True
 
 # Pick up nsWindowsRestart.cpp
 LOCAL_INCLUDES += [
-    '/mfbt',
     '/toolkit/mozapps/update/common',
     '/toolkit/xre',
 ]
@@ -37,6 +35,12 @@ USE_STATIC_LIBS = True
 if CONFIG['CC_TYPE'] == 'clang-cl':
     WIN32_EXE_LDFLAGS += ['-ENTRY:wmainCRTStartup']
 
+if CONFIG['OS_TARGET'] == 'WINNT' and CONFIG['CC_TYPE'] in ('gcc', 'clang'):
+    # This allows us to use wmain as the entry point on mingw
+    LDFLAGS += [
+        '-municode',
+    ]
+
 RCINCLUDE = 'maintenanceservice.rc'
 
 DisableStlWrapping()
@@ -45,8 +49,7 @@ OS_LIBS += [
     'comctl32',
     'ws2_32',
     'shell32',
-    'oleaut32',
-    'wbemuuid',
+    'shlwapi',
 ]
 
 with Files('**'):

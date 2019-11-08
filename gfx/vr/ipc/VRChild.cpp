@@ -14,7 +14,6 @@
 #include "mozilla/Telemetry.h"
 #include "mozilla/VsyncDispatcher.h"
 #include "mozilla/dom/MemoryReportRequest.h"
-#include "mozilla/ipc/CrashReporterHost.h"
 
 namespace mozilla {
 namespace gfx {
@@ -91,10 +90,7 @@ mozilla::ipc::IPCResult VRChild::RecvFinishMemoryReport(
 
 void VRChild::ActorDestroy(ActorDestroyReason aWhy) {
   if (aWhy == AbnormalShutdown) {
-    if (mCrashReporter) {
-      mCrashReporter->GenerateCrashReport(OtherPid());
-      mCrashReporter = nullptr;
-    }
+    GenerateCrashReport(OtherPid());
 
     Telemetry::Accumulate(
         Telemetry::SUBPROCESS_ABNORMAL_ABORT,
@@ -170,14 +166,6 @@ mozilla::ipc::IPCResult VRChild::RecvOpenVRControllerManifestPathToParent(
 mozilla::ipc::IPCResult VRChild::RecvInitComplete() {
   // We synchronously requested VR parameters before this arrived.
   mVRReady = true;
-  return IPC_OK();
-}
-
-mozilla::ipc::IPCResult VRChild::RecvInitCrashReporter(
-    Shmem&& aShmem, const NativeThreadId& aThreadId) {
-  mCrashReporter = MakeUnique<ipc::CrashReporterHost>(GeckoProcessType_VR,
-                                                      aShmem, aThreadId);
-
   return IPC_OK();
 }
 

@@ -22,7 +22,7 @@ add_task(async function() {
   await BrowserTestUtils.browserLoaded(browser);
 
   info("Disabling content blocking for this page");
-  ContentBlocking.disableForCurrentPage();
+  gProtectionsHandler.disableForCurrentPage();
 
   await BrowserTestUtils.browserLoaded(browser);
 
@@ -49,4 +49,10 @@ add_task(async function() {
   info("Removing tabs");
   BrowserTestUtils.removeTab(tab);
   BrowserTestUtils.removeTab(tab2);
+
+  await new Promise(resolve => {
+    Services.clearData.deleteData(Ci.nsIClearDataService.CLEAR_ALL, value =>
+      resolve()
+    );
+  });
 });

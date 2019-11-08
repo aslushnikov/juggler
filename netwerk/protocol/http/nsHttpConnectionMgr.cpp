@@ -126,6 +126,7 @@ nsHttpConnectionMgr::nsHttpConnectionMgr()
       mThrottleReadInterval(0),
       mThrottleHoldTime(0),
       mThrottleMaxTime(0),
+      mBeConservativeForProxy(true),
       mIsShuttingDown(false),
       mNumActiveConns(0),
       mNumIdleConns(0),
@@ -2794,7 +2795,6 @@ void nsHttpConnectionMgr::OnMsgReclaimConnection(int32_t, ARefBase* param) {
                                ? mCT.GetWeak(conn->ConnectionInfo()->HashKey())
                                : nullptr;
 
-  DebugOnly<bool> newEntry = false;
   if (!ent) {
     // this can happen if the connection is made outside of the
     // connection manager and is being "reclaimed" for use with
@@ -2804,8 +2804,6 @@ void nsHttpConnectionMgr::OnMsgReclaimConnection(int32_t, ARefBase* param) {
         ("nsHttpConnectionMgr::OnMsgReclaimConnection conn %p "
          "forced new hash entry %s\n",
          conn, conn->ConnectionInfo()->HashKey().get()));
-
-    newEntry = true;
   }
 
   MOZ_ASSERT(ent);
@@ -2848,21 +2846,16 @@ void nsHttpConnectionMgr::OnMsgReclaimConnection(int32_t, ARefBase* param) {
     anonInvertedCI->SetAnonymous(!ci->GetAnonymous());
 
     nsConnectionEntry* ent = mCT.GetWeak(anonInvertedCI->HashKey());
-    if (ent && ent->mActiveConns.RemoveElement(conn)) {
-      DecrementActiveConnCount(conn);
-      ConditionallyStopTimeoutTick();
-    } else {
-      LOG(
-          ("nsHttpConnection %p could not be removed from its entry's active "
-           "list",
-           conn));
-
-      // nsHttpConnectionMgr::AbortAndCloseAllConnections may race with this
-      // event handling.  It wipes and throws away all conn entries.  Then it's
-      // obviously fine that we can't find this connection anywhere.
-      MOZ_ASSERT(newEntry,
-                 "Active connection not found in a pre-existing entry nor "
-                 "^anonymous entry");
+    if (ent) {
+      if (ent->mActiveConns.RemoveElement(conn)) {
+        DecrementActiveConnCount(conn);
+        ConditionallyStopTimeoutTick();
+      } else {
+        LOG(
+            ("nsHttpConnection %p could not be removed from its entry's active "
+             "list",
+             conn));
+      }
     }
   }
 
@@ -2913,21 +2906,39 @@ void nsHttpConnectionMgr::OnMsgCompleteUpgrade(int32_t, ARefBase* param) {
        conn.get(), data->mUpgradeListener.get(), data->mJsWrapped));
 
   if (!conn) {
-    return;
-  }
+    // Delay any error reporting to happen in transportAvailableFunc
+    rv = NS_ERROR_UNEXPECTED;
+  } else {
+    MOZ_ASSERT(!data->mSocketTransport);
+    rv = conn->TakeTransport(getter_AddRefs(data->mSocketTransport),
+                             getter_AddRefs(data->mSocketIn),
+                             getter_AddRefs(data->mSocketOut));
 
-  MOZ_ASSERT(!data->mSocketTransport);
-  rv = conn->TakeTransport(getter_AddRefs(data->mSocketTransport),
-                           getter_AddRefs(data->mSocketIn),
-                           getter_AddRefs(data->mSocketOut));
-
-  if (NS_FAILED(rv)) {
-    return;
+    if (NS_FAILED(rv)) {
+      LOG(("  conn->TakeTransport failed with %" PRIx32,
+           static_cast<uint32_t>(rv)));
+    }
   }
 
   RefPtr<nsCompleteUpgradeData> upgradeData(data);
-  auto transportAvailableFunc = [upgradeData{std::move(upgradeData)}]() {
-    nsresult rv = upgradeData->mUpgradeListener->OnTransportAvailable(
+  auto transportAvailableFunc = [upgradeData{std::move(upgradeData)},
+                                 aRv(rv)]() {
+    // Handle any potential previous errors first
+    // and call OnUpgradeFailed if necessary.
+    nsresult rv = aRv;
+
+    if (NS_FAILED(rv)) {
+      rv = upgradeData->mUpgradeListener->OnUpgradeFailed(rv);
+      if (NS_FAILED(rv)) {
+        LOG(
+            ("nsHttpConnectionMgr::OnMsgCompleteUpgrade OnUpgradeFailed failed."
+             " listener=%p\n",
+             upgradeData->mUpgradeListener.get()));
+      }
+      return;
+    }
+
+    rv = upgradeData->mUpgradeListener->OnTransportAvailable(
         upgradeData->mSocketTransport, upgradeData->mSocketIn,
         upgradeData->mSocketOut);
     if (NS_FAILED(rv)) {
@@ -2992,6 +3003,9 @@ void nsHttpConnectionMgr::OnMsgUpdateParam(int32_t inParam, ARefBase*) {
       break;
     case THROTTLING_MAX_TIME:
       mThrottleMaxTime = TimeDuration::FromMilliseconds(value);
+      break;
+    case PROXY_BE_CONSERVATIVE:
+      mBeConservativeForProxy = !!value;
       break;
     default:
       MOZ_ASSERT_UNREACHABLE("unexpected parameter name");
@@ -4003,6 +4017,24 @@ nsHttpConnectionMgr::nsHalfOpenSocket::~nsHalfOpenSocket() {
   if (mEnt) mEnt->RemoveHalfOpen(this);
 }
 
+bool nsHttpConnectionMgr::BeConservativeIfProxied(nsIProxyInfo* proxy) {
+  if (mBeConservativeForProxy) {
+    // The pref says to be conservative for proxies.
+    return true;
+  }
+
+  if (!proxy) {
+    // There is no proxy, so be conservative by default.
+    return true;
+  }
+
+  // Be conservative only if there is no proxy host set either.
+  // This logic was copied from nsSSLIOLayerAddToSocket.
+  nsAutoCString proxyHost;
+  proxy->GetHost(proxyHost);
+  return proxyHost.IsEmpty();
+}
+
 nsresult nsHttpConnectionMgr::nsHalfOpenSocket::SetupStreams(
     nsISocketTransport** transport, nsIAsyncInputStream** instream,
     nsIAsyncOutputStream** outstream, bool isBackup) {
@@ -4075,7 +4107,8 @@ nsresult nsHttpConnectionMgr::nsHalfOpenSocket::SetupStreams(
     tmpFlags |= nsISocketTransport::DONT_TRY_ESNI;
   }
 
-  if ((mCaps & NS_HTTP_BE_CONSERVATIVE) || ci->GetBeConservative()) {
+  if (((mCaps & NS_HTTP_BE_CONSERVATIVE) || ci->GetBeConservative()) &&
+      gHttpHandler->ConnMgr()->BeConservativeIfProxied(ci->ProxyInfo())) {
     LOG(("Setting Socket to BE_CONSERVATIVE"));
     tmpFlags |= nsISocketTransport::BE_CONSERVATIVE;
   }

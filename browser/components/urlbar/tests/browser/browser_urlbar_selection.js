@@ -147,12 +147,7 @@ add_task(async function rightClickSelectsAll() {
     "The entire URL should be selected."
   );
 
-  let textBox = document.getAnonymousElementByAttribute(
-    gURLBar.textbox,
-    "anonid",
-    "moz-input-box"
-  );
-  let contextMenu = textBox.menupopup;
+  let contextMenu = gURLBar.querySelector("moz-input-box").menupopup;
 
   // While the context menu is open, test the "Select All" button.
   let contextMenuItem = contextMenu.firstElementChild;
@@ -187,7 +182,7 @@ add_task(async function rightClickSelectsAll() {
     "The entire URL should be selected after clicking selectAll button."
   );
 
-  contextMenu.hidePopup();
+  gURLBar.querySelector("moz-input-box").menupopup.hidePopup();
   gURLBar.blur();
   await SpecialPowers.popPrefEnv();
 });
@@ -212,13 +207,7 @@ add_task(async function contextMenuDoesNotCancelSelection() {
     "The selection should not have changed."
   );
 
-  let textBox = document.getAnonymousElementByAttribute(
-    gURLBar.textbox,
-    "anonid",
-    "moz-input-box"
-  );
-  textBox.menupopup.hidePopup();
-
+  gURLBar.querySelector("moz-input-box").menupopup.hidePopup();
   gURLBar.blur();
 });
 
@@ -232,4 +221,69 @@ add_task(async function dragSelect() {
     0,
     "Selection should not start at the beginning of the string."
   );
+
+  gURLBar.blur();
+});
+
+/**
+ * Testing for bug 1571018: that the entire Urlbar isn't selected when the
+ * Urlbar is dragged following a selectsAll event then a blur.
+ */
+add_task(async function dragAfterSelectAll() {
+  gURLBar.value = exampleSearch.repeat(10);
+  await click(gURLBar.inputField);
+  Assert.equal(
+    gURLBar.selectionStart,
+    0,
+    "The entire search term should be selected."
+  );
+  Assert.equal(
+    gURLBar.selectionEnd,
+    exampleSearch.repeat(10).length,
+    "The entire search term should be selected."
+  );
+
+  gURLBar.blur();
+
+  // The offset of 30 is arbitrary.
+  await drag(gURLBar.inputField, 30, 0, 60, 0);
+
+  Assert.notEqual(
+    gURLBar.selectionStart,
+    0,
+    "Only part of the search term should be selected."
+  );
+  Assert.notEqual(
+    gURLBar.selectionEnd,
+    exampleSearch.repeat(10).length,
+    "Only part of the search term should be selected."
+  );
+});
+
+/**
+ * Testing for bug 1571018: that the entire Urlbar is selected when the Urlbar
+ * is refocused following a partial text selection then a blur.
+ */
+add_task(async function selectAllAfterDrag() {
+  gURLBar.value = exampleSearch;
+
+  gURLBar.selectionStart = 3;
+  gURLBar.selectionEnd = 7;
+
+  gURLBar.blur();
+
+  await click(gURLBar.inputField);
+
+  Assert.equal(
+    gURLBar.selectionStart,
+    0,
+    "The entire search term should be selected."
+  );
+  Assert.equal(
+    gURLBar.selectionEnd,
+    exampleSearch.length,
+    "The entire search term should be selected."
+  );
+
+  gURLBar.blur();
 });

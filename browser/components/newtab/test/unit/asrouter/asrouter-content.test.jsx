@@ -9,6 +9,7 @@ import { OnboardingMessageProvider } from "lib/OnboardingMessageProvider.jsm";
 import React from "react";
 import { mount } from "enzyme";
 import { Trailhead } from "../../../content-src/asrouter/templates/Trailhead/Trailhead";
+import { actionCreators as ac } from "common/Actions.jsm";
 
 let [FAKE_MESSAGE] = FAKE_LOCAL_MESSAGES;
 const FAKE_NEWSLETTER_SNIPPET = FAKE_LOCAL_MESSAGES.find(
@@ -20,21 +21,6 @@ const FAKE_BELOW_SEARCH_SNIPPET = FAKE_LOCAL_MESSAGES.find(
 );
 
 FAKE_MESSAGE = Object.assign({}, FAKE_MESSAGE, { provider: "fakeprovider" });
-const FAKE_BUNDLED_MESSAGE = {
-  bundle: [
-    {
-      id: "foo",
-      template: "onboarding",
-      content: {
-        title: "Foo",
-        primary_button: { label: "Bar" },
-        text: "Foo123",
-      },
-    },
-  ],
-  extraTemplateStrings: {},
-  template: "onboarding",
-};
 
 describe("ASRouterUtils", () => {
   let global;
@@ -63,21 +49,32 @@ describe("ASRouterUtils", () => {
 
 describe("ASRouterUISurface", () => {
   let wrapper;
-  let global;
+  let globalO;
   let sandbox;
   let headerPortal;
   let footerPortal;
   let fakeDocument;
+  let fetchStub;
 
   beforeEach(() => {
     sandbox = sinon.createSandbox();
     headerPortal = document.createElement("div");
     footerPortal = document.createElement("div");
     sandbox.stub(footerPortal, "querySelector").returns(footerPortal);
+    fetchStub = sandbox.stub(global, "fetch").resolves({
+      ok: true,
+      status: 200,
+      json: () => Promise.resolve({}),
+    });
     fakeDocument = {
       location: { href: "" },
       _listeners: new Set(),
       _visibilityState: "hidden",
+      head: {
+        appendChild(el) {
+          return el;
+        },
+      },
       get visibilityState() {
         return this._visibilityState;
       },
@@ -98,11 +95,19 @@ describe("ASRouterUISurface", () => {
         return document.createElement("body");
       },
       getElementById(id) {
-        return id === "header-asrouter-container" ? headerPortal : footerPortal;
+        switch (id) {
+          case "header-asrouter-container":
+            return headerPortal;
+          default:
+            return footerPortal;
+        }
+      },
+      createElement(tag) {
+        return document.createElement(tag);
       },
     };
-    global = new GlobalOverrider();
-    global.set({
+    globalO = new GlobalOverrider();
+    globalO.set({
       RPMAddMessageListener: sandbox.stub(),
       RPMRemoveMessageListener: sandbox.stub(),
       RPMSendAsyncMessage: sandbox.stub(),
@@ -115,7 +120,7 @@ describe("ASRouterUISurface", () => {
 
   afterEach(() => {
     sandbox.restore();
-    global.restore();
+    globalO.restore();
   });
 
   it("should render the component if a message id is defined", () => {
@@ -145,11 +150,6 @@ describe("ASRouterUISurface", () => {
     );
   });
 
-  it("should render the component if a bundle of messages is defined", () => {
-    wrapper.setState({ bundle: FAKE_BUNDLED_MESSAGE });
-    assert.isTrue(wrapper.exists());
-  });
-
   it("should render a preview banner if message provider is preview", () => {
     wrapper.setState({ message: { ...FAKE_MESSAGE, provider: "preview" } });
     assert.isTrue(wrapper.find(".snippets-preview-banner").exists());
@@ -173,10 +173,13 @@ describe("ASRouterUISurface", () => {
   });
 
   it("should render a trailhead message in the header portal", async () => {
+    // wrapper = shallow(<ASRouterUISurface document={fakeDocument} />);
     const message = (await OnboardingMessageProvider.getUntranslatedMessages()).find(
       msg => msg.template === "trailhead"
     );
+
     wrapper.setState({ message });
+
     assert.isTrue(headerPortal.childElementCount > 0);
     assert.equal(footerPortal.childElementCount, 0);
   });
@@ -370,17 +373,144 @@ describe("ASRouterUISurface", () => {
       );
       assert.propertyVal(payload, "source", "NEWTAB_FOOTER_BAR");
     });
+  });
 
-    it("should call .sendTelemetry with the right message data when a bundle is dismissed", () => {
-      wrapper.instance().dismissBundle([{ id: 1 }, { id: 2 }, { id: 3 }])();
+  describe(".fetchFlowParams", () => {
+    let dispatchStub;
+    const assertCalledWithURL = url =>
+      assert.calledWith(fetchStub, new URL(url).toString(), {
+        credentials: "omit",
+      });
+    beforeEach(() => {
+      dispatchStub = sandbox.stub();
+      wrapper = mount(
+        <ASRouterUISurface
+          dispatch={dispatchStub}
+          fxaEndpoint="https://accounts.firefox.com"
+        />
+      );
+    });
+    it("should use the base url returned from the endpoint pref", async () => {
+      wrapper = mount(
+        <ASRouterUISurface
+          dispatch={dispatchStub}
+          fxaEndpoint="https://foo.com"
+        />
+      );
+      await wrapper.instance().fetchFlowParams();
 
-      assert.calledOnce(ASRouterUtils.sendTelemetry);
-      assert.calledWith(ASRouterUtils.sendTelemetry, {
-        action: "onboarding_user_event",
-        event: "DISMISS",
-        id: "onboarding-cards",
-        message_id: "1,2,3",
-        source: "onboarding-cards",
+      assertCalledWithURL("https://foo.com/metrics-flow");
+    });
+    it("should add given search params to the URL", async () => {
+      const params = { foo: "1", bar: "2" };
+
+      await wrapper.instance().fetchFlowParams(params);
+
+      assertCalledWithURL(
+        "https://accounts.firefox.com/metrics-flow?foo=1&bar=2"
+      );
+    });
+    it("should return flowId, flowBeginTime, deviceId on a 200 response", async () => {
+      const flowInfo = { flowId: "foo", flowBeginTime: 123, deviceId: "bar" };
+      fetchStub.withArgs("https://accounts.firefox.com/metrics-flow").resolves({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(flowInfo),
+      });
+
+      const result = await wrapper.instance().fetchFlowParams();
+      assert.deepEqual(result, flowInfo);
+    });
+    it("should return {} and dispatch a TELEMETRY_UNDESIRED_EVENT on a non-200 response", async () => {
+      fetchStub.withArgs("https://accounts.firefox.com/metrics-flow").resolves({
+        ok: false,
+        status: 400,
+        statusText: "Client error",
+        url: "https://accounts.firefox.com/metrics-flow",
+      });
+
+      const result = await wrapper.instance().fetchFlowParams();
+      assert.deepEqual(result, {});
+      assert.calledWith(
+        dispatchStub,
+        ac.OnlyToMain({
+          type: "TELEMETRY_UNDESIRED_EVENT",
+          data: {
+            event: "FXA_METRICS_FETCH_ERROR",
+            value: 400,
+          },
+        })
+      );
+    });
+    it("should return {} and dispatch a TELEMETRY_UNDESIRED_EVENT on a parsing erorr", async () => {
+      fetchStub.withArgs("https://accounts.firefox.com/metrics-flow").resolves({
+        ok: false,
+        status: 200,
+        // No json to parse, throws an error
+      });
+
+      const result = await wrapper.instance().fetchFlowParams();
+      assert.deepEqual(result, {});
+      assert.calledWith(
+        dispatchStub,
+        ac.OnlyToMain({
+          type: "TELEMETRY_UNDESIRED_EVENT",
+          data: { event: "FXA_METRICS_ERROR" },
+        })
+      );
+    });
+
+    describe(".onUserAction", () => {
+      it("if the action.type is ENABLE_FIREFOX_MONITOR, it should generate the right monitor URL given some flowParams", async () => {
+        const flowInfo = { flowId: "foo", flowBeginTime: 123, deviceId: "bar" };
+        fetchStub
+          .withArgs(
+            "https://accounts.firefox.com/metrics-flow?utm_term=avocado"
+          )
+          .resolves({
+            ok: true,
+            status: 200,
+            json: () => Promise.resolve(flowInfo),
+          });
+
+        sandbox.spy(ASRouterUtils, "executeAction");
+
+        const msg = {
+          type: "ENABLE_FIREFOX_MONITOR",
+          data: {
+            args: {
+              url: "https://monitor.firefox.com?foo=bar",
+              flowRequestParams: {
+                utm_term: "avocado",
+              },
+            },
+          },
+        };
+
+        await wrapper.instance().onUserAction(msg);
+
+        assertCalledWithURL(
+          "https://accounts.firefox.com/metrics-flow?utm_term=avocado"
+        );
+        assert.calledWith(ASRouterUtils.executeAction, {
+          type: "OPEN_URL",
+          data: {
+            args: new URL(
+              "https://monitor.firefox.com?foo=bar&deviceId=bar&flowId=foo&flowBeginTime=123"
+            ).toString(),
+          },
+        });
+      });
+      it("if the action.type is not ENABLE_FIREFOX_MONITOR, it should just call ASRouterUtils.executeAction", async () => {
+        const msg = {
+          type: "FOO",
+          data: {
+            args: "bar",
+          },
+        };
+        sandbox.spy(ASRouterUtils, "executeAction");
+        await wrapper.instance().onUserAction(msg);
+        assert.calledWith(ASRouterUtils.executeAction, msg);
       });
     });
   });

@@ -12,28 +12,28 @@ registerCleanupFunction(() => {
 
 async function testPrincipal(options, globalPrincipal, debuggeeHasXrays) {
   const { debuggee } = options;
-  let global, subsumes, isOpaque, globalIsInvisible;
   // Create a global object with the specified security principal.
   // If none is specified, use the debuggee.
   if (globalPrincipal === undefined) {
-    global = debuggee;
-    subsumes = true;
-    isOpaque = false;
-    globalIsInvisible = false;
-    await test(options, { global, subsumes, isOpaque, globalIsInvisible });
+    await test(options, {
+      global: debuggee,
+      subsumes: true,
+      isOpaque: false,
+      globalIsInvisible: false,
+    });
     return;
   }
 
   const debuggeePrincipal = Cu.getObjectPrincipal(debuggee);
-  const sameOrigin = debuggeePrincipal === globalPrincipal;
-  subsumes = sameOrigin || debuggeePrincipal === systemPrincipal;
+  const sameOrigin = debuggeePrincipal.origin === globalPrincipal.origin;
+  const subsumes = debuggeePrincipal.subsumes(globalPrincipal);
   for (const globalHasXrays of [true, false]) {
-    isOpaque =
+    const isOpaque =
       subsumes &&
       globalPrincipal !== systemPrincipal &&
       ((sameOrigin && debuggeeHasXrays) || globalHasXrays);
-    for (globalIsInvisible of [true, false]) {
-      global = Cu.Sandbox(globalPrincipal, {
+    for (const globalIsInvisible of [true, false]) {
+      let global = Cu.Sandbox(globalPrincipal, {
         wantXrays: globalHasXrays,
         invisibleToDebugger: globalIsInvisible,
       });
@@ -49,10 +49,10 @@ async function testPrincipal(options, globalPrincipal, debuggeeHasXrays) {
   }
 }
 
-function test({ threadClient, debuggee }, testOptions) {
+function test({ threadFront, debuggee }, testOptions) {
   const { global } = testOptions;
   return new Promise(function(resolve) {
-    threadClient.once("paused", async function(packet) {
+    threadFront.once("paused", async function(packet) {
       // Get the grips.
       const [
         proxyGrip,
@@ -64,7 +64,7 @@ function test({ threadClient, debuggee }, testOptions) {
       check_proxy_grip(debuggee, testOptions, proxyGrip);
 
       // Check the target and handler slots of the proxy object.
-      const proxyClient = threadClient.pauseGrip(proxyGrip);
+      const proxyClient = threadFront.pauseGrip(proxyGrip);
       const proxySlots = await proxyClient.getProxySlots();
       check_proxy_slots(debuggee, testOptions, proxyGrip, proxySlots);
 
@@ -80,7 +80,7 @@ function test({ threadClient, debuggee }, testOptions) {
       );
 
       // Check the prototype and properties of the object which inherits from the proxy.
-      const inheritsProxyClient = threadClient.pauseGrip(inheritsProxyGrip);
+      const inheritsProxyClient = threadFront.pauseGrip(inheritsProxyGrip);
       const inheritsProxyResponse = await inheritsProxyClient.getPrototypeAndProperties();
       check_properties(
         testOptions,
@@ -98,7 +98,7 @@ function test({ threadClient, debuggee }, testOptions) {
 
       // The prototype chain was not iterated if the object was inaccessible, so now check
       // another object which inherits from the proxy, but was created in the debuggee.
-      const inheritsProxy2Client = threadClient.pauseGrip(inheritsProxy2Grip);
+      const inheritsProxy2Client = threadFront.pauseGrip(inheritsProxy2Grip);
       const inheritsProxy2Response = await inheritsProxy2Client.getPrototypeAndProperties();
       check_properties(
         testOptions,
@@ -118,7 +118,7 @@ function test({ threadClient, debuggee }, testOptions) {
       strictEqual(global.trapDidRun, false, "No proxy trap did run.");
 
       // Resume the debugger and finish the current test.
-      await threadClient.resume();
+      await threadFront.resume();
       resolve();
     });
 
@@ -167,8 +167,9 @@ function check_proxy_grip(debuggee, testOptions, grip) {
   } else if (!subsumes) {
     // The proxy belongs to compartment not subsumed by the debuggee.
     strictEqual(grip.class, "Restricted", "The grip has a Restricted class.");
-    ok(
-      !("ownPropertyLength" in grip),
+    strictEqual(
+      grip.ownPropertyLength,
+      undefined,
       "The grip doesn't know the number of properties."
     );
   } else if (globalIsInvisible) {
@@ -201,7 +202,7 @@ function check_proxy_slots(debuggee, testOptions, grip, proxySlots) {
   if (grip.class !== "Proxy") {
     strictEqual(
       proxySlots,
-      undefined,
+      null,
       "Slots can only be retrived for Proxy grips."
     );
   } else if (global === debuggee) {
@@ -278,6 +279,10 @@ function check_prototype(
   }
 }
 
+function createNullPrincipal() {
+  return Cc["@mozilla.org/nullprincipal;1"].createInstance(Ci.nsIPrincipal);
+}
+
 async function run_tests_in_principal(
   options,
   debuggeePrincipal,
@@ -297,52 +302,21 @@ async function run_tests_in_principal(
   await testPrincipal(options, systemPrincipal, debuggeeHasXrays);
 
   // Test objects created in a cross-origin null principal new global.
-  await testPrincipal(options, null, debuggeeHasXrays);
+  await testPrincipal(options, createNullPrincipal(), debuggeeHasXrays);
 
-  if (debuggeePrincipal === null) {
-    // Test objects created in a same-origin null principal new global.
-    await testPrincipal(
-      options,
-      Cu.getObjectPrincipal(debuggee),
-      debuggeeHasXrays
-    );
+  if (debuggeePrincipal != systemPrincipal) {
+    // Test objects created in a same-origin principal new global.
+    await testPrincipal(options, debuggeePrincipal, debuggeeHasXrays);
   }
 }
 
-// threadClientTest uses systemPrincipal by default, but let's be explicit here.
-add_task(
-  threadClientTest(
-    options => {
-      return run_tests_in_principal(options, systemPrincipal, true);
-    },
-    { principal: systemPrincipal, wantXrays: true }
-  )
-);
-add_task(
-  threadClientTest(
-    options => {
-      return run_tests_in_principal(options, systemPrincipal, false);
-    },
-    { principal: systemPrincipal, wantXrays: false }
-  )
-);
-
-const nullPrincipal = Cc["@mozilla.org/nullprincipal;1"].createInstance(
-  Ci.nsIPrincipal
-);
-add_task(
-  threadClientTest(
-    options => {
-      return run_tests_in_principal(options, nullPrincipal, true);
-    },
-    { principal: nullPrincipal, wantXrays: true }
-  )
-);
-add_task(
-  threadClientTest(
-    options => {
-      return run_tests_in_principal(options, nullPrincipal, false);
-    },
-    { principal: nullPrincipal, wantXrays: false }
-  )
-);
+for (const principal of [systemPrincipal, createNullPrincipal()]) {
+  for (const wantXrays of [true, false]) {
+    add_task(
+      threadFrontTest(
+        options => run_tests_in_principal(options, principal, wantXrays),
+        { principal, wantXrays }
+      )
+    );
+  }
+}

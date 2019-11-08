@@ -562,7 +562,7 @@ static const JSFunctionSpec PACGlobalFunctions[] = {
 class JSContextWrapper {
  public:
   static JSContextWrapper* Create(uint32_t aExtraHeapSize) {
-    JSContext* cx = JS_NewContext(sContextHeapSize + aExtraHeapSize);
+    JSContext* cx = JS_NewContext(JS::DefaultHeapMaxBytes + aExtraHeapSize);
     if (NS_WARN_IF(!cx)) return nullptr;
 
     JSContextWrapper* entry = new JSContextWrapper(cx);
@@ -593,8 +593,6 @@ class JSContextWrapper {
   bool IsOK() { return mOK; }
 
  private:
-  static const uint32_t sContextHeapSize = 4 << 20;  // 4 MB
-
   JSContext* mContext;
   JS::PersistentRooted<JSObject*> mGlobal;
   bool mOK;
@@ -722,7 +720,7 @@ nsresult ProxyAutoConfig::SetupJS() {
     // and otherwise inflate Latin-1 to UTF-16 and compile that.
     const char* scriptData = this->mConcatenatedPACData.get();
     size_t scriptLength = this->mConcatenatedPACData.Length();
-    if (mozilla::IsValidUtf8(scriptData, scriptLength)) {
+    if (mozilla::IsUtf8(mozilla::MakeSpan(scriptData, scriptLength))) {
       JS::SourceText<Utf8Unit> srcBuf;
       if (!srcBuf.init(cx, scriptData, scriptLength,
                        JS::SourceOwnership::Borrowed)) {

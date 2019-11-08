@@ -11,6 +11,9 @@ const { Services } = ChromeUtils.import("resource://gre/modules/Services.jsm");
 const { AppConstants } = ChromeUtils.import(
   "resource://gre/modules/AppConstants.jsm"
 );
+const { E10SUtils } = ChromeUtils.import(
+  "resource://gre/modules/E10SUtils.jsm"
+);
 const { XPCOMUtils } = ChromeUtils.import(
   "resource://gre/modules/XPCOMUtils.jsm"
 );
@@ -24,6 +27,7 @@ const PREFS_WHITELIST = [
   "accessibility.",
   "apz.",
   "browser.cache.",
+  "browser.contentblocking.category",
   "browser.display.",
   "browser.download.folderList",
   "browser.download.hide_plugins_without_extensions",
@@ -113,6 +117,8 @@ PREFS_GETTERS[Ci.nsIPrefBranch.PREF_INT] = (prefs, name) =>
   prefs.getIntPref(name);
 PREFS_GETTERS[Ci.nsIPrefBranch.PREF_BOOL] = (prefs, name) =>
   prefs.getBoolPref(name);
+
+const kURLDecorationPref = "privacy.restrict3rdpartystorage.url_decorations";
 
 // Return the preferences filtered by PREFS_BLACKLIST and PREFS_WHITELIST lists
 // and also by the custom 'filter'-ing function.
@@ -242,20 +248,20 @@ var dataProviders = {
       .trim();
     data.keyLocationServiceGoogleFound =
       keyLocationServiceGoogle != "no-google-location-service-api-key" &&
-      keyLocationServiceGoogle.length > 0;
+      !!keyLocationServiceGoogle.length;
 
     const keySafebrowsingGoogle = Services.urlFormatter
       .formatURL("%GOOGLE_SAFEBROWSING_API_KEY%")
       .trim();
     data.keySafebrowsingGoogleFound =
       keySafebrowsingGoogle != "no-google-safebrowsing-api-key" &&
-      keySafebrowsingGoogle.length > 0;
+      !!keySafebrowsingGoogle.length;
 
     const keyMozilla = Services.urlFormatter
       .formatURL("%MOZILLA_API_KEY%")
       .trim();
     data.keyMozillaFound =
-      keyMozilla != "no-mozilla-api-key" && keyMozilla.length > 0;
+      keyMozilla != "no-mozilla-api-key" && !!keyMozilla.length;
 
     done(data);
   },
@@ -357,6 +363,8 @@ var dataProviders = {
         continue;
       }
 
+      remoteType = E10SUtils.remoteTypePrefix(remoteType);
+
       if (remoteTypes[remoteType]) {
         remoteTypes[remoteType]++;
       } else {
@@ -384,7 +392,13 @@ var dataProviders = {
   },
 
   lockedPreferences: function lockedPreferences(done) {
-    done(getPrefList(name => Services.prefs.prefIsLocked(name)));
+    // The URL Decoration pref isn't an important locked pref, so there is no
+    // good reason to report it.
+    done(
+      getPrefList(
+        name => name != kURLDecorationPref && Services.prefs.prefIsLocked(name)
+      )
+    );
   },
 
   graphics: function graphics(done) {

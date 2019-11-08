@@ -91,6 +91,19 @@ const MESSAGES = () => [
     },
   },
   {
+    id: "SIMPLE_TEST_BUTTON_ACTION_1",
+    template: "simple_snippet",
+    content: {
+      icon: TEST_ICON,
+      icon_dark_theme: TEST_ICON_BW,
+      button_label: "Open about:config",
+      button_action: "OPEN_ABOUT_PAGE",
+      button_action_args: "config",
+      text: "Testing the OPEN_ABOUT_PAGE action",
+      block_button_text: "Block",
+    },
+  },
+  {
     id: "SIMPLE_WITH_TITLE_TEST_1",
     template: "simple_snippet",
     content: {
@@ -128,6 +141,7 @@ const MESSAGES = () => [
       scene2_newsletter: "mozilla-foundation",
       success_text: "Check your inbox for the confirmation!",
       error_text: "Error!",
+      retry_button_label: "Try again?",
       links: {
         privacyLink: {
           url:
@@ -170,6 +184,43 @@ const MESSAGES = () => [
     },
   },
   {
+    id: "NEWSLETTER_TEST_SCENE1_SECTION_TITLE_ICON",
+    template: "newsletter_snippet",
+    content: {
+      scene1_icon: TEST_ICON,
+      scene1_icon_dark_theme: TEST_ICON_BW,
+      scene1_title: "Be a part of a movement.",
+      scene1_title_icon: "",
+      scene1_text:
+        "Internet shutdowns, hackers, harassment &ndash; the health of the internet is on the line. Sign up and Mozilla will keep you updated on how you can help.",
+      scene1_button_label: "Continue",
+      scene1_button_color: "#712b00",
+      scene1_button_background_color: "#ff9400",
+      scene1_section_title_icon:
+        "resource://activity-stream/data/content/assets/glyph-pocket-16.svg",
+      scene1_section_title_text:
+        "All the Firefox news that's fit to Firefox print!",
+      scene2_title: "Let's do this!",
+      locale: "en-CA",
+      scene2_dismiss_button_text: "Dismiss",
+      scene2_text:
+        "Sign up for the Mozilla newsletter and we will keep you updated on how you can help.",
+      scene2_privacy_html:
+        "I'm okay with Mozilla handling my info as explained in this <privacyLink>Privacy Notice</privacyLink>.",
+      scene2_button_label: "Sign Me up",
+      scene2_email_placeholder_text: "Your email here",
+      scene2_newsletter: "mozilla-foundation",
+      success_text: "Check your inbox for the confirmation!",
+      error_text: "Error!",
+      links: {
+        privacyLink: {
+          url:
+            "https://www.mozilla.org/privacy/websites/?sample_rate=0.001&snippet_name=7894",
+        },
+      },
+    },
+  },
+  {
     id: "FXA_SNIPPET_TEST_1",
     template: "fxa_signup_snippet",
     content: {
@@ -184,6 +235,34 @@ const MESSAGES = () => [
       scene1_title: "Browser better.",
       scene1_title_icon: TEST_ICON_16,
       scene1_title_icon_dark_theme: TEST_ICON_BW,
+
+      scene2_text:
+        "Connect to your Firefox account to securely sync passwords, bookmarks, and open tabs.",
+      scene2_title: "Title 123",
+      scene2_email_placeholder_text: "Your email",
+      scene2_button_label: "Continue",
+      scene2_dismiss_button_text: "Dismiss",
+    },
+  },
+  {
+    id: "FXA_SNIPPET_TEST_TITLE_ICON",
+    template: "fxa_signup_snippet",
+    content: {
+      scene1_icon: TEST_ICON,
+      scene1_icon_dark_theme: TEST_ICON_BW,
+      scene1_button_label: "Get connected with sync!",
+      scene1_button_color: "#712b00",
+      scene1_button_background_color: "#ff9400",
+
+      scene1_text:
+        "Connect to Firefox by securely syncing passwords, bookmarks, and open tabs.",
+      scene1_title: "Browser better.",
+      scene1_title_icon: TEST_ICON_16,
+      scene1_title_icon_dark_theme: TEST_ICON_BW,
+
+      scene1_section_title_icon:
+        "resource://activity-stream/data/content/assets/glyph-pocket-16.svg",
+      scene1_section_title_text: "Firefox Accounts: Receivable benefits",
 
       scene2_text:
         "Connect to your Firefox account to securely sync passwords, bookmarks, and open tabs.",
@@ -261,6 +340,51 @@ const MESSAGES = () => [
       scene2_dismiss_button_text: "Dismiss",
       scene2_icon: TEST_ICON,
       scene2_icon_dark_theme: "",
+      scene2_input_placeholder: "Your email address or phone number",
+      scene2_text:
+        "Send Firefox to your phone and take a powerful independent browser with you.",
+      scene2_title: "Let's do this!",
+
+      error_text: "Oops, there was a problem.",
+      success_title: "Your download link was sent.",
+      success_text: "Check your device for the email message!",
+      links: {
+        privacyLink: {
+          url:
+            "https://www.mozilla.org/privacy/websites/?sample_rate=0.001&snippet_name=7894",
+        },
+      },
+    },
+  },
+  {
+    id: "SNIPPETS_SEND_TO_DEVICE_TEST_SECTION_TITLE_ICON",
+    template: "send_to_device_snippet",
+    content: {
+      include_sms: true,
+      locale: "en-CA",
+      country: "us",
+      message_id_sms: "ff-mobilesn-download",
+      message_id_email: "download-firefox-mobile",
+
+      scene1_button_background_color: "#6200a4",
+      scene1_button_color: "#FFFFFF",
+      scene1_button_label: "Install now",
+      scene1_icon: TEST_ICON,
+      scene1_icon_dark_theme: TEST_ICON_BW,
+      scene1_text: "Browse without compromise with Firefox Mobile.",
+      scene1_title: "Full-featured. Customizable. Lightning fast",
+      scene1_title_icon: TEST_ICON_16,
+      scene1_title_icon_dark_theme: TEST_ICON_BW,
+      scene1_section_title_icon:
+        "resource://activity-stream/data/content/assets/glyph-pocket-16.svg",
+      scene1_section_title_text: "Send Firefox to your mobile device!",
+
+      scene2_button_label: "Send",
+      scene2_disclaimer_html:
+        "The intended recipient of the email must have consented. <privacyLink>Learn more</privacyLink>.",
+      scene2_dismiss_button_text: "Dismiss",
+      scene2_icon: TEST_ICON,
+      scene2_icon_dark_theme: TEST_ICON_BW,
       scene2_input_placeholder: "Your email address or phone number",
       scene2_text:
         "Send Firefox to your phone and take a powerful independent browser with you.",
@@ -385,6 +509,81 @@ const MESSAGES = () => [
         "Securely store passwords, bookmarks, and more with a Firefox Account. <syncLink>Sign up</syncLink>",
       links: {
         syncLink: { url: "https://www.mozilla.org/en-US/firefox/accounts" },
+      },
+      block_button_text: "Block",
+    },
+  },
+  {
+    id: "SIMPLE_BELOW_SEARCH_TEST_TITLE",
+    template: "simple_below_search_snippet",
+    content: {
+      icon: TEST_ICON,
+      icon_dark_theme: TEST_ICON_BW,
+      title: "See if you've been part of an online data breach.",
+      text:
+        "Securely store passwords, bookmarks, and more with a Firefox Account. <syncLink>Sign up</syncLink>",
+      links: {
+        syncLink: { url: "https://www.mozilla.org/en-US/firefox/accounts" },
+      },
+      block_button_text: "Block",
+    },
+  },
+  {
+    id: "SPECIAL_SNIPPET_BUTTON_1",
+    template: "simple_below_search_snippet",
+    content: {
+      icon: TEST_ICON,
+      icon_dark_theme: TEST_ICON_BW,
+      button_label: "Find Out Now",
+      button_url: "https://www.mozilla.org/en-US/firefox/accounts",
+      title: "See if you've been part of an online data breach.",
+      text: "Firefox Monitor tells you what hackers already know about you.",
+      block_button_text: "Block",
+    },
+  },
+  {
+    id: "SPECIAL_SNIPPET_LONG_CONTENT",
+    template: "simple_below_search_snippet",
+    content: {
+      icon: TEST_ICON,
+      icon_dark_theme: TEST_ICON_BW,
+      button_label: "Find Out Now",
+      button_url: "https://www.mozilla.org/en-US/firefox/accounts",
+      title: "See if you've been part of an online data breach.",
+      text:
+        "Firefox Monitor tells you what hackers already know about you. Here's some extra text to make the content really long.",
+      block_button_text: "Block",
+    },
+  },
+  {
+    id: "SPECIAL_SNIPPET_NO_TITLE",
+    template: "simple_below_search_snippet",
+    content: {
+      icon: TEST_ICON,
+      icon_dark_theme: TEST_ICON_BW,
+      button_label: "Find Out Now",
+      button_url: "https://www.mozilla.org/en-US/firefox/accounts",
+      text: "Firefox Monitor tells you what hackers already know about you.",
+      block_button_text: "Block",
+    },
+  },
+  {
+    id: "SPECIAL_SNIPPET_MONITOR",
+    template: "simple_below_search_snippet",
+    content: {
+      icon: TEST_ICON,
+      title: "See if you've been part of an online data breach.",
+      text: "Firefox Monitor tells you what hackers already know about you.",
+      button_label: "Get monitor",
+      button_action: "ENABLE_FIREFOX_MONITOR",
+      button_action_args: {
+        url:
+          "https://monitor.firefox.com/oauth/init?utm_source=snippets&utm_campaign=monitor-snippet-test&form_type=email&entrypoint=newtab",
+        flowRequestParams: {
+          entrypoint: "snippets",
+          utm_term: "monitor",
+          form_type: "email",
+        },
       },
       block_button_text: "Block",
     },

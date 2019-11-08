@@ -15,7 +15,7 @@
 
 const { Ci } = require("chrome");
 const Services = require("Services");
-const { DebuggerServer } = require("devtools/server/main");
+const { DebuggerServer } = require("devtools/server/debugger-server");
 const {
   getChildDocShells,
   BrowsingContextTargetActor,
@@ -67,7 +67,7 @@ parentProcessTargetPrototype.initialize = function(connection, window) {
   }
 
   // Default to any available top level window if there is no expected window
-  // (for example when we open firefox with -webide argument)
+  // eg when running ./mach run --chrome chrome://browser/content/aboutTabCrashed.xhtml --jsdebugger
   if (!window) {
     window = Services.wm.getMostRecentWindow(null);
   }
@@ -155,30 +155,6 @@ parentProcessTargetPrototype._detach = function() {
   }
 
   return BrowsingContextTargetActor.prototype._detach.call(this);
-};
-
-/* ThreadActor hooks. */
-
-/**
- * Prepare to enter a nested event loop by disabling debuggee events.
- */
-parentProcessTargetPrototype.preNest = function() {
-  // Disable events in all open windows.
-  for (const { windowUtils } of Services.wm.getEnumerator(null)) {
-    windowUtils.suppressEventHandling(true);
-    windowUtils.suspendTimeouts();
-  }
-};
-
-/**
- * Prepare to exit a nested event loop by enabling debuggee events.
- */
-parentProcessTargetPrototype.postNest = function(nestData) {
-  // Enable events in all open windows.
-  for (const { windowUtils } of Services.wm.getEnumerator(null)) {
-    windowUtils.resumeTimeouts();
-    windowUtils.suppressEventHandling(false);
-  }
 };
 
 exports.parentProcessTargetPrototype = parentProcessTargetPrototype;

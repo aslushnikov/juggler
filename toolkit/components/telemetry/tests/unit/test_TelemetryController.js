@@ -164,8 +164,9 @@ add_task(async function test_disableDataUpload() {
     return;
   }
 
-  // Check that the optin probe is not set, there should be other data in the snapshot though
-  let snapshot = Telemetry.getSnapshotForScalars("main", false).parent;
+  // Check that the optin probe is not set.
+  // (If there are no recorded scalars, "parent" will be undefined).
+  let snapshot = Telemetry.getSnapshotForScalars("main", false).parent || {};
   Assert.ok(
     !(OPTIN_PROBE in snapshot),
     "Data optin scalar should not be set at start"
@@ -191,7 +192,7 @@ add_task(async function test_disableDataUpload() {
   // Wait on ping activity to settle.
   await TelemetrySend.testWaitOnOutgoingPings();
 
-  snapshot = Telemetry.getSnapshotForScalars("main", false).parent;
+  snapshot = Telemetry.getSnapshotForScalars("main", false).parent || {};
   Assert.ok(
     !(OPTIN_PROBE in snapshot),
     "Data optin scalar should not be set after optout"
@@ -209,7 +210,7 @@ add_task(async function test_disableDataUpload() {
     );
   });
 
-  snapshot = Telemetry.getSnapshotForScalars("main", false).parent;
+  snapshot = Telemetry.getSnapshotForScalars("main", false).parent || {};
   Assert.ok(
     snapshot[OPTIN_PROBE],
     "Enabling data upload should set optin probe"
@@ -698,6 +699,10 @@ add_task(async function test_sendNewProfile() {
     "startup",
     "The new-profile ping generated after startup must have the correct reason"
   );
+  Assert.ok(
+    "parent" in ping.payload.processes,
+    "The new-profile ping generated after startup must have processes.parent data"
+  );
 
   // Check that is not sent with the pingsender during startup.
   Assert.throws(
@@ -721,6 +726,10 @@ add_task(async function test_sendNewProfile() {
     ping.payload.reason,
     "shutdown",
     "The new-profile ping generated at shutdown must have the correct reason"
+  );
+  Assert.ok(
+    "parent" in ping.payload.processes,
+    "The new-profile ping generated at shutdown must have processes.parent data"
   );
 
   // Check that the new-profile ping is sent at shutdown using the pingsender.

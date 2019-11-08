@@ -62,6 +62,12 @@ this.PrefsFeed = class PrefsFeed {
       "https://accounts.firefox.com"
     );
 
+    // Get the firefox update channel with values as default, nightly, beta or release
+    values.appUpdateChannel = Services.prefs.getStringPref(
+      "app.update.channel",
+      ""
+    );
+
     // Read the pref for search shortcuts top sites experiment from firefox.js and store it
     // in our interal list of prefs to watch
     let searchTopSiteExperimentPrefValue = Services.prefs.getBoolPref(
@@ -82,6 +88,33 @@ this.PrefsFeed = class PrefsFeed {
     values["improvesearch.handoffToAwesomebar"] = handoffToAwesomebarPrefValue;
     this._prefMap.set("improvesearch.handoffToAwesomebar", {
       value: handoffToAwesomebarPrefValue,
+    });
+
+    let discoveryStreamEnabled = Services.prefs.getBoolPref(
+      "browser.newtabpage.activity-stream.discoverystream.enabled",
+      false
+    );
+    let discoveryStreamHardcodedBasicLayout = Services.prefs.getBoolPref(
+      "browser.newtabpage.activity-stream.discoverystream.hardcoded-basic-layout",
+      false
+    );
+    let discoveryStreamSpocsEndpoint = Services.prefs.getStringPref(
+      "browser.newtabpage.activity-stream.discoverystream.spocs-endpoint",
+      ""
+    );
+    values["discoverystream.enabled"] = discoveryStreamEnabled;
+    this._prefMap.set("discoverystream.enabled", {
+      value: discoveryStreamEnabled,
+    });
+    values[
+      "discoverystream.hardcoded-basic-layout"
+    ] = discoveryStreamHardcodedBasicLayout;
+    this._prefMap.set("discoverystream.hardcoded-basic-layout", {
+      value: discoveryStreamHardcodedBasicLayout,
+    });
+    values["discoverystream.spocs-endpoint"] = discoveryStreamSpocsEndpoint;
+    this._prefMap.set("discoverystream.spocs-endpoint", {
+      value: discoveryStreamSpocsEndpoint,
     });
 
     // Set the initial state of all prefs in redux
@@ -110,6 +143,9 @@ this.PrefsFeed = class PrefsFeed {
         break;
       case at.UNINIT:
         this.removeListeners();
+        break;
+      case at.CLEAR_PREF:
+        Services.prefs.clearUserPref(this._prefs._branchStr + action.data.name);
         break;
       case at.SET_PREF:
         this._prefs.set(action.data.name, action.data.value);

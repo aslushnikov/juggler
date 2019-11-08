@@ -82,8 +82,8 @@
 #include "mozilla/ipc/XPCShellEnvironment.h"
 #if defined(XP_WIN)
 #  include "mozilla/WindowsConsole.h"
+#  include "mozilla/WindowsDllBlocklist.h"
 #endif
-#include "mozilla/WindowsDllBlocklist.h"
 
 #include "GMPProcessChild.h"
 #include "mozilla/gfx/GPUProcessImpl.h"
@@ -228,6 +228,21 @@ const char* XRE_ChildProcessTypeToString(GeckoProcessType aProcessType) {
   return (aProcessType < GeckoProcessType_End)
              ? kGeckoProcessTypeString[aProcessType]
              : "invalid";
+}
+
+const char* XRE_ChildProcessTypeToAnnotation(GeckoProcessType aProcessType) {
+  switch (aProcessType) {
+    case GeckoProcessType_GMPlugin:
+      // The gecko media plugin and normal plugin processes are lumped together
+      // as a historical artifact.
+      return "plugin";
+    case GeckoProcessType_Default:
+      return "";
+    case GeckoProcessType_Content:
+      return "content";
+    default:
+      return XRE_ChildProcessTypeToString(aProcessType);
+  }
 }
 
 namespace mozilla {

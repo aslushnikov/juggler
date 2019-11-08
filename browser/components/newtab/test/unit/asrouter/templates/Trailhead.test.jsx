@@ -1,17 +1,18 @@
 import { actionCreators as ac, actionTypes as at } from "common/Actions.jsm";
+import { FxASignupForm } from "content-src/asrouter/components/FxASignupForm/FxASignupForm";
 import { mount } from "enzyme";
 import { OnboardingMessageProvider } from "lib/OnboardingMessageProvider.jsm";
 import React from "react";
 import { Trailhead } from "content-src/asrouter/templates/Trailhead/Trailhead";
 
-const CARDS = [
+export const CARDS = [
   {
     content: {
       title: { string_id: "onboarding-private-browsing-title" },
       text: { string_id: "onboarding-private-browsing-text" },
       icon: "icon",
       primary_button: {
-        label: { string_id: "onboarding-button-label-try-now" },
+        label: { string_id: "onboarding-button-label-get-started" },
         action: {
           type: "OPEN_URL",
           data: { args: "https://example.com/" },
@@ -27,11 +28,13 @@ describe("<Trailhead>", () => {
   let dispatch;
   let onAction;
   let sandbox;
+  let onNextScene;
 
   beforeEach(async () => {
     sandbox = sinon.sandbox.create();
     dispatch = sandbox.stub();
     onAction = sandbox.stub();
+    onNextScene = sandbox.stub();
     sandbox.stub(global, "fetch").resolves({
       ok: true,
       status: 200,
@@ -59,10 +62,12 @@ describe("<Trailhead>", () => {
     wrapper = mount(
       <Trailhead
         message={message}
+        UTMTerm={message.utm_term}
         fxaEndpoint="https://accounts.firefox.com/endpoint"
         dispatch={dispatch}
         onAction={onAction}
         document={fakeDocument}
+        onNextScene={onNextScene}
       />
     );
   });
@@ -71,10 +76,16 @@ describe("<Trailhead>", () => {
     sandbox.restore();
   });
 
-  it("should emit UserEvent SKIPPED_SIGNIN when you click the start browsing button", () => {
+  it("should render FxASignupForm with signup email", () => {
+    assert.lengthOf(wrapper.find(FxASignupForm), 1);
+  });
+
+  it("should emit UserEvent SKIPPED_SIGNIN and call nextScene when you click the start browsing button", () => {
     let skipButton = wrapper.find(".trailheadStart");
     assert.ok(skipButton.exists());
     skipButton.simulate("click");
+
+    assert.calledOnce(onNextScene);
 
     assert.calledOnce(dispatch);
     assert.isUserEventAction(dispatch.firstCall.args[0]);
@@ -116,37 +127,6 @@ describe("<Trailhead>", () => {
         event: at.SUBMIT_EMAIL,
         value: { has_flow_params: false },
       })
-    );
-  });
-
-  it("should add utm_* query params to card actions", () => {
-    let { action } = CARDS[0].content.primary_button;
-    wrapper.instance().onCardAction(action);
-    assert.calledOnce(onAction);
-    const url = onAction.firstCall.args[0].data.args;
-    assert.equal(
-      url,
-      "https://example.com/?utm_source=activity-stream&utm_campaign=firstrun&utm_medium=referral&utm_term=trailhead-join-card"
-    );
-  });
-
-  it("should add flow parameters to card action urls if addFlowParams is true", () => {
-    let action = {
-      type: "OPEN_URL",
-      addFlowParams: true,
-      data: { args: "https://example.com/path?foo=bar" },
-    };
-    wrapper.setState({
-      deviceId: "abc",
-      flowId: "123",
-      flowBeginTime: 456,
-    });
-    wrapper.instance().onCardAction(action);
-    assert.calledOnce(onAction);
-    const url = onAction.firstCall.args[0].data.args;
-    assert.equal(
-      url,
-      "https://example.com/path?foo=bar&utm_source=activity-stream&utm_campaign=firstrun&utm_medium=referral&utm_term=trailhead-join-card&device_id=abc&flow_id=123&flow_begin_time=456"
     );
   });
 

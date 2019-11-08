@@ -3,6 +3,12 @@
 
 "use strict";
 
+XPCOMUtils.defineLazyModuleGetters(this, {
+  UrlbarProvider: "resource:///modules/UrlbarUtils.jsm",
+  UrlbarProvidersManager: "resource:///modules/UrlbarProvidersManager.jsm",
+  UrlbarUtils: "resource:///modules/UrlbarUtils.jsm",
+});
+
 function copyToClipboard(str) {
   return new Promise((resolve, reject) => {
     waitForClipboard(
@@ -49,7 +55,9 @@ const tests = [
     info("Paste something, press Enter.");
     gURLBar.select();
     let promise = BrowserTestUtils.browserLoaded(gBrowser.selectedBrowser);
-    await copyToClipboard("test");
+    await SimpleTest.promiseClipboardChange("test", () => {
+      clipboardHelper.copyString("test");
+    });
     document.commandDispatcher
       .getControllerForCommand("cmd_paste")
       .doCommand("cmd_paste");
@@ -159,6 +167,55 @@ const tests = [
   },
 
   async function() {
+    let tipProvider = registerTipProvider();
+    info("Selecting a tip's main button, enter.");
+    gURLBar.search("x");
+    await promiseSearchComplete();
+    EventUtils.synthesizeKey("KEY_ArrowDown");
+    EventUtils.synthesizeKey("KEY_ArrowDown");
+    EventUtils.synthesizeKey("VK_RETURN");
+    unregisterTipProvider(tipProvider);
+    return {
+      category: "urlbar",
+      method: "engagement",
+      object: "enter",
+      value: "typed",
+      extra: {
+        elapsed: val => parseInt(val) > 0,
+        numChars: "1",
+        selIndex: "1",
+        selType: "tip",
+      },
+    };
+  },
+
+  async function() {
+    let tipProvider = registerTipProvider();
+    info("Selecting a tip's help button, enter.");
+    let promise = BrowserTestUtils.browserLoaded(gBrowser.selectedBrowser);
+    gURLBar.search("x");
+    await promiseSearchComplete();
+    EventUtils.synthesizeKey("KEY_ArrowDown");
+    EventUtils.synthesizeKey("KEY_ArrowDown");
+    EventUtils.synthesizeKey("KEY_ArrowDown");
+    EventUtils.synthesizeKey("VK_RETURN");
+    await promise;
+    unregisterTipProvider(tipProvider);
+    return {
+      category: "urlbar",
+      method: "engagement",
+      object: "enter",
+      value: "typed",
+      extra: {
+        elapsed: val => parseInt(val) > 0,
+        numChars: "1",
+        selIndex: "1",
+        selType: "tiphelp",
+      },
+    };
+  },
+
+  async function() {
     info("Type something and canonize");
     gURLBar.select();
     let promise = BrowserTestUtils.browserLoaded(gBrowser.selectedBrowser);
@@ -184,10 +241,10 @@ const tests = [
     gURLBar.select();
     let promise = BrowserTestUtils.browserLoaded(gBrowser.selectedBrowser);
     await promiseAutocompleteResultPopup("exa", window, true);
-    while (gURLBar.value != "http://example.com/?q=%s") {
+    while (gURLBar.untrimmedValue != "http://example.com/?q=%s") {
       EventUtils.synthesizeKey("KEY_ArrowDown");
     }
-    let element = UrlbarTestUtils.getSelectedElement(window);
+    let element = UrlbarTestUtils.getSelectedRow(window);
     EventUtils.synthesizeMouseAtCenter(element, {});
     await promise;
     return {
@@ -233,7 +290,7 @@ const tests = [
     gURLBar.select();
     let promise = BrowserTestUtils.browserLoaded(gBrowser.selectedBrowser);
     await promiseAutocompleteResultPopup("exa", window, true);
-    while (gURLBar.value != "http://example.com/?q=%s") {
+    while (gURLBar.untrimmedValue != "http://example.com/?q=%s") {
       EventUtils.synthesizeKey("KEY_ArrowDown");
     }
     EventUtils.synthesizeKey("VK_RETURN");
@@ -256,7 +313,7 @@ const tests = [
     info("Type @, Enter on a keywordoffer");
     gURLBar.select();
     await promiseAutocompleteResultPopup("@", window, true);
-    while (gURLBar.value != "@test ") {
+    while (gURLBar.untrimmedValue != "@test ") {
       EventUtils.synthesizeKey("KEY_ArrowDown");
     }
     EventUtils.synthesizeKey("VK_RETURN");
@@ -303,15 +360,12 @@ const tests = [
   async function() {
     info("Paste & Go something.");
     let promise = BrowserTestUtils.browserLoaded(gBrowser.selectedBrowser);
-    await copyToClipboard("www.example.com");
-    let inputBox = document.getAnonymousElementByAttribute(
-      gURLBar.textbox,
-      "anonid",
-      "moz-input-box"
-    );
+    await SimpleTest.promiseClipboardChange("www.example.com", () => {
+      clipboardHelper.copyString("www.example.com");
+    });
+    let inputBox = gURLBar.querySelector("moz-input-box");
     let cxmenu = inputBox.menupopup;
     let cxmenuPromise = BrowserTestUtils.waitForEvent(cxmenu, "popupshown");
-    gURLBar.focus();
     EventUtils.synthesizeMouseAtCenter(gURLBar.inputField, {
       type: "contextmenu",
       button: 2,
@@ -343,7 +397,7 @@ const tests = [
       EventUtils.synthesizeKey("KEY_ArrowDown", {});
     });
     await UrlbarTestUtils.promiseSearchComplete(window);
-    while (gURLBar.value != "http://mochi.test:8888/") {
+    while (gURLBar.untrimmedValue != "http://mochi.test:8888/") {
       EventUtils.synthesizeKey("KEY_ArrowDown");
     }
     EventUtils.synthesizeKey("VK_RETURN");
@@ -370,10 +424,10 @@ const tests = [
     await UrlbarTestUtils.promisePopupOpen(window, () => {
       EventUtils.synthesizeKey("KEY_ArrowDown", {});
     });
-    while (gURLBar.value != "http://mochi.test:8888/") {
+    while (gURLBar.untrimmedValue != "http://mochi.test:8888/") {
       EventUtils.synthesizeKey("KEY_ArrowDown");
     }
-    let element = UrlbarTestUtils.getSelectedElement(window);
+    let element = UrlbarTestUtils.getSelectedRow(window);
     EventUtils.synthesizeMouseAtCenter(element, {});
     await promise;
     return {
@@ -398,12 +452,7 @@ const tests = [
         gURLBar.select();
         let promise = BrowserTestUtils.browserLoaded(gBrowser.selectedBrowser);
         await UrlbarTestUtils.promisePopupOpen(window, () => {
-          let dropmarker = document.getAnonymousElementByAttribute(
-            gURLBar.textbox,
-            "anonid",
-            "historydropmarker"
-          );
-          EventUtils.synthesizeMouseAtCenter(dropmarker, {}, window);
+          EventUtils.synthesizeMouseAtCenter(gURLBar.dropmarker, {}, window);
         });
         await promiseAutocompleteResultPopup("x", window, true);
         EventUtils.synthesizeKey("VK_RETURN");
@@ -419,6 +468,127 @@ const tests = [
         elapsed: val => parseInt(val) > 0,
         numChars: "1",
         selType: "search",
+        selIndex: "0",
+      },
+    };
+  },
+
+  async function() {
+    info(
+      "With pageproxystate=valid, open the panel with openViewOnFocus, select with DOWN, Enter."
+    );
+    gURLBar.value = "";
+    let promise = BrowserTestUtils.browserLoaded(gBrowser.selectedBrowser);
+    Services.prefs.setBoolPref("browser.urlbar.openViewOnFocus", true);
+    await UrlbarTestUtils.promisePopupOpen(window, () => {
+      window.document.getElementById("Browser:OpenLocation").doCommand();
+    });
+    Services.prefs.clearUserPref("browser.urlbar.openViewOnFocus");
+    await UrlbarTestUtils.promiseSearchComplete(window);
+    while (gURLBar.untrimmedValue != "http://mochi.test:8888/") {
+      EventUtils.synthesizeKey("KEY_ArrowDown");
+    }
+    EventUtils.synthesizeKey("VK_RETURN");
+    await promise;
+    return {
+      category: "urlbar",
+      method: "engagement",
+      object: "enter",
+      value: "topsites",
+      extra: {
+        elapsed: val => parseInt(val) > 0,
+        numChars: "0",
+        selType: "history",
+        selIndex: val => parseInt(val) >= 0,
+      },
+    };
+  },
+
+  async function() {
+    info(
+      "With pageproxystate=valid, open the panel with openViewOnFocus, click on entry."
+    );
+    gURLBar.value = "";
+    let promise = BrowserTestUtils.browserLoaded(gBrowser.selectedBrowser);
+    Services.prefs.setBoolPref("browser.urlbar.openViewOnFocus", true);
+    await UrlbarTestUtils.promisePopupOpen(window, () => {
+      window.document.getElementById("Browser:OpenLocation").doCommand();
+    });
+    Services.prefs.clearUserPref("browser.urlbar.openViewOnFocus");
+    while (gURLBar.untrimmedValue != "http://mochi.test:8888/") {
+      EventUtils.synthesizeKey("KEY_ArrowDown");
+    }
+    let element = UrlbarTestUtils.getSelectedRow(window);
+    EventUtils.synthesizeMouseAtCenter(element, {});
+    await promise;
+    return {
+      category: "urlbar",
+      method: "engagement",
+      object: "click",
+      value: "topsites",
+      extra: {
+        elapsed: val => parseInt(val) > 0,
+        numChars: "0",
+        selType: "history",
+        selIndex: "0",
+      },
+    };
+  },
+
+  async function() {
+    info(
+      "With pageproxystate=invalid, open the panel with openViewOnFocus, Enter."
+    );
+    gURLBar.value = "mochi.test";
+    gURLBar.setAttribute("pageproxystate", "invalid");
+    let promise = BrowserTestUtils.browserLoaded(gBrowser.selectedBrowser);
+    Services.prefs.setBoolPref("browser.urlbar.openViewOnFocus", true);
+    await UrlbarTestUtils.promisePopupOpen(window, () => {
+      window.document.getElementById("Browser:OpenLocation").doCommand();
+    });
+    Services.prefs.clearUserPref("browser.urlbar.openViewOnFocus");
+    await UrlbarTestUtils.promiseSearchComplete(window);
+    EventUtils.synthesizeKey("VK_RETURN");
+    await promise;
+    return {
+      category: "urlbar",
+      method: "engagement",
+      object: "enter",
+      value: "typed",
+      extra: {
+        elapsed: val => parseInt(val) > 0,
+        numChars: "10",
+        selType: "autofill",
+        selIndex: "0",
+      },
+    };
+  },
+
+  async function() {
+    info(
+      "With pageproxystate=invalid, open the panel with openViewOnFocus, click on entry."
+    );
+    gURLBar.value = "mochi.test";
+    gURLBar.setAttribute("pageproxystate", "invalid");
+    let promise = BrowserTestUtils.browserLoaded(gBrowser.selectedBrowser);
+    Services.prefs.setBoolPref("browser.urlbar.openViewOnFocus", true);
+    await UrlbarTestUtils.promisePopupOpen(window, () => {
+      window.document.getElementById("Browser:OpenLocation").doCommand();
+    });
+    Services.prefs.clearUserPref("browser.urlbar.openViewOnFocus");
+    await UrlbarTestUtils.promiseSearchComplete(window);
+    let element = UrlbarTestUtils.getSelectedRow(window);
+    EventUtils.synthesizeMouseAtCenter(element, {});
+    await promise;
+    return {
+      category: "urlbar",
+      method: "engagement",
+      object: "click",
+      value: "typed",
+      extra: {
+        elapsed: val => parseInt(val) > 0,
+        numChars: "10",
+        selType: "autofill",
         selIndex: "0",
       },
     };
@@ -472,12 +642,7 @@ const tests = [
       async browser => {
         gURLBar.select();
         await UrlbarTestUtils.promisePopupOpen(window, () => {
-          let dropmarker = document.getAnonymousElementByAttribute(
-            gURLBar.textbox,
-            "anonid",
-            "historydropmarker"
-          );
-          EventUtils.synthesizeMouseAtCenter(dropmarker, {}, window);
+          EventUtils.synthesizeMouseAtCenter(gURLBar.dropmarker, {}, window);
         });
         EventUtils.synthesizeKey("x");
         gURLBar.blur();
@@ -491,6 +656,53 @@ const tests = [
       extra: {
         elapsed: val => parseInt(val) > 0,
         numChars: "1",
+      },
+    };
+  },
+
+  async function() {
+    info(
+      "With pageproxystate=valid, open the panel with openViewOnFocus, don't type, blur it."
+    );
+    gURLBar.value = "";
+    Services.prefs.setBoolPref("browser.urlbar.openViewOnFocus", true);
+    await UrlbarTestUtils.promisePopupOpen(window, () => {
+      window.document.getElementById("Browser:OpenLocation").doCommand();
+    });
+    Services.prefs.clearUserPref("browser.urlbar.openViewOnFocus");
+    gURLBar.blur();
+    return {
+      category: "urlbar",
+      method: "abandonment",
+      object: "blur",
+      value: "topsites",
+      extra: {
+        elapsed: val => parseInt(val) > 0,
+        numChars: "0",
+      },
+    };
+  },
+
+  async function() {
+    info(
+      "With pageproxystate=invalid, open the panel with openViewOnFocus, don't type, blur it."
+    );
+    gURLBar.value = "mochi.test";
+    gURLBar.setAttribute("pageproxystate", "invalid");
+    Services.prefs.setBoolPref("browser.urlbar.openViewOnFocus", true);
+    await UrlbarTestUtils.promisePopupOpen(window, () => {
+      window.document.getElementById("Browser:OpenLocation").doCommand();
+    });
+    Services.prefs.clearUserPref("browser.urlbar.openViewOnFocus");
+    gURLBar.blur();
+    return {
+      category: "urlbar",
+      method: "abandonment",
+      object: "blur",
+      value: "typed",
+      extra: {
+        elapsed: val => parseInt(val) > 0,
+        numChars: "10",
       },
     };
   },
@@ -585,10 +797,80 @@ add_task(async function test() {
   // This is not necessary after each loop, because assertEvents does it.
   Services.telemetry.clearEvents();
 
-  for (let testFn of tests) {
+  for (let i = 0; i < tests.length; i++) {
+    info(`Running test at index ${i}`);
+    let testFn = tests[i];
     let expectedEvents = [await testFn()].filter(e => !!e);
     // Always blur to ensure it's not accounted as an additional abandonment.
     gURLBar.blur();
     TelemetryTestUtils.assertEvents(expectedEvents, { category: "urlbar" });
   }
 });
+
+function registerTipProvider() {
+  let provider = new TipTestProvider(tipMatches);
+  UrlbarProvidersManager.registerProvider(provider);
+  return provider;
+}
+
+function unregisterTipProvider(provider) {
+  UrlbarProvidersManager.unregisterProvider(provider);
+}
+
+/**
+ * A test tip provider. See browser_tip_selection.js.
+ */
+class TipTestProvider extends UrlbarProvider {
+  constructor(matches) {
+    super();
+    this._matches = matches;
+  }
+  get name() {
+    return "TipTestProvider";
+  }
+  get type() {
+    return UrlbarUtils.PROVIDER_TYPE.PROFILE;
+  }
+  isActive(context) {
+    return true;
+  }
+  isRestricting(context) {
+    return true;
+  }
+  async startQuery(context, addCallback) {
+    this._context = context;
+    for (const match of this._matches) {
+      addCallback(this, match);
+    }
+  }
+  cancelQuery(context) {}
+  pickResult(result) {}
+}
+
+let tipMatches = [
+  new UrlbarResult(
+    UrlbarUtils.RESULT_TYPE.URL,
+    UrlbarUtils.RESULT_SOURCE.HISTORY,
+    { url: "http://mozilla.org/a" }
+  ),
+  new UrlbarResult(
+    UrlbarUtils.RESULT_TYPE.TIP,
+    UrlbarUtils.RESULT_SOURCE.OTHER_LOCAL,
+    {
+      text: "This is a test intervention.",
+      buttonText: "Done",
+      data: "test",
+      helpUrl: "about:about",
+    }
+  ),
+  new UrlbarResult(
+    UrlbarUtils.RESULT_TYPE.URL,
+    UrlbarUtils.RESULT_SOURCE.HISTORY,
+    { url: "http://mozilla.org/b" }
+  ),
+  new UrlbarResult(
+    UrlbarUtils.RESULT_TYPE.URL,
+    UrlbarUtils.RESULT_SOURCE.HISTORY,
+    { url: "http://mozilla.org/c" }
+  ),
+];

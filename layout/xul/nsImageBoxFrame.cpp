@@ -27,7 +27,6 @@
 #include "mozilla/dom/Document.h"
 #include "mozilla/dom/DocumentInlines.h"
 #include "nsImageMap.h"
-#include "nsILinkHandler.h"
 #include "nsIURL.h"
 #include "nsILoadGroup.h"
 #include "nsContainerFrame.h"
@@ -239,16 +238,17 @@ void nsImageBoxFrame::UpdateImage() {
           mContent, getter_AddRefs(triggeringPrincipal), contentPolicyType,
           &requestContextID);
 
-      nsCOMPtr<nsIURI> baseURI = mContent->GetBaseURI();
       nsCOMPtr<nsIURI> uri;
       nsContentUtils::NewURIWithDocumentCharset(getter_AddRefs(uri), src, doc,
-                                                baseURI);
+                                                mContent->GetBaseURI());
       if (uri) {
+        nsCOMPtr<nsIReferrerInfo> referrerInfo = new ReferrerInfo();
+        referrerInfo->InitWithNode(mContent);
+
         nsresult rv = nsContentUtils::LoadImage(
             uri, mContent, doc, triggeringPrincipal, requestContextID,
-            doc->GetDocumentURIAsReferrer(), doc->GetReferrerPolicy(),
-            mListener, mLoadFlags, EmptyString(), getter_AddRefs(mImageRequest),
-            contentPolicyType);
+            referrerInfo, mListener, mLoadFlags, EmptyString(),
+            getter_AddRefs(mImageRequest), contentPolicyType);
 
         if (NS_SUCCEEDED(rv) && mImageRequest) {
           nsLayoutUtils::RegisterImageRequestIfAnimated(
@@ -277,7 +277,7 @@ void nsImageBoxFrame::UpdateImage() {
     mIntrinsicSize.SizeTo(0, 0);
   } else {
     // We don't want discarding or decode-on-draw for xul images.
-    mImageRequest->StartDecoding(imgIContainer::FLAG_NONE);
+    mImageRequest->StartDecoding(imgIContainer::FLAG_ASYNC_NOTIFY);
     mImageRequest->LockImage();
   }
 
@@ -328,7 +328,8 @@ void nsImageBoxFrame::BuildDisplayList(nsDisplayListBuilder* aBuilder,
   nsDisplayList list;
   list.AppendNewToTop<nsDisplayXULImage>(aBuilder, this);
 
-  CreateOwnLayerIfNeeded(aBuilder, &list);
+  CreateOwnLayerIfNeeded(aBuilder, &list,
+                         nsDisplayOwnLayer::OwnLayerForImageBoxFrame);
 
   aLists.Content()->AppendToTop(&list);
 }
@@ -418,7 +419,6 @@ ImgDrawResult nsImageBoxFrame::CreateWebRenderCommands(
   const int32_t appUnitsPerDevPixel = PresContext()->AppUnitsPerDevPixel();
   LayoutDeviceRect fillRect =
       LayoutDeviceRect::FromAppUnits(dest, appUnitsPerDevPixel);
-  fillRect.Round();
 
   Maybe<SVGImageContext> svgContext;
   gfx::IntSize decodeSize =
@@ -442,12 +442,9 @@ ImgDrawResult nsImageBoxFrame::CreateWebRenderCommands(
   if (key.isNothing()) {
     return result;
   }
-  wr::LayoutRect fill = wr::ToLayoutRect(fillRect);
 
-  LayoutDeviceSize gapSize(0, 0);
-  aBuilder.PushImage(fill, fill, !BackfaceIsHidden(),
-                     wr::ToLayoutSize(fillRect.Size()),
-                     wr::ToLayoutSize(gapSize), rendering, key.value());
+  wr::LayoutRect fill = wr::ToLayoutRect(fillRect);
+  aBuilder.PushImage(fill, fill, !BackfaceIsHidden(), rendering, key.value());
 
   return result;
 }
@@ -617,7 +614,7 @@ void nsImageBoxFrame::DidSetComputedStyle(ComputedStyle* aOldComputedStyle) {
 
   // Fetch our subrect.
   const nsStyleList* myList = StyleList();
-  mSubRect = myList->mImageRegion;  // before |mSuppressStyleCheck| test!
+  mSubRect = myList->GetImageRegion();  // before |mSuppressStyleCheck| test!
 
   if (mUseSrcAttr || mSuppressStyleCheck)
     return;  // No more work required, since the image isn't specified by style.

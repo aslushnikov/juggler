@@ -1992,8 +1992,7 @@ nsresult Http2Session::RecvPushPromise(Http2Session* self) {
     if (NS_SUCCEEDED(rv) && pushedPort == -1) {
       // Need to get the right default port, so TestJoinConnection below can
       // check things correctly. See bug 1397621.
-      bool isHttp = false;
-      if (NS_SUCCEEDED(pushedOrigin->SchemeIs("http", &isHttp)) && isHttp) {
+      if (pushedOrigin->SchemeIs("http")) {
         pushedPort = NS_HTTP_DEFAULT_PORT;
       } else {
         pushedPort = NS_HTTPS_DEFAULT_PORT;
@@ -2532,8 +2531,8 @@ class UpdateAltSvcEvent : public Runnable {
 
     AltSvcMapping::ProcessHeader(
         mHeader, originScheme, originHost, originPort, mCI->GetUsername(),
-        mCI->GetTopWindowOrigin(), mCI->GetPrivate(), mCallbacks,
-        mCI->ProxyInfo(), 0, mCI->GetOriginAttributes());
+        mCI->GetTopWindowOrigin(), mCI->GetPrivate(), mCI->GetIsolated(),
+        mCallbacks, mCI->ProxyInfo(), 0, mCI->GetOriginAttributes());
     return NS_OK;
   }
 
@@ -2622,6 +2621,7 @@ nsresult Http2Session::RecvAltSvc(Http2Session* self) {
     }
 
     if (NS_FAILED(self->SetInputFrameDataStream(self->mInputFrameID)) ||
+        !self->mInputFrameDataStream ||
         !self->mInputFrameDataStream->Transaction() ||
         !self->mInputFrameDataStream->Transaction()->RequestHead()) {
       LOG3(
@@ -2787,8 +2787,7 @@ nsresult Http2Session::RecvOrigin(Http2Session* self) {
 
     LOG3(("Http2Session::RecvOrigin %p origin frame string %s parsed OK\n",
           self, originString.get()));
-    bool isHttps = false;
-    if (NS_FAILED(originURL->SchemeIs("https", &isHttps)) || !isHttps) {
+    if (!originURL->SchemeIs("https")) {
       LOG3(("Http2Session::RecvOrigin %p origin frame not https\n", self));
       continue;
     }
@@ -3383,6 +3382,8 @@ nsresult Http2Session::WriteSegmentsAgain(nsAHttpSegmentWriter* writer,
       streamCleanupCode = NS_ERROR_NET_RESET;
       mInputFrameDataStream->Transaction()->ReuseConnectionOnRestartOK(true);
       mInputFrameDataStream->Transaction()->DisableSpdy();
+      mInputFrameDataStream->Transaction()
+          ->MakeNonSticky();  // actully allow restart by unsticking
     } else {
       streamCleanupCode = mInputFrameDataStream->RecvdData()
                               ? NS_ERROR_NET_PARTIAL_TRANSFER
@@ -4150,33 +4151,36 @@ void Http2Session::ConnectSlowConsumer(Http2Stream* stream) {
 }
 
 uint32_t Http2Session::FindTunnelCount(nsHttpConnectionInfo* aConnInfo) {
+  return FindTunnelCount(aConnInfo->HashKey());
+}
+uint32_t Http2Session::FindTunnelCount(nsCString const& aHashKey) {
   MOZ_ASSERT(OnSocketThread(), "not on socket thread");
   uint32_t rv = 0;
-  mTunnelHash.Get(aConnInfo->HashKey(), &rv);
+  mTunnelHash.Get(aHashKey, &rv);
   return rv;
 }
 
 void Http2Session::RegisterTunnel(Http2Stream* aTunnel) {
   MOZ_ASSERT(OnSocketThread(), "not on socket thread");
-  nsHttpConnectionInfo* ci = aTunnel->Transaction()->ConnectionInfo();
-  uint32_t newcount = FindTunnelCount(ci) + 1;
-  mTunnelHash.Remove(ci->HashKey());
-  mTunnelHash.Put(ci->HashKey(), newcount);
+  nsCString const& regKey = aTunnel->RegistrationKey();
+  uint32_t newcount = FindTunnelCount(regKey) + 1;
+  mTunnelHash.Remove(regKey);
+  mTunnelHash.Put(regKey, newcount);
   LOG3(("Http2Stream::RegisterTunnel %p stream=%p tunnels=%d [%s]", this,
-        aTunnel, newcount, ci->HashKey().get()));
+        aTunnel, newcount, regKey.get()));
 }
 
 void Http2Session::UnRegisterTunnel(Http2Stream* aTunnel) {
   MOZ_ASSERT(OnSocketThread(), "not on socket thread");
-  nsHttpConnectionInfo* ci = aTunnel->Transaction()->ConnectionInfo();
-  MOZ_ASSERT(FindTunnelCount(ci));
-  uint32_t newcount = FindTunnelCount(ci) - 1;
-  mTunnelHash.Remove(ci->HashKey());
+  nsCString const& regKey = aTunnel->RegistrationKey();
+  MOZ_ASSERT(FindTunnelCount(regKey));
+  uint32_t newcount = FindTunnelCount(regKey) - 1;
+  mTunnelHash.Remove(regKey);
   if (newcount) {
-    mTunnelHash.Put(ci->HashKey(), newcount);
+    mTunnelHash.Put(regKey, newcount);
   }
   LOG3(("Http2Session::UnRegisterTunnel %p stream=%p tunnels=%d [%s]", this,
-        aTunnel, newcount, ci->HashKey().get()));
+        aTunnel, newcount, regKey.get()));
 }
 
 void Http2Session::CreateTunnel(nsHttpTransaction* trans,

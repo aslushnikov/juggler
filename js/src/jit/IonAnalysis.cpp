@@ -4372,9 +4372,9 @@ MCompare* jit::ConvertLinearInequality(TempAllocator& alloc, MBasicBlock* block,
   return compare;
 }
 
-static bool AnalyzePoppedThis(JSContext* cx, ObjectGroup* group,
-                              MDefinition* thisValue, MInstruction* ins,
-                              bool definitelyExecuted,
+static bool AnalyzePoppedThis(JSContext* cx, DPAConstraintInfo& constraintInfo,
+                              ObjectGroup* group, MDefinition* thisValue,
+                              MInstruction* ins, bool definitelyExecuted,
                               HandlePlainObject baseobj,
                               Vector<TypeNewScriptInitializer>* initializerList,
                               Vector<PropertyName*>* accessedProperties,
@@ -4415,7 +4415,12 @@ static bool AnalyzePoppedThis(JSContext* cx, ObjectGroup* group,
     }
 
     RootedId id(cx, NameToId(setprop->name()));
-    if (!AddClearDefiniteGetterSetterForPrototypeChain(cx, group, id)) {
+    bool added = false;
+    if (!AddClearDefiniteGetterSetterForPrototypeChain(cx, constraintInfo,
+                                                       group, id, &added)) {
+      return false;
+    }
+    if (!added) {
       // The prototype chain already contains a getter/setter for this
       // property, or type information is too imprecise.
       return true;
@@ -4481,7 +4486,12 @@ static bool AnalyzePoppedThis(JSContext* cx, ObjectGroup* group,
       return false;
     }
 
-    if (!AddClearDefiniteGetterSetterForPrototypeChain(cx, group, id)) {
+    bool added = false;
+    if (!AddClearDefiniteGetterSetterForPrototypeChain(cx, constraintInfo,
+                                                       group, id, &added)) {
+      return false;
+    }
+    if (!added) {
       // The |this| value can escape if any property reads it does go
       // through a getter.
       return true;
@@ -4505,8 +4515,8 @@ static int CmpInstructions(const void* a, const void* b) {
 }
 
 bool jit::AnalyzeNewScriptDefiniteProperties(
-    JSContext* cx, HandleFunction fun, ObjectGroup* group,
-    HandlePlainObject baseobj,
+    JSContext* cx, DPAConstraintInfo& constraintInfo, HandleFunction fun,
+    ObjectGroup* group, HandlePlainObject baseobj,
     Vector<TypeNewScriptInitializer>* initializerList) {
   MOZ_ASSERT(cx->zone()->types.activeAnalysis);
 
@@ -4519,8 +4529,8 @@ bool jit::AnalyzeNewScriptDefiniteProperties(
     return false;
   }
 
-  if (!jit::IsIonEnabled(cx) || !jit::IsBaselineEnabled(cx) ||
-      !script->canBaselineCompile()) {
+  if (!jit::IsIonEnabled() || !jit::IsBaselineJitEnabled() ||
+      !CanBaselineInterpretScript(script)) {
     return true;
   }
 
@@ -4548,14 +4558,9 @@ bool jit::AnalyzeNewScriptDefiniteProperties(
     return false;
   }
 
-  if (!script->hasBaselineScript()) {
-    MethodStatus status = BaselineCompile(cx, script);
-    if (status == Method_Error) {
-      return false;
-    }
-    if (status != Method_Compiled) {
-      return true;
-    }
+  AutoKeepJitScripts keepJitScript(cx);
+  if (!script->ensureHasJitScript(cx, keepJitScript)) {
+    return false;
   }
 
   JitScript::MonitorThisType(cx, script, TypeSet::ObjectType(group));
@@ -4681,9 +4686,9 @@ bool jit::AnalyzeNewScriptDefiniteProperties(
 
     bool handled = false;
     size_t slotSpan = baseobj->slotSpan();
-    if (!AnalyzePoppedThis(cx, group, thisValue, ins, definitelyExecuted,
-                           baseobj, initializerList, &accessedProperties,
-                           &handled)) {
+    if (!AnalyzePoppedThis(cx, constraintInfo, group, thisValue, ins,
+                           definitelyExecuted, baseobj, initializerList,
+                           &accessedProperties, &handled)) {
       return false;
     }
     if (!handled) {
@@ -4701,7 +4706,6 @@ bool jit::AnalyzeNewScriptDefiniteProperties(
     // contingent on the correct frames being inlined. Add constraints to
     // invalidate the definite properties if additional functions could be
     // called at the inline frame sites.
-    Vector<MBasicBlock*> exitBlocks(cx);
     for (MBasicBlockIterator block(graph.begin()); block != graph.end();
          block++) {
       // Inlining decisions made after the last new property was added to
@@ -4712,9 +4716,9 @@ bool jit::AnalyzeNewScriptDefiniteProperties(
       if (MResumePoint* rp = block->callerResumePoint()) {
         if (block->numPredecessors() == 1 &&
             block->getPredecessor(0) == rp->block()) {
-          JSScript* script = rp->block()->info().script();
-          if (!AddClearDefiniteFunctionUsesInScript(cx, group, script,
-                                                    block->info().script())) {
+          JSScript* caller = rp->block()->info().script();
+          JSScript* callee = block->info().script();
+          if (!constraintInfo.addInliningConstraint(caller, callee)) {
             return false;
           }
         }
@@ -4785,7 +4789,7 @@ bool jit::AnalyzeArgumentsUsage(JSContext* cx, JSScript* scriptArg) {
     return true;
   }
 
-  if (!jit::IsIonEnabled(cx)) {
+  if (!jit::IsIonEnabled()) {
     return true;
   }
 

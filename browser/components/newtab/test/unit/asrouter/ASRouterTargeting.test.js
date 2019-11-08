@@ -48,18 +48,20 @@ describe("#CachedTargetingGetter", () => {
       global.NewTabUtils.activityStreamProvider.getTopFrecentSites
     );
   });
-  it("should report errors", async () => {
+  it("throws when failing getter", async () => {
     frecentStub.rejects(new Error("fake error"));
     clock.tick(sixHours);
 
     // assert.throws expect a function as the first parameter, try/catch is a
     // workaround
+    let rejected = false;
     try {
       await topsitesCache.get();
-      assert.isTrue(false);
     } catch (e) {
-      assert.calledOnce(global.Cu.reportError);
+      rejected = true;
     }
+
+    assert(rejected);
   });
   it("should check targeted message before message without targeting", async () => {
     const messages = await OnboardingMessageProvider.getUntranslatedMessages();
@@ -78,29 +80,109 @@ describe("#CachedTargetingGetter", () => {
       context,
     });
 
-    assert.equal(stub.callCount, 6);
+    const messageCount = messages.filter(
+      message => message.trigger && message.trigger.id === "firstRun"
+    ).length;
+
+    assert.equal(stub.callCount, messageCount);
     const calls = stub.getCalls().map(call => call.args[0]);
     const lastCall = calls[calls.length - 1];
-    assert.equal(lastCall.id, "FXA_1");
+    assert.equal(lastCall.id, "TRAILHEAD_1");
   });
-  it("should return FxA message (is fallback)", async () => {
-    const messages = (await OnboardingMessageProvider.getUntranslatedMessages()).filter(
-      m => m.id !== "RETURN_TO_AMO_1"
-    );
-    const context = {
-      attributionData: {
-        campaign: "non-fx-button",
-        source: "addons.mozilla.org",
-      },
-    };
-    const result = await ASRouterTargeting.findMatchingMessage({
-      messages,
-      trigger: { id: "firstRun" },
-      context,
-    });
+  describe("sortMessagesByPriority", () => {
+    it("should sort messages in descending priority order", async () => {
+      const [
+        m1,
+        m2,
+        m3,
+      ] = await OnboardingMessageProvider.getUntranslatedMessages();
+      const checkMessageTargetingStub = sandbox
+        .stub(ASRouterTargeting, "checkMessageTargeting")
+        .resolves(false);
+      sandbox.stub(ASRouterTargeting, "isTriggerMatch").resolves(true);
 
-    assert.isDefined(result);
-    assert.equal(result.id, "FXA_1");
+      await ASRouterTargeting.findMatchingMessage({
+        messages: [
+          { ...m1, priority: 0 },
+          { ...m2, priority: 1 },
+          { ...m3, priority: 2 },
+        ],
+        trigger: "testing",
+      });
+
+      assert.equal(checkMessageTargetingStub.callCount, 3);
+
+      const [arg_m1] = checkMessageTargetingStub.firstCall.args;
+      assert.equal(arg_m1.id, m3.id);
+
+      const [arg_m2] = checkMessageTargetingStub.secondCall.args;
+      assert.equal(arg_m2.id, m2.id);
+
+      const [arg_m3] = checkMessageTargetingStub.thirdCall.args;
+      assert.equal(arg_m3.id, m1.id);
+    });
+    it("should sort messages with no priority last", async () => {
+      const [
+        m1,
+        m2,
+        m3,
+      ] = await OnboardingMessageProvider.getUntranslatedMessages();
+      const checkMessageTargetingStub = sandbox
+        .stub(ASRouterTargeting, "checkMessageTargeting")
+        .resolves(false);
+      sandbox.stub(ASRouterTargeting, "isTriggerMatch").resolves(true);
+
+      await ASRouterTargeting.findMatchingMessage({
+        messages: [
+          { ...m1, priority: 0 },
+          { ...m2, priority: undefined },
+          { ...m3, priority: 2 },
+        ],
+        trigger: "testing",
+      });
+
+      assert.equal(checkMessageTargetingStub.callCount, 3);
+
+      const [arg_m1] = checkMessageTargetingStub.firstCall.args;
+      assert.equal(arg_m1.id, m3.id);
+
+      const [arg_m2] = checkMessageTargetingStub.secondCall.args;
+      assert.equal(arg_m2.id, m1.id);
+
+      const [arg_m3] = checkMessageTargetingStub.thirdCall.args;
+      assert.equal(arg_m3.id, m2.id);
+    });
+    it("should keep the order of messages with same priority unchanged", async () => {
+      const [
+        m1,
+        m2,
+        m3,
+      ] = await OnboardingMessageProvider.getUntranslatedMessages();
+      const checkMessageTargetingStub = sandbox
+        .stub(ASRouterTargeting, "checkMessageTargeting")
+        .resolves(false);
+      sandbox.stub(ASRouterTargeting, "isTriggerMatch").resolves(true);
+
+      await ASRouterTargeting.findMatchingMessage({
+        messages: [
+          { ...m1, priority: 2, targeting: undefined, rank: 1 },
+          { ...m2, priority: undefined, targeting: undefined, rank: 1 },
+          { ...m3, priority: 2, targeting: undefined, rank: 1 },
+        ],
+        trigger: "testing",
+      });
+
+      assert.equal(checkMessageTargetingStub.callCount, 3);
+
+      const [arg_m1] = checkMessageTargetingStub.firstCall.args;
+      assert.equal(arg_m1.id, m1.id);
+
+      const [arg_m2] = checkMessageTargetingStub.secondCall.args;
+      assert.equal(arg_m2.id, m3.id);
+
+      const [arg_m3] = checkMessageTargetingStub.thirdCall.args;
+      assert.equal(arg_m3.id, m2.id);
+    });
   });
   describe("combineContexts", () => {
     it("should combine the properties of the two objects", () => {

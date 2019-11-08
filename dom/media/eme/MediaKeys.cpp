@@ -65,6 +65,7 @@ NS_IMPL_CYCLE_COLLECTING_ADDREF(MediaKeys)
 NS_IMPL_CYCLE_COLLECTING_RELEASE(MediaKeys)
 NS_INTERFACE_MAP_BEGIN_CYCLE_COLLECTION(MediaKeys)
   NS_WRAPPERCACHE_INTERFACE_MAP_ENTRY
+  NS_INTERFACE_MAP_ENTRY(nsISupports)
   NS_INTERFACE_MAP_ENTRY(nsIDocumentActivity)
 NS_INTERFACE_MAP_END
 
@@ -184,10 +185,8 @@ already_AddRefed<DetailedPromise> MediaKeys::SetServerCertificate(
   nsTArray<uint8_t> data;
   CopyArrayBufferViewOrArrayBufferData(aCert, data);
   if (data.IsEmpty()) {
-    promise->MaybeReject(
-        NS_ERROR_DOM_TYPE_ERR,
-        NS_LITERAL_CSTRING(
-            "Empty certificate passed to MediaKeys.setServerCertificate()"));
+    promise->MaybeRejectWithTypeError(
+        u"Empty certificate passed to MediaKeys.setServerCertificate()");
     return promise.forget();
   }
 
@@ -282,7 +281,12 @@ void MediaKeys::RejectPromise(PromiseId aId, nsresult aExceptionCode,
   }
 
   MOZ_ASSERT(NS_FAILED(aExceptionCode));
-  promise->MaybeReject(aExceptionCode, aReason);
+  if (aExceptionCode == NS_ERROR_DOM_TYPE_ERR) {
+    // This is supposed to be a TypeError, not a DOMException.
+    promise->MaybeRejectWithTypeError(NS_ConvertUTF8toUTF16(aReason));
+  } else {
+    promise->MaybeReject(aExceptionCode, aReason);
+  }
 
   if (mCreatePromiseId == aId) {
     // Note: This will probably destroy the MediaKeys object!
@@ -421,7 +425,8 @@ already_AddRefed<DetailedPromise> MediaKeys::Init(ErrorResult& aRv) {
         NS_LITERAL_CSTRING("Couldn't get top-level window in MediaKeys::Init"));
     return promise.forget();
   }
-  nsCOMPtr<nsPIDOMWindowOuter> top = window->GetOuterWindow()->GetTop();
+  nsCOMPtr<nsPIDOMWindowOuter> top =
+      window->GetOuterWindow()->GetInProcessTop();
   if (!top || !top->GetExtantDoc()) {
     promise->MaybeReject(
         NS_ERROR_DOM_INVALID_STATE_ERR,

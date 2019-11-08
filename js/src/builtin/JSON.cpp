@@ -17,7 +17,6 @@
 
 #include "builtin/Array.h"
 #include "builtin/BigInt.h"
-#include "builtin/String.h"
 #include "js/PropertySpec.h"
 #include "js/StableStringChars.h"
 #include "util/StringBuffer.h"
@@ -41,8 +40,8 @@ using mozilla::RangedPtr;
 
 using JS::AutoStableStringChars;
 
-const Class js::JSONClass = {js_JSON_str,
-                             JSCLASS_HAS_CACHED_PROTO(JSProto_JSON)};
+const JSClass js::JSONClass = {js_JSON_str,
+                               JSCLASS_HAS_CACHED_PROTO(JSProto_JSON)};
 
 /* ES5 15.12.3 Quote.
  * Requires that the destination has enough space allocated for src after
@@ -1009,7 +1008,8 @@ bool js::ParseJSONWithReviver(JSContext* cx,
                               const mozilla::Range<const CharT> chars,
                               HandleValue reviver, MutableHandleValue vp) {
   /* 15.12.2 steps 2-3. */
-  Rooted<JSONParser<CharT>> parser(cx, JSONParser<CharT>(cx, chars));
+  Rooted<JSONParser<CharT>> parser(
+      cx, JSONParser<CharT>(cx, chars, JSONParserBase::ParseType::JSONParse));
   if (!parser.parse(vp)) {
     return false;
   }

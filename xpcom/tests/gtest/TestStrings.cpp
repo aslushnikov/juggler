@@ -12,7 +12,9 @@
 #include "nsReadableUtils.h"
 #include "nsCRTGlue.h"
 #include "mozilla/RefPtr.h"
+#include "mozilla/TextUtils.h"
 #include "mozilla/Unused.h"
+#include "mozilla/Utf8.h"
 #include "nsTArray.h"
 #include "gtest/gtest.h"
 #include "gtest/MozGTestBench.h"  // For MOZ_GTEST_BENCH
@@ -1551,6 +1553,33 @@ TEST_F(Strings, tofloat) {
   test_tofloat_helper(NS_LITERAL_STRING(""), 0.f, false);
   test_tofloat_helper(NS_LITERAL_STRING("42foo"), 42.f, false);
   test_tofloat_helper(NS_LITERAL_STRING("foo"), 0.f, false);
+  test_tofloat_helper(NS_LITERAL_STRING("1.5e-"), 1.5f, false);
+}
+
+static void test_tofloat_allow_trailing_chars_helper(const nsString& aStr,
+                                                     float aExpected,
+                                                     bool aSuccess) {
+  nsresult result;
+  EXPECT_EQ(aStr.ToFloatAllowTrailingChars(&result), aExpected);
+  if (aSuccess) {
+    EXPECT_EQ(result, NS_OK);
+  } else {
+    EXPECT_NE(result, NS_OK);
+  }
+}
+
+TEST_F(Strings, ToFloatAllowTrailingChars) {
+  test_tofloat_allow_trailing_chars_helper(NS_LITERAL_STRING(""), 0.f, false);
+  test_tofloat_allow_trailing_chars_helper(NS_LITERAL_STRING("foo"), 0.f,
+                                           false);
+  test_tofloat_allow_trailing_chars_helper(NS_LITERAL_STRING("42foo"), 42.f,
+                                           true);
+  test_tofloat_allow_trailing_chars_helper(NS_LITERAL_STRING("42-5"), 42.f,
+                                           true);
+  test_tofloat_allow_trailing_chars_helper(NS_LITERAL_STRING("13.37.8"), 13.37f,
+                                           true);
+  test_tofloat_allow_trailing_chars_helper(NS_LITERAL_STRING("1.5e-"), 1.5f,
+                                           true);
 }
 
 static void test_todouble_helper(const nsString& aStr, double aExpected,
@@ -1580,6 +1609,32 @@ TEST_F(Strings, todouble) {
   test_todouble_helper(NS_LITERAL_STRING(""), 0, false);
   test_todouble_helper(NS_LITERAL_STRING("42foo"), 42, false);
   test_todouble_helper(NS_LITERAL_STRING("foo"), 0, false);
+  test_todouble_helper(NS_LITERAL_STRING("1.5e-"), 1.5, false);
+}
+
+static void test_todouble_allow_trailing_chars_helper(const nsString& aStr,
+                                                      double aExpected,
+                                                      bool aSuccess) {
+  nsresult result;
+  EXPECT_EQ(aStr.ToDoubleAllowTrailingChars(&result), aExpected);
+  if (aSuccess) {
+    EXPECT_EQ(result, NS_OK);
+  } else {
+    EXPECT_NE(result, NS_OK);
+  }
+}
+
+TEST_F(Strings, ToDoubleAllowTrailingChars) {
+  test_todouble_allow_trailing_chars_helper(NS_LITERAL_STRING(""), 0, false);
+  test_todouble_allow_trailing_chars_helper(NS_LITERAL_STRING("foo"), 0, false);
+  test_todouble_allow_trailing_chars_helper(NS_LITERAL_STRING("42foo"), 42,
+                                            true);
+  test_todouble_allow_trailing_chars_helper(NS_LITERAL_STRING("42-5"), 42,
+                                            true);
+  test_todouble_allow_trailing_chars_helper(NS_LITERAL_STRING("13.37.8"), 13.37,
+                                            true);
+  test_todouble_allow_trailing_chars_helper(NS_LITERAL_STRING("1.5e-"), 1.5,
+                                            true);
 }
 
 TEST_F(Strings, Split) {
@@ -1972,56 +2027,56 @@ MOZ_GTEST_BENCH_F(Strings, PerfStripCharsCRLF, [this] {
 
 MOZ_GTEST_BENCH_F(Strings, PerfIsUTF8One, [this] {
   for (int i = 0; i < 200000; i++) {
-    bool b = IsUTF8(*BlackBox(&mAsciiOneUtf8));
+    bool b = IsUtf8(*BlackBox(&mAsciiOneUtf8));
     BlackBox(&b);
   }
 });
 
 MOZ_GTEST_BENCH_F(Strings, PerfIsUTF8Fifteen, [this] {
   for (int i = 0; i < 200000; i++) {
-    bool b = IsUTF8(*BlackBox(&mAsciiFifteenUtf8));
+    bool b = IsUtf8(*BlackBox(&mAsciiFifteenUtf8));
     BlackBox(&b);
   }
 });
 
 MOZ_GTEST_BENCH_F(Strings, PerfIsUTF8Hundred, [this] {
   for (int i = 0; i < 200000; i++) {
-    bool b = IsUTF8(*BlackBox(&mAsciiHundredUtf8));
+    bool b = IsUtf8(*BlackBox(&mAsciiHundredUtf8));
     BlackBox(&b);
   }
 });
 
 MOZ_GTEST_BENCH_F(Strings, PerfIsUTF8Example3, [this] {
   for (int i = 0; i < 100000; i++) {
-    bool b = IsUTF8(*BlackBox(&mExample3Utf8));
+    bool b = IsUtf8(*BlackBox(&mExample3Utf8));
     BlackBox(&b);
   }
 });
 
 MOZ_GTEST_BENCH_F(Strings, PerfIsASCII8One, [this] {
   for (int i = 0; i < 200000; i++) {
-    bool b = IsASCII(*BlackBox(&mAsciiOneUtf8));
+    bool b = IsAscii(*BlackBox(&mAsciiOneUtf8));
     BlackBox(&b);
   }
 });
 
 MOZ_GTEST_BENCH_F(Strings, PerfIsASCIIFifteen, [this] {
   for (int i = 0; i < 200000; i++) {
-    bool b = IsASCII(*BlackBox(&mAsciiFifteenUtf8));
+    bool b = IsAscii(*BlackBox(&mAsciiFifteenUtf8));
     BlackBox(&b);
   }
 });
 
 MOZ_GTEST_BENCH_F(Strings, PerfIsASCIIHundred, [this] {
   for (int i = 0; i < 200000; i++) {
-    bool b = IsASCII(*BlackBox(&mAsciiHundredUtf8));
+    bool b = IsAscii(*BlackBox(&mAsciiHundredUtf8));
     BlackBox(&b);
   }
 });
 
 MOZ_GTEST_BENCH_F(Strings, PerfIsASCIIExample3, [this] {
   for (int i = 0; i < 100000; i++) {
-    bool b = IsASCII(*BlackBox(&mExample3Utf8));
+    bool b = IsAscii(*BlackBox(&mExample3Utf8));
     BlackBox(&b);
   }
 });

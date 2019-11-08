@@ -80,14 +80,6 @@ mozilla::ipc::IPCResult RDDChild::RecvInitComplete() {
   return IPC_OK();
 }
 
-mozilla::ipc::IPCResult RDDChild::RecvInitCrashReporter(
-    Shmem&& aShmem, const NativeThreadId& aThreadId) {
-  mCrashReporter = MakeUnique<ipc::CrashReporterHost>(GeckoProcessType_RDD,
-                                                      aShmem, aThreadId);
-
-  return IPC_OK();
-}
-
 bool RDDChild::SendRequestMemoryReport(const uint32_t& aGeneration,
                                        const bool& aAnonymize,
                                        const bool& aMinimizeMemoryUsage,
@@ -119,10 +111,7 @@ mozilla::ipc::IPCResult RDDChild::RecvFinishMemoryReport(
 
 void RDDChild::ActorDestroy(ActorDestroyReason aWhy) {
   if (aWhy == AbnormalShutdown) {
-    if (mCrashReporter) {
-      mCrashReporter->GenerateCrashReport(OtherPid());
-      mCrashReporter = nullptr;
-    }
+    GenerateCrashReport(OtherPid());
   }
 
   gfxVars::RemoveReceiver(this);

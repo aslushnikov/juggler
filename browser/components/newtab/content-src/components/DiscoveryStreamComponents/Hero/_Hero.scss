@@ -27,10 +27,6 @@ $card-header-in-hero-line-height: 20;
     border: 0;
     padding-bottom: 20px;
 
-    p {
-      margin-top: 4px;
-    }
-
     &:hover {
       border: 0;
       box-shadow: none;
@@ -49,6 +45,7 @@ $card-header-in-hero-line-height: 20;
   .ds-card.placeholder {
     margin-bottom: 20px;
     padding-bottom: 20px;
+    min-height: 180px;
   }
 
   .img-wrapper {
@@ -116,6 +113,10 @@ $card-header-in-hero-line-height: 20;
       display: block;
       flex-direction: column;
       justify-content: space-between;
+
+      .header-and-excerpt {
+        flex: 1;
+      }
 
       header {
         @include dark-theme-only {

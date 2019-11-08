@@ -242,6 +242,14 @@ HashStore::~HashStore() = default;
 nsresult HashStore::Reset() {
   LOG(("HashStore resetting"));
 
+  // Close InputStream before removing the file
+  if (mInputStream) {
+    nsresult rv = mInputStream->Close();
+    NS_ENSURE_SUCCESS(rv, rv);
+
+    mInputStream = nullptr;
+  }
+
   nsCOMPtr<nsIFile> storeFile;
   nsresult rv = mStoreDirectory->Clone(getter_AddRefs(storeFile));
   NS_ENSURE_SUCCESS(rv, rv);
@@ -253,7 +261,6 @@ nsresult HashStore::Reset() {
   NS_ENSURE_SUCCESS(rv, rv);
 
   mFileSize = 0;
-  mInputStream = nullptr;
 
   return NS_OK;
 }
@@ -326,7 +333,10 @@ nsresult HashStore::Open(uint32_t aVersion) {
   NS_ENSURE_SUCCESS(rv, rv);
 
   rv = ReadHeader();
-  NS_ENSURE_SUCCESS(rv, rv);
+  if (NS_WARN_IF(NS_FAILED(rv))) {
+    LOG(("Failed to read header for %s", mTableName.get()));
+    return NS_ERROR_FILE_CORRUPTED;
+  }
 
   rv = SanityCheck(aVersion);
   NS_ENSURE_SUCCESS(rv, rv);

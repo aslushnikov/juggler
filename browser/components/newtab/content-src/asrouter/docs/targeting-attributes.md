@@ -34,6 +34,14 @@ Please note that some targeting attributes require stricter controls on the tele
 * [isFxAEnabled](#isFxAEnabled)
 * [xpinstallEnabled](#xpinstallEnabled)
 * [hasPinnedTabs](#haspinnedtabs)
+* [hasAccessedFxAPanel](#hasaccessedfxapanel)
+* [isWhatsNewPanelEnabled](#iswhatsnewpanelenabled)
+* [isFxABadgeEnabled](#isfxabadgeenabled)
+* [totalBlockedCount](#totalblockedcount)
+* [recentBookmarks](#recentbookmarks)
+* [userPrefs](#userprefs)
+* [attachedFxAOAuthClients](#attachedfxaoauthclients)
+* [platformName](#platformname)
 
 ## Detailed usage
 
@@ -473,4 +481,115 @@ Does the user have any pinned tabs in any windows.
 
 ```ts
 declare const hasPinnedTabs: boolean;
+```
+
+### `hasAccessedFxAPanel`
+
+Boolean pref that gets set the first time the user opens the FxA toolbar panel
+
+#### Definition
+
+```ts
+declare const hasAccessedFxAPanel: boolean;
+```
+
+### `isWhatsNewPanelEnabled`
+
+Boolean pref that controls if the What's New panel feature is enabled
+
+#### Definition
+
+```ts
+declare const isWhatsNewPanelEnabled: boolean;
+```
+
+### `isFxABadgeEnabled`
+
+Boolean pref that controls if the FxA toolbar button is badged by Messaging System.
+
+#### Definition
+
+```ts
+declare const isFxABadgeEnabled: boolean;
+```
+
+### `totalBlockedCount`
+
+Total number of events from the content blocking database
+
+#### Definition
+
+```ts
+declare const totalBlockedCount: number;
+```
+
+### `recentBookmarks`
+
+An array of GUIDs of recent bookmarks as provided by [`NewTabUtils.getRecentBookmarks`](https://searchfox.org/mozilla-central/rev/e0b0c38ee83f99d3cf868bad525ace4a395039f1/toolkit/modules/NewTabUtils.jsm#1087)
+
+#### Definition
+
+```ts
+interface Bookmark {
+  bookmarkGuid: string;
+  url: string;
+  title: string;
+  ...
+}
+declare const recentBookmarks: Array<Bookmark>
+```
+
+### `userPrefs`
+
+Information about user facing prefs configurable from `about:preferences`.
+
+#### Examples
+```java
+userPrefs.cfrFeatures == false
+```
+
+#### Definition
+
+```ts
+declare const userPrefs: {
+  cfrFeatures: boolean;
+  cfrAddons: boolean;
+  snippets: boolean;
+}
+```
+
+### `attachedFxAOAuthClients`
+
+Information about connected services associated with the FxA Account.
+
+#### Definition
+
+```
+interface OAuthClient {
+  id: string;
+  // FxA service name
+  name: string;
+  lastAccessTime: UnixEpochNumber;
+}
+
+declare const attachedFxAOAuthClients: Array<OAuthClient>
+```
+
+#### Examples
+```javascript
+{
+  id: "7377719276ad44ee",
+  name: "Pocket",
+  lastAccessTime: 1513599164000
+}
+```
+
+### `platformName`
+
+[Platform information](https://searchfox.org/mozilla-central/rev/05a22d864814cb1e4352faa4004e1f975c7d2eb9/toolkit/modules/AppConstants.jsm#156).
+
+#### Definition
+
+```
+declare const platformName = "linux" | "win" | "macosx" | "android" | "other";
 ```
