@@ -78,7 +78,7 @@ var NSGetFactory = XPCOMUtils.generateNSGetFactory([CommandLineHandler]);
 async function waitForBrowserWindow() {
   const windowsIt = Services.wm.getEnumerator('navigator:browser');
   if (windowsIt.hasMoreElements())
-    return waitForWindowLoaded(windowsIt.getNext().QueryInterface(Ci.nsIDOMChromeWindow));
+    return waitForWindowLoaded(windowsIt.getNext());
 
   let fulfill;
   let promise = new Promise(x => fulfill = x);

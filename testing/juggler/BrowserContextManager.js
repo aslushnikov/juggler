@@ -29,6 +29,7 @@ class BrowserContextManager {
     this._id = 0;
     this._browserContextIdToUserContextId = new Map();
     this._userContextIdToBrowserContextId = new Map();
+    this._principalsForBrowserContextId = new Map();
 
     // Cleanup containers from previous runs (if any)
     for (const identity of ContextualIdentityService.getPublicIdentities()) {
@@ -41,7 +42,10 @@ class BrowserContextManager {
 
   grantPermissions(browserContextId, origin, permissions) {
     const attrs = browserContextId ? {userContextId: this.userContextId(browserContextId)} : {};
-    const principal = Services.scriptSecurityManager.createCodebasePrincipal(NetUtil.newURI(origin), attrs);
+    const principal = Services.scriptSecurityManager.createContentPrincipal(NetUtil.newURI(origin), attrs);
+    if (!this._principalsForBrowserContextId.has(browserContextId))
+      this._principalsForBrowserContextId.set(browserContextId, []);
+    this._principalsForBrowserContextId.get(browserContextId).push(principal);
     for (const permission of ALL_PERMISSIONS) {
       const action = permissions.includes(permission) ? Ci.nsIPermissionManager.ALLOW_ACTION : Ci.nsIPermissionManager.DENY_ACTION;
       Services.perms.addFromPrincipal(principal, permission, action);
@@ -49,8 +53,14 @@ class BrowserContextManager {
   }
 
   resetPermissions(browserContextId) {
-    const attrs = browserContextId ? {userContextId: this.userContextId(browserContextId)} : {};
-    Services.perms.removePermissionsWithAttributes(JSON.stringify(attrs));
+    if (!this._principalsForBrowserContextId.has(browserContextId))
+      return;
+    const principals = this._principalsForBrowserContextId.get(browserContextId);
+    for (const principal of principals) {
+      for (const permission of ALL_PERMISSIONS)
+        Services.perms.removeFromPrincipal(principal, permission);
+    }
+    this._principalsForBrowserContextId.delete(browserContextId);
   }
 
   createBrowserContext() {
@@ -133,7 +143,6 @@ class BrowserContextManager {
         cookie.domain || defaultDomain,
         cookie.name,
         cookie.path || defaultPath,
-        false,
         { userContextId } /* originAttributes */,
       );
     }

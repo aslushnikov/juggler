@@ -1,7 +1,9 @@
 "use strict";
 
 const {Services} = ChromeUtils.import("resource://gre/modules/Services.jsm");
-const {InsecureSweepingOverride} = ChromeUtils.import("chrome://juggler/content/InsecureSweepingOverride.js");
+const { allowAllCerts } = ChromeUtils.import(
+  "chrome://marionette/content/cert.js"
+);
 const {BrowserContextManager} = ChromeUtils.import("chrome://juggler/content/BrowserContextManager.js");
 
 class BrowserHandler {
@@ -18,13 +20,11 @@ class BrowserHandler {
   }
 
   async setIgnoreHTTPSErrors({enabled}) {
-    if (!enabled && this._sweepingOverride) {
-      this._sweepingOverride.unregister();
-      this._sweepingOverride = null;
+    if (!enabled) {
+      allowAllCerts.disable() 
       Services.prefs.setBoolPref('security.mixed_content.block_active_content', true);
-    } else if (enabled && !this._sweepingOverride) {
-      this._sweepingOverride = new InsecureSweepingOverride();
-      this._sweepingOverride.register();
+    } else {
+      allowAllCerts.enable()
       Services.prefs.setBoolPref('security.mixed_content.block_active_content', false);
     }
   }
