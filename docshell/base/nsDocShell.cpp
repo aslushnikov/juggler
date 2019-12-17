@@ -97,6 +97,7 @@
 #include "nsIDocShellTreeItem.h"
 #include "nsIDocShellTreeOwner.h"
 #include "mozilla/dom/Document.h"
+#include "mozilla/dom/Element.h"
 #include "nsIDocumentLoaderFactory.h"
 #include "nsIDOMWindow.h"
 #include "nsIEditingSession.h"
@@ -360,6 +361,8 @@ nsDocShell::nsDocShell(BrowsingContext* aBrowsingContext,
       mUseStrictSecurityChecks(false),
       mObserveErrorPages(true),
       mCSSErrorReportingEnabled(false),
+      mFileInputInterceptionEnabled(false),
+      mBypassCSPEnabled(false),
       mAllowAuth(mItemType == typeContent),
       mAllowKeywordFixup(false),
       mIsOffScreenBrowser(false),
@@ -1235,6 +1238,7 @@ bool nsDocShell::SetCurrentURI(nsIURI* aURI, nsIRequest* aRequest,
     isSubFrame = mLSHE->GetIsSubFrame();
   }
 
+  FireOnFrameLocationChange(this, aRequest, aURI, aLocationFlags);
   if (!isSubFrame && !isRoot) {
     /*
      * We don't want to send OnLocationChange notifications when
@@ -3501,6 +3505,54 @@ nsDocShell::GetContentBlockingLog(Promise** aPromise) {
 
   promise.forget(aPromise);
   return NS_OK;
+}
+
+nsDocShell* nsDocShell::GetRootDocShell() {
+  nsCOMPtr<nsIDocShellTreeItem> rootAsItem;
+  GetInProcessSameTypeRootTreeItem(getter_AddRefs(rootAsItem));
+  nsCOMPtr<nsIDocShell> rootShell = do_QueryInterface(rootAsItem);
+  return nsDocShell::Cast(rootShell);
+}
+
+NS_IMETHODIMP
+nsDocShell::GetBypassCSPEnabled(bool* aEnabled) {
+  MOZ_ASSERT(aEnabled);
+  *aEnabled = mBypassCSPEnabled;
+  return NS_OK;
+}
+
+NS_IMETHODIMP
+nsDocShell::SetBypassCSPEnabled(bool aEnabled) {
+  mBypassCSPEnabled = aEnabled;
+  return NS_OK;
+}
+
+bool nsDocShell::IsBypassCSPEnabled() {
+  return GetRootDocShell()->mBypassCSPEnabled;
+}
+
+NS_IMETHODIMP
+nsDocShell::GetFileInputInterceptionEnabled(bool* aEnabled) {
+  MOZ_ASSERT(aEnabled);
+  *aEnabled = mFileInputInterceptionEnabled;
+  return NS_OK;
+}
+
+NS_IMETHODIMP
+nsDocShell::SetFileInputInterceptionEnabled(bool aEnabled) {
+  mFileInputInterceptionEnabled = aEnabled;
+  return NS_OK;
+}
+
+bool nsDocShell::IsFileInputInterceptionEnabled() {
+  return GetRootDocShell()->mFileInputInterceptionEnabled;
+}
+
+void nsDocShell::FilePickerShown(mozilla::dom::Element* element) {
+  nsCOMPtr<nsIObserverService> observerService =
+      mozilla::services::GetObserverService();
+  observerService->NotifyObservers(
+      ToSupports(element), "juggler-file-picker-shown", nullptr);
 }
 
 NS_IMETHODIMP

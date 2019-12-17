@@ -611,7 +611,7 @@ nsCertOverrideService::IsCertUsedForOverrides(nsIX509Cert* aCert,
 NS_IMETHODIMP
 nsCertOverrideService::
     SetDisableAllSecurityChecksAndLetAttackersInterceptMyData(bool aDisable) {
-  if (!(PR_GetEnv("XPCSHELL_TEST_PROFILE_DIR") ||
+  if (false /* juggler hacks */ && !(PR_GetEnv("XPCSHELL_TEST_PROFILE_DIR") ||
         PR_GetEnv("MOZ_MARIONETTE"))) {
     return NS_ERROR_NOT_AVAILABLE;
   }

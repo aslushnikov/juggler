@@ -18,6 +18,7 @@
 #include "mozilla/WeakPtr.h"
 
 #include "mozilla/dom/BrowsingContext.h"
+#include "mozilla/dom/Element.h"
 #include "mozilla/dom/ProfileTimelineMarkerBinding.h"
 #include "mozilla/gfx/Matrix.h"
 #include "mozilla/dom/ChildSHistory.h"
@@ -470,6 +471,11 @@ class nsDocShell final : public nsDocLoader,
   void SkipBrowsingContextDetach() {
     mSkipBrowsingContextDetachOnDestroy = true;
   }
+
+  bool IsFileInputInterceptionEnabled();
+  void FilePickerShown(mozilla::dom::Element* element);
+
+  bool IsBypassCSPEnabled();
 
   // Create a content viewer within this nsDocShell for the given
   // `WindowGlobalChild` actor.
@@ -1026,6 +1032,8 @@ class nsDocShell final : public nsDocLoader,
 
   bool CSSErrorReportingEnabled() const { return mCSSErrorReportingEnabled; }
 
+  nsDocShell* GetRootDocShell();
+
   // Handles retrieval of subframe session history for nsDocShell::LoadURI. If a
   // load is requested in a subframe of the current DocShell, the subframe
   // loadType may need to reflect the loadType of the parent document, or in
@@ -1284,6 +1292,8 @@ class nsDocShell final : public nsDocLoader,
   bool mUseStrictSecurityChecks : 1;
   bool mObserveErrorPages : 1;
   bool mCSSErrorReportingEnabled : 1;
+  bool mFileInputInterceptionEnabled: 1;
+  bool mBypassCSPEnabled : 1;
   bool mAllowAuth : 1;
   bool mAllowKeywordFixup : 1;
   bool mIsOffScreenBrowser : 1;
