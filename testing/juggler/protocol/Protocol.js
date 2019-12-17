@@ -407,7 +407,8 @@ const Page = {
     },
     'navigationCommitted': {
       frameId: t.String,
-      navigationId: t.String,
+      // |navigationId| can only be null in response to enable.
+      navigationId: t.Optional(t.String),
       url: t.String,
       // frame.id or frame.name
       name: t.String,

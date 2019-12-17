@@ -219,7 +219,7 @@ class PageAgent {
   _onNavigationCommitted(frame) {
     this._session.emitEvent('Page.navigationCommitted', {
       frameId: frame.id(),
-      navigationId: frame.lastCommittedNavigationId(),
+      navigationId: frame.lastCommittedNavigationId() || undefined,
       url: frame.url(),
       name: frame.name(),
     });

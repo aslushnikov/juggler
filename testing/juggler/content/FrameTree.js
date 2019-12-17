@@ -174,6 +174,8 @@ class Frame {
     this._frameId = helper.generateId();
     this._parentFrame = null;
     this._url = '';
+    if (docShell.domWindow && docShell.domWindow.location)
+      this._url = docShell.domWindow.location.href;
     if (parentFrame) {
       this._parentFrame = parentFrame;
       parentFrame._children.add(this);
