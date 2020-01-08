@@ -411,7 +411,7 @@ class PageAgent {
       throw new Error('RemoteObject is not a node');
     const quads = unsafeObject.getBoxQuads({relativeTo: this._frameTree.mainFrame().domWindow().document});
     if (!quads.length)
-      return null;
+      return {boundingBox: null};
     let x1 = Infinity;
     let y1 = Infinity;
     let x2 = -Infinity;
@@ -423,7 +423,7 @@ class PageAgent {
       x2 = Math.max(boundingBox.x + boundingBox.width, x2);
       y2 = Math.max(boundingBox.y + boundingBox.height, y2);
     }
-    return {x: x1 + frame.domWindow().scrollX, y: y1 + frame.domWindow().scrollY, width: x2 - x1, height: y2 - y1};
+    return {boundingBox: {x: x1 + frame.domWindow().scrollX, y: y1 + frame.domWindow().scrollY, width: x2 - x1, height: y2 - y1}};
   }
 
   async screenshot({mimeType, fullPage, clip}) {
