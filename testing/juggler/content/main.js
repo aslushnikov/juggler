@@ -1,27 +1,33 @@
 const {Helper} = ChromeUtils.import('chrome://juggler/content/Helper.js');
-const {ContentSession} = ChromeUtils.import('chrome://juggler/content/content/ContentSession.js');
 const {FrameTree} = ChromeUtils.import('chrome://juggler/content/content/FrameTree.js');
 const {NetworkMonitor} = ChromeUtils.import('chrome://juggler/content/content/NetworkMonitor.js');
 const {ScrollbarManager} = ChromeUtils.import('chrome://juggler/content/content/ScrollbarManager.js');
+const {SimpleChannel} = ChromeUtils.import('chrome://juggler/content/SimpleChannel.js');
+const {RuntimeAgent} = ChromeUtils.import('chrome://juggler/content/content/RuntimeAgent.js');
+const {PageAgent} = ChromeUtils.import('chrome://juggler/content/content/PageAgent.js');
 
-const sessions = new Map();
 const scrollbarManager = new ScrollbarManager(docShell);
 let frameTree;
 let networkMonitor;
 const helper = new Helper();
 const messageManager = this;
-let gListeners;
 
-function createContentSession(sessionId) {
-  sessions.set(sessionId, new ContentSession(sessionId, messageManager, frameTree, networkMonitor));
+function createContentSession(channel, sessionId) {
+  const runtimeAgent = new RuntimeAgent(channel.connect(sessionId + 'runtime'));
+  const pageAgent = new PageAgent(messageManager, channel.connect(sessionId + 'page'), runtimeAgent, frameTree, networkMonitor);
+
+  channel.register(sessionId + 'runtime', runtimeAgent);
+  channel.register(sessionId + 'page', pageAgent);
+
+  runtimeAgent.enable();
+  pageAgent.enable();
 }
 
-function disposeContentSession(sessionId) {
-  const session = sessions.get(sessionId);
-  if (!session)
-    return;
-  sessions.delete(sessionId);
-  session.dispose();
+function disposeContentSession(channel, sessionId) {
+  channel.handler(sessionId + 'runtime').dispose();
+  channel.handler(sessionId + 'page').dispose();
+  channel.unregister(sessionId + 'runtime');
+  channel.unregister(sessionId + 'page');
 }
 
 function initialize() {
@@ -49,30 +55,36 @@ function initialize() {
   for (const script of scriptsToEvaluateOnNewDocument || [])
     frameTree.addScriptToEvaluateOnNewDocument(script);
   networkMonitor = new NetworkMonitor(docShell, frameTree);
+
+  const channel = SimpleChannel.createForMessageManager('content::page', messageManager);
+
   for (const sessionId of sessionIds)
-    createContentSession(sessionId);
+    createContentSession(channel, sessionId);
 
-  gListeners = [
-    helper.addMessageListener(messageManager, 'juggler:create-content-session', msg => {
-      const sessionId = msg.data;
-      createContentSession(sessionId);
-    }),
+  channel.register('', {
+    attach({sessionId}) {
+      createContentSession(channel, sessionId);
+    },
 
-    helper.addMessageListener(messageManager, 'juggler:dispose-content-session', msg => {
-      const sessionId = msg.data;
-      disposeContentSession(sessionId);
-    }),
+    detach({sessionId}) {
+      disposeContentSession(channel, sessionId);
+    },
 
-    helper.addMessageListener(messageManager, 'juggler:add-script-to-evaluate-on-new-document', msg => {
-      const script = msg.data;
+    addScriptToEvaluateOnNewDocument({script}) {
       frameTree.addScriptToEvaluateOnNewDocument(script);
-    }),
+    },
 
+    dispose() {
+    },
+  });
+
+  const gListeners = [
     helper.addEventListener(messageManager, 'unload', msg => {
       helper.removeListeners(gListeners);
-      for (const session of sessions.values())
-        session.dispose();
-      sessions.clear();
+      for (const handler of channel.handlers())
+        handler.dispose();
+      channel.dispose();
+
       scrollbarManager.dispose();
       networkMonitor.dispose();
       frameTree.dispose();

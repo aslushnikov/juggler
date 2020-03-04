@@ -1,11 +1,11 @@
 class AccessibilityHandler {
-  constructor(chromeSession, contentSession) {
+  constructor(chromeSession, sessionId, contentChannel) {
     this._chromeSession = chromeSession;
-    this._contentSession = contentSession;
+    this._contentSession = contentChannel.connect(sessionId + 'page');
   }
 
   async getFullAXTree(params) {
-    return await this._contentSession.send('Page.getFullAXTree', params);
+    return await this._contentSession.send('getFullAXTree', params);
   }
 
   dispose() { }

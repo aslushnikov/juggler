@@ -8,13 +8,12 @@ const Cc = Components.classes;
 const Ci = Components.interfaces;
 const Cu = Components.utils;
 const XUL_NS = 'http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul';
-const FRAME_SCRIPT = "chrome://juggler/content/content/ContentSession.js";
 const helper = new Helper();
 
 class NetworkHandler {
-  constructor(chromeSession, contentSession) {
+  constructor(chromeSession, sessionId, contentChannel) {
     this._chromeSession = chromeSession;
-    this._contentSession = contentSession;
+    this._contentSession = contentChannel.connect(sessionId + 'page');
     this._networkObserver = NetworkObserver.instance();
     this._httpActivity = new Map();
     this._enabled = false;
@@ -122,13 +121,11 @@ class NetworkHandler {
     this._pendingRequstWillBeSentEvents.add(pendingRequestPromise);
     let details = null;
     try {
-      details = await this._contentSession.send('Page.requestDetails', {channelId: httpChannel.channelId});
+      details = await this._contentSession.send('requestDetails', {channelId: httpChannel.channelId});
     } catch (e) {
-      if (this._contentSession.isDisposed()) {
-        pendingRequestCallback();
-        this._pendingRequstWillBeSentEvents.delete(pendingRequestPromise);
-        return;
-      }
+      pendingRequestCallback();
+      this._pendingRequstWillBeSentEvents.delete(pendingRequestPromise);
+      return;
     }
     // Inherit frameId for redirects when details are not available.
     const frameId = details ? details.frameId : (eventDetails.redirectedFrom ? this._requestIdToFrameId.get(eventDetails.redirectedFrom) : undefined);

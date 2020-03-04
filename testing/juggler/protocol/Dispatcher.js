@@ -2,6 +2,7 @@ const {TargetRegistry} = ChromeUtils.import("chrome://juggler/content/TargetRegi
 const {protocol, checkScheme} = ChromeUtils.import("chrome://juggler/content/protocol/Protocol.js");
 const {Helper} = ChromeUtils.import('chrome://juggler/content/Helper.js');
 const helper = new Helper();
+const {SimpleChannel} = ChromeUtils.import('chrome://juggler/content/SimpleChannel.js');
 
 const PROTOCOL_HANDLERS = {
   Page: ChromeUtils.import("chrome://juggler/content/protocol/PageHandler.js").PageHandler,
@@ -23,7 +24,7 @@ class Dispatcher {
 
     this._targetSessions = new Map();
     this._sessions = new Map();
-    this._rootSession = new ChromeSession(this, undefined, null /* contentSession */, TargetRegistry.instance().browserTargetInfo());
+    this._rootSession = new ChromeSession(this, undefined, null /* contentChannel */, TargetRegistry.instance().browserTargetInfo());
 
     this._eventListeners = [
       helper.on(TargetRegistry.instance(), TargetRegistry.Events.TargetDestroyed, this._onTargetDestroyed.bind(this)),
@@ -41,10 +42,10 @@ class Dispatcher {
     }
 
     const sessionId = helper.generateId();
-    const contentSession = targetInfo.type === 'page' ? new ContentSession(this, sessionId, targetInfo) : null;
-    if (shouldConnect && contentSession)
-      contentSession.connect();
-    const chromeSession = new ChromeSession(this, sessionId, contentSession, targetInfo);
+    const contentChannel = targetInfo.type === 'page' ? TargetRegistry.instance().contentChannelForTarget(targetInfo.targetId) : null;
+    if (shouldConnect && contentChannel)
+      contentChannel.connect('').send('attach', {sessionId});
+    const chromeSession = new ChromeSession(this, sessionId, contentChannel, targetInfo);
     targetSessions.set(sessionId, chromeSession);
     this._sessions.set(sessionId, chromeSession);
     this._emitEvent(this._rootSession._sessionId, 'Target.attachedToTarget', {
@@ -132,16 +133,16 @@ class ChromeSession {
   /**
    * @param {Connection} connection
    */
-  constructor(dispatcher, sessionId, contentSession, targetInfo) {
+  constructor(dispatcher, sessionId, contentChannel, targetInfo) {
     this._dispatcher = dispatcher;
     this._sessionId = sessionId;
-    this._contentSession = contentSession;
+    this._contentChannel = contentChannel;
     this._targetInfo = targetInfo;
 
     this._handlers = {};
     for (const [domainName, handlerFactory] of Object.entries(PROTOCOL_HANDLERS)) {
       if (protocol.domains[domainName].targets.includes(targetInfo.type))
-        this._handlers[domainName] = new handlerFactory(this, contentSession);
+        this._handlers[domainName] = new handlerFactory(this, sessionId, contentChannel);
     }
     const pageHandler = this._handlers['Page'];
     if (pageHandler)
@@ -160,9 +161,9 @@ class ChromeSession {
   }
 
   dispose() {
-    if (this._contentSession)
-      this._contentSession.dispose();
-    this._contentSession = null;
+    if (this._contentChannel)
+      this._contentChannel.connect('').emit('detach', {sessionId: this._sessionId});
+    this._contentChannel = null;
     for (const [domainName, handler] of Object.entries(this._handlers)) {
       if (!handler.dispose)
         throw new Error(`Handler for "${domainName}" domain does not define |dispose| method!`);
@@ -190,75 +191,6 @@ class ChromeSession {
     return await this._handlers[domainName][methodName](params);
   }
 }
-
-class ContentSession {
-  constructor(dispatcher, sessionId, targetInfo) {
-    this._dispatcher = dispatcher;
-    const tab = TargetRegistry.instance().tabForTarget(targetInfo.targetId);
-    this._browser = tab.linkedBrowser;
-    this._messageId = 0;
-    this._pendingMessages = new Map();
-    this._sessionId = sessionId;
-    this._disposed = false;
-    this._eventListeners = [
-      helper.addMessageListener(this._browser.messageManager, this._sessionId, {
-        receiveMessage: message => this._onMessage(message)
-      }),
-    ];
-  }
-
-  connect() {
-    this._browser.messageManager.sendAsyncMessage('juggler:create-content-session', this._sessionId);
-  }
-
-  isDisposed() {
-    return this._disposed;
-  }
-
-  dispose() {
-    if (this._disposed)
-      return;
-    this._disposed = true;
-    helper.removeListeners(this._eventListeners);
-    for (const {resolve, reject, methodName} of this._pendingMessages.values())
-      reject(new Error(`Failed "${methodName}": Page closed.`));
-    this._pendingMessages.clear();
-    if (this._browser.messageManager)
-      this._browser.messageManager.sendAsyncMessage('juggler:dispose-content-session', this._sessionId);
-  }
-
-  /**
-   * @param {string} methodName
-   * @param {*} params
-   * @return {!Promise<*>}
-   */
-  send(methodName, params) {
-    const id = ++this._messageId;
-    const promise = new Promise((resolve, reject) => {
-      this._pendingMessages.set(id, {resolve, reject, methodName});
-    });
-    this._browser.messageManager.sendAsyncMessage(this._sessionId, {id, methodName, params});
-    return promise;
-  }
-
-  _onMessage({data}) {
-    if (data.id) {
-      const {resolve, reject} = this._pendingMessages.get(data.id);
-      this._pendingMessages.delete(data.id);
-      if (data.error)
-        reject(new Error(data.error));
-      else
-        resolve(data.result);
-    } else {
-      const {
-        eventName,
-        params = {}
-      } = data;
-      this._dispatcher._emitEvent(this._sessionId, eventName, params);
-    }
-  }
-}
-
 
 this.EXPORTED_SYMBOLS = ['Dispatcher'];
 this.Dispatcher = Dispatcher;

@@ -8,18 +8,21 @@ const Cc = Components.classes;
 const Ci = Components.interfaces;
 const Cu = Components.utils;
 const XUL_NS = 'http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul';
-const FRAME_SCRIPT = "chrome://juggler/content/content/ContentSession.js";
 const helper = new Helper();
 
 class PageHandler {
-  constructor(chromeSession, contentSession) {
+  constructor(chromeSession, sessionId, contentChannel) {
     this._chromeSession = chromeSession;
-    this._contentSession = contentSession;
+    this._contentSession = contentChannel.connect(sessionId + 'page');
+    this._eventListeners = [
+      contentChannel.register(sessionId + 'page', {
+        protocol: (eventName, params) => this._chromeSession.emitEvent(eventName, params),
+      }),
+    ];
     this._pageTarget = TargetRegistry.instance().targetForId(chromeSession.targetId());
     this._browser = TargetRegistry.instance().tabForTarget(chromeSession.targetId()).linkedBrowser;
     this._dialogs = new Map();
 
-    this._eventListeners = [];
     this._enabled = false;
   }
 
@@ -36,7 +39,7 @@ class PageHandler {
     this._enabled = true;
     this._updateModalDialogs();
 
-    this._eventListeners = [
+    this._eventListeners.push(...[
       helper.addEventListener(this._browser, 'DOMWillOpenModalDialog', async (event) => {
         // wait for the dialog to be actually added to DOM.
         await Promise.resolve();
@@ -47,7 +50,7 @@ class PageHandler {
         if (targetId === this._chromeSession.targetId())
           this._chromeSession.emitEvent('Page.crashed', {});
       }),
-    ];
+    ]);
   }
 
   dispose() {
@@ -56,7 +59,7 @@ class PageHandler {
 
   async setViewportSize({viewportSize}) {
     const size = this._pageTarget.setViewportSize(viewportSize);
-    await this._contentSession.send('Page.awaitViewportDimensions', {
+    await this._contentSession.send('awaitViewportDimensions', {
       width: size.width,
       height: size.height
     });
@@ -89,99 +92,99 @@ class PageHandler {
   }
 
   async setFileInputFiles(options) {
-    return await this._contentSession.send('Page.setFileInputFiles', options);
+    return await this._contentSession.send('setFileInputFiles', options);
   }
 
   async setEmulatedMedia(options) {
-    return await this._contentSession.send('Page.setEmulatedMedia', options);
+    return await this._contentSession.send('setEmulatedMedia', options);
   }
 
   async setCacheDisabled(options) {
-    return await this._contentSession.send('Page.setCacheDisabled', options);
+    return await this._contentSession.send('setCacheDisabled', options);
   }
 
   async addBinding(options) {
-    return await this._contentSession.send('Page.addBinding', options);
+    return await this._contentSession.send('addBinding', options);
   }
 
   async adoptNode(options) {
-    return await this._contentSession.send('Page.adoptNode', options);
+    return await this._contentSession.send('adoptNode', options);
   }
 
   async screenshot(options) {
-    return await this._contentSession.send('Page.screenshot', options);
+    return await this._contentSession.send('screenshot', options);
   }
 
   async getBoundingBox(options) {
-    return await this._contentSession.send('Page.getBoundingBox', options);
+    return await this._contentSession.send('getBoundingBox', options);
   }
 
   async getContentQuads(options) {
-    return await this._contentSession.send('Page.getContentQuads', options);
+    return await this._contentSession.send('getContentQuads', options);
   }
 
   /**
    * @param {{frameId: string, url: string}} options
    */
   async navigate(options) {
-    return await this._contentSession.send('Page.navigate', options);
+    return await this._contentSession.send('navigate', options);
   }
 
   /**
    * @param {{frameId: string, url: string}} options
    */
   async goBack(options) {
-    return await this._contentSession.send('Page.goBack', options);
+    return await this._contentSession.send('goBack', options);
   }
 
   /**
    * @param {{frameId: string, url: string}} options
    */
   async goForward(options) {
-    return await this._contentSession.send('Page.goForward', options);
+    return await this._contentSession.send('goForward', options);
   }
 
   /**
    * @param {{frameId: string, url: string}} options
    */
   async reload(options) {
-    return await this._contentSession.send('Page.reload', options);
+    return await this._contentSession.send('reload', options);
   }
 
   async describeNode(options) {
-    return await this._contentSession.send('Page.describeNode', options);
+    return await this._contentSession.send('describeNode', options);
   }
 
   async scrollIntoViewIfNeeded(options) {
-    return await this._contentSession.send('Page.scrollIntoViewIfNeeded', options);
+    return await this._contentSession.send('scrollIntoViewIfNeeded', options);
   }
 
   async addScriptToEvaluateOnNewDocument(options) {
-    return await this._contentSession.send('Page.addScriptToEvaluateOnNewDocument', options);
+    return await this._contentSession.send('addScriptToEvaluateOnNewDocument', options);
   }
 
   async removeScriptToEvaluateOnNewDocument(options) {
-    return await this._contentSession.send('Page.removeScriptToEvaluateOnNewDocument', options);
+    return await this._contentSession.send('removeScriptToEvaluateOnNewDocument', options);
   }
 
   async dispatchKeyEvent(options) {
-    return await this._contentSession.send('Page.dispatchKeyEvent', options);
+    return await this._contentSession.send('dispatchKeyEvent', options);
   }
 
   async dispatchTouchEvent(options) {
-    return await this._contentSession.send('Page.dispatchTouchEvent', options);
+    return await this._contentSession.send('dispatchTouchEvent', options);
   }
 
   async dispatchMouseEvent(options) {
-    return await this._contentSession.send('Page.dispatchMouseEvent', options);
+    return await this._contentSession.send('dispatchMouseEvent', options);
   }
 
   async insertText(options) {
-    return await this._contentSession.send('Page.insertText', options);
+    return await this._contentSession.send('insertText', options);
   }
 
   async crash(options) {
-    return await this._contentSession.send('Page.crash', options);
+    return await this._contentSession.send('crash', options);
   }
 
   async handleDialog({dialogId, accept, promptText}) {
@@ -195,15 +198,15 @@ class PageHandler {
   }
 
   async setInterceptFileChooserDialog(options) {
-    return await this._contentSession.send('Page.setInterceptFileChooserDialog', options);
+    return await this._contentSession.send('setInterceptFileChooserDialog', options);
   }
 
   async handleFileChooser(options) {
-    return await this._contentSession.send('Page.handleFileChooser', options);
+    return await this._contentSession.send('handleFileChooser', options);
   }
 
   async sendMessageToWorker(options) {
-    return await this._contentSession.send('Page.sendMessageToWorker', options);
+    return await this._contentSession.send('sendMessageToWorker', options);
   }
 }
 

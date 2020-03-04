@@ -1,5 +1,6 @@
 const {EventEmitter} = ChromeUtils.import('resource://gre/modules/EventEmitter.jsm');
 const {Helper} = ChromeUtils.import('chrome://juggler/content/Helper.js');
+const {SimpleChannel} = ChromeUtils.import('chrome://juggler/content/SimpleChannel.js');
 const {Services} = ChromeUtils.import("resource://gre/modules/Services.jsm");
 const {BrowserContext} = ChromeUtils.import("chrome://juggler/content/BrowserContextManager.js");
 
@@ -95,6 +96,15 @@ class TargetRegistry {
     return target._tab;
   }
 
+  contentChannelForTarget(targetId) {
+    const target = this._targets.get(targetId);
+    if (!target)
+      throw new Error(`Target "${targetId}" does not exist!`);
+    if (!(target instanceof PageTarget))
+      throw new Error(`Target "${targetId}" is not a page!`);
+    return target._channel;
+  }
+
   targetForId(targetId) {
     return this._targets.get(targetId);
   }
@@ -142,6 +152,7 @@ class PageTarget {
     this._browserContext = browserContext;
     this._openerId = opener ? opener.id() : undefined;
     this._url = tab.linkedBrowser.currentURI.spec;
+    this._channel = SimpleChannel.createForMessageManager('browser::page', tab.linkedBrowser.messageManager);
 
     const navigationListener = {
       QueryInterface: ChromeUtils.generateQI([ Ci.nsIWebProgressListener]),
@@ -159,7 +170,7 @@ class PageTarget {
 
     if (browserContext) {
       this._eventListeners.push(helper.on(browserContext, BrowserContext.Events.ScriptToEvaluateOnNewDocumentAdded, script => {
-        tab.linkedBrowser.messageManager.sendAsyncMessage('juggler:add-script-to-evaluate-on-new-document', script);
+        this._channel.connect('').emit('addScriptToEvaluateOnNewDocument', {script});
       }));
     }
 
