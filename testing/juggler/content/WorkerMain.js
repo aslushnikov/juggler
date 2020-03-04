@@ -1,67 +1,29 @@
 "use strict";
 loadSubScript('chrome://juggler/content/content/RuntimeAgent.js');
+loadSubScript('chrome://juggler/content/SimpleChannel.js');
 
-class WorkerSession {
-  constructor(workerId) {
-    this._workerId = workerId;
-    this._agents = {
-      Runtime: new RuntimeAgent(this, hash => this._send({command: 'console', hash})),
-    };
-    this._agents.Runtime.enable();
-    this._agents.Runtime.createExecutionContext(null /* domWindow */, global, {});
-  }
+const runtimeAgents = new Map();
 
-  _send(command) {
-    postMessage(JSON.stringify({...command, workerId: this._workerId}));
-  }
+const channel = new SimpleChannel('worker::worker');
+const eventListener = event => channel._onMessage(JSON.parse(event.data));
+this.addEventListener('message', eventListener);
+channel.transport = {
+  sendMessage: msg => postMessage(JSON.stringify(msg)),
+  dispose: () => this.removeEventListener('message', eventListener),
+};
 
-  _dispatchProtocolMessage(protocolMessage) {
-    this._send({command: 'dispatch', message: JSON.stringify(protocolMessage)});
-  }
+channel.register('', {
+  connect: ({sessionId}) => {
+    const runtimeAgent = new RuntimeAgent(channel, sessionId, true /* isWorker */);
+    runtimeAgents.set(sessionId, runtimeAgent);
+    runtimeAgent.createExecutionContext(null /* domWindow */, global, {});
+    runtimeAgent.enable();
+  },
 
-  emit(protocol, eventName, params) {
-    this._dispatchProtocolMessage({method: eventName, params});
-  }
-
-  async _onMessage(message) {
-    const object = JSON.parse(message);
-    const id = object.id;
-    try {
-      const [domainName, methodName] = object.method.split('.');
-      const agent = this._agents[domainName];
-      if (!agent)
-        throw new Error(`unknown domain: ${domainName}`);
-      const handler = agent[methodName];
-      if (!handler)
-        throw new Error(`unknown method: ${domainName}.${methodName}`);
-      const result = await handler.call(agent, object.params);
-      this._dispatchProtocolMessage({id, result});
-    } catch (e) {
-      this._dispatchProtocolMessage({id, error: e.message + '\n' + e.stack});
-    }
-  }
-
-  dispose() {
-    for (const agent of Object.values(this._agents))
-      agent.dispose();
-  }
-}
-
-const workerSessions = new Map();
-
-this.addEventListener('message', event => {
-  const data = JSON.parse(event.data);
-  if (data.command === 'connect') {
-    const session = new WorkerSession(data.workerId);
-    workerSessions.set(data.workerId, session);
-  }
-  if (data.command === 'disconnect') {
-    const session = workerSessions.get(data.workerId);
-    session.dispose();
-    workerSessions.delete(data.workerId);
-  }
-  if (data.command === 'dispatch') {
-    const session = workerSessions.get(data.workerId);
-    session._onMessage(data.message);
-  }
+  disconnect: ({sessionId}) => {
+    const runtimeAgent = runtimeAgents.get(sessionId);
+    runtimeAgents.delete(sessionId);
+    runtimeAgent.dispose();
+  },
 });
+

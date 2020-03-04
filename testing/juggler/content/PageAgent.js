@@ -9,28 +9,45 @@ const {NetUtil} = ChromeUtils.import('resource://gre/modules/NetUtil.jsm');
 
 const helper = new Helper();
 
-const registeredWorkerListeners = new Map();
-const workerListener =  {
-  QueryInterface: ChromeUtils.generateQI([Ci.nsIWorkerDebuggerListener]),
-  onMessage: (wrapped) => {
-    const message = JSON.parse(wrapped);
-    const listener = registeredWorkerListeners.get(message.workerId);
-    if (listener)
-      listener(message);
-  },
-  onClose: () => {
-  },
-  onError: (filename, lineno, message) => {
-    dump(`Error in worker: ${message} @${filename}:${lineno}\n`);
-  },
-};
+class WorkerData {
+  constructor(pageAgent, browserChannel, sessionId, worker) {
+    this._workerRuntime = worker.channel().connect(sessionId + 'runtime');
+    this._browserWorker = browserChannel.connect(sessionId + worker.id());
+    this._worker = worker;
+    this._sessionId = sessionId;
+    const emit = name => {
+      return (...args) => this._browserWorker.emit(name, ...args);
+    };
+    this._eventListeners = [
+      worker.channel().register(sessionId + 'runtime', {
+        runtimeConsole: emit('runtimeConsole'),
+        runtimeExecutionContextCreated: emit('runtimeExecutionContextCreated'),
+        runtimeExecutionContextDestroyed: emit('runtimeExecutionContextDestroyed'),
+        workerConsoleMessage: (hash) => pageAgent._runtime.filterConsoleMessage(hash),
+      }),
+      browserChannel.register(sessionId + worker.id(), {
+        evaluate: (options) => this._workerRuntime.send('evaluate', options),
+        callFunction: (options) => this._workerRuntime.send('callFunction', options),
+        getObjectProperties: (options) => this._workerRuntime.send('getObjectProperties', options),
+        disposeObject: (options) =>this._workerRuntime.send('disposeObject', options),
+      }),
+    ];
+    worker.channel().connect('').emit('connect', {sessionId});
+  }
+
+  dispose() {
+    this._worker.channel().connect('').emit('disconnect', {sessionId: this._sessionId});
+    this._workerRuntime.dispose();
+    this._browserWorker.dispose();
+    helper.removeListeners(this._eventListeners);
+  }
+}
 
 class FrameData {
   constructor(agent, frame) {
     this._agent = agent;
     this._frame = frame;
     this._isolatedWorlds = new Map();
-    this._workers = new Map();
     this.reset();
   }
 
@@ -71,7 +88,7 @@ class FrameData {
 
   exposeFunction(name) {
     Cu.exportFunction((...args) => {
-      this._agent._session.emit('protocol', 'Page.bindingCalled', {
+      this._agent._session.emit('pageBindingCalled', {
         executionContextId: this.mainContext.id(),
         name,
         payload: args[0]
@@ -111,73 +128,27 @@ class FrameData {
     throw new Error('Cannot find object with id = ' + objectId);
   }
 
-  workerCreated(workerDebugger) {
-    const workerId = helper.generateId();
-    this._workers.set(workerId, workerDebugger);
-    this._agent._session.emit('protocol', 'Page.workerCreated', {
-      workerId,
-      frameId: this._frame.id(),
-      url: workerDebugger.url,
-    });
-    // Note: this does not interoperate with firefox devtools.
-    if (!workerDebugger.isInitialized) {
-      workerDebugger.initialize('chrome://juggler/content/content/WorkerMain.js');
-      workerDebugger.addListener(workerListener);
-    }
-    registeredWorkerListeners.set(workerId, message => {
-      if (message.command === 'dispatch') {
-        this._agent._session.emit('protocol', 'Page.dispatchMessageFromWorker', {
-          workerId,
-          message: message.message,
-        });
-      }
-      if (message.command === 'console')
-        this._agent._runtime.filterConsoleMessage(message.hash);
-    });
-    workerDebugger.postMessage(JSON.stringify({command: 'connect', workerId}));
-  }
-
-  workerDestroyed(wd) {
-    for (const [workerId, workerDebugger] of this._workers) {
-      if (workerDebugger === wd) {
-        this._agent._session.emit('protocol', 'Page.workerDestroyed', {
-          workerId,
-        });
-        this._workers.delete(workerId);
-        registeredWorkerListeners.delete(workerId);
-      }
-    }
-  }
-
-  sendMessageToWorker(workerId, message) {
-    const workerDebugger = this._workers.get(workerId);
-    if (!workerDebugger)
-      throw new Error('Cannot find worker with id "' + workerId + '"');
-    workerDebugger.postMessage(JSON.stringify({command: 'dispatch', workerId, message}));
-  }
-
-  dispose() {
-    for (const [workerId, workerDebugger] of this._workers) {
-      workerDebugger.postMessage(JSON.stringify({command: 'disconnect', workerId}));
-      registeredWorkerListeners.delete(workerId);
-    }
-    this._workers.clear();
-  }
+  dispose() {}
 }
 
 class PageAgent {
-  constructor(messageManager, session, runtimeAgent, frameTree, networkMonitor) {
+  constructor(messageManager, browserChannel, sessionId, runtimeAgent, frameTree, networkMonitor) {
     this._messageManager = messageManager;
-    this._session = session;
+    this._browserChannel = browserChannel;
+    this._sessionId = sessionId;
+    this._session = browserChannel.connect(sessionId + 'page');
     this._runtime = runtimeAgent;
     this._frameTree = frameTree;
     this._networkMonitor = networkMonitor;
 
     this._frameData = new Map();
+    this._workerData = new Map();
     this._scriptsToEvaluateOnNewDocument = new Map();
     this._bindingsToAdd = new Set();
 
-    this._eventListeners = [];
+    this._eventListeners = [
+      browserChannel.register(sessionId + 'page', this),
+    ];
     this._enabled = false;
 
     const docShell = frameTree.mainFrame().docShell();
@@ -185,18 +156,11 @@ class PageAgent {
     this._initialDPPX = docShell.contentViewer.overrideDPPX;
     this._customScrollbars = null;
 
-    this._wdm = Cc["@mozilla.org/dom/workers/workerdebuggermanager;1"].createInstance(Ci.nsIWorkerDebuggerManager);
-    this._wdmListener = {
-      QueryInterface: ChromeUtils.generateQI([Ci.nsIWorkerDebuggerManagerListener]),
-      onRegister: this._onWorkerCreated.bind(this),
-      onUnregister: this._onWorkerDestroyed.bind(this),
-    };
-
     this._runtime.setOnErrorFromWorker((domWindow, message, stack) => {
       const frame = this._frameTree.frameForDocShell(domWindow.docShell);
       if (!frame)
         return;
-      this._session.emit('protocol', 'Page.uncaughtError', {
+      this._session.emit('pageUncaughtError', {
         frameId: frame.id(),
         message,
         stack,
@@ -273,7 +237,10 @@ class PageAgent {
         this._onNavigationStarted(frame);
     }
 
-    this._eventListeners = [
+    for (const worker of this._frameTree.workers())
+      this._onWorkerCreated(worker);
+
+    this._eventListeners.push(...[
       helper.addObserver(this._filePickerShown.bind(this), 'juggler-file-picker-shown'),
       helper.addObserver(this._onDOMWindowCreated.bind(this), 'content-document-global-created'),
       helper.addEventListener(this._messageManager, 'DOMContentLoaded', this._onDOMContentLoaded.bind(this)),
@@ -286,53 +253,45 @@ class PageAgent {
       helper.on(this._frameTree, 'navigationcommitted', this._onNavigationCommitted.bind(this)),
       helper.on(this._frameTree, 'navigationaborted', this._onNavigationAborted.bind(this)),
       helper.on(this._frameTree, 'samedocumentnavigation', this._onSameDocumentNavigation.bind(this)),
-      helper.on(this._frameTree, 'pageready', () => this._session.send('protocol', 'Page.ready', {})),
-    ];
-
-    this._wdm.addListener(this._wdmListener);
-    for (const workerDebugger of this._wdm.getWorkerDebuggerEnumerator())
-      this._onWorkerCreated(workerDebugger);
+      helper.on(this._frameTree, 'pageready', () => this._session.emit('pageReady', {})),
+      helper.on(this._frameTree, 'workercreated', this._onWorkerCreated.bind(this)),
+      helper.on(this._frameTree, 'workerdestroyed', this._onWorkerDestroyed.bind(this)),
+    ]);
 
     if (this._frameTree.isPageReady())
-      this._session.send('protocol', 'Page.ready', {});
+      this._session.emit('pageReady', {});
+  }
+
+  _onWorkerCreated(worker) {
+    const workerData = new WorkerData(this, this._browserChannel, this._sessionId, worker);
+    this._workerData.set(worker.id(), workerData);
+    this._session.emit('pageWorkerCreated', {
+      workerId: worker.id(),
+      frameId: worker.frame().id(),
+      url: worker.url(),
+    });
+  }
+
+  _onWorkerDestroyed(worker) {
+    const workerData = this._workerData.get(worker.id());
+    if (!workerData)
+      return;
+    this._workerData.delete(worker.id());
+    workerData.dispose();
+    this._session.emit('pageWorkerDestroyed', {
+      workerId: worker.id(),
+    });
   }
 
   setInterceptFileChooserDialog({enabled}) {
     this._docShell.fileInputInterceptionEnabled = !!enabled;
   }
 
-  _frameForWorker(workerDebugger) {
-    if (workerDebugger.type !== Ci.nsIWorkerDebugger.TYPE_DEDICATED)
-      return null;
-    const docShell = workerDebugger.window.docShell;
-    const frame = this._frameTree.frameForDocShell(docShell);
-    return frame ? this._frameData.get(frame) : null;
-  }
-
-  _onWorkerCreated(workerDebugger) {
-    const frameData = this._frameForWorker(workerDebugger);
-    if (frameData)
-      frameData.workerCreated(workerDebugger);
-  }
-
-  _onWorkerDestroyed(workerDebugger) {
-    const frameData = this._frameForWorker(workerDebugger);
-    if (frameData)
-      frameData.workerDestroyed(workerDebugger);
-  }
-
-  sendMessageToWorker({frameId, workerId, message}) {
-    const frame = this._frameTree.frame(frameId);
-    if (!frame)
-      throw new Error('Failed to find frame with id = ' + frameId);
-    this._frameData.get(frame).sendMessageToWorker(workerId, message);
-  }
-
   _filePickerShown(inputElement) {
     if (inputElement.ownerGlobal.docShell !== this._docShell)
       return;
     const frameData = this._findFrameForNode(inputElement);
-    this._session.send('protocol', 'Page.fileChooserOpened', {
+    this._session.emit('pageFileChooserOpened', {
       executionContextId: frameData.mainContext.id(),
       element: frameData.mainContext.rawValueToRemoteObject(inputElement)
     });
@@ -350,7 +309,7 @@ class PageAgent {
     const frame = this._frameTree.frameForDocShell(docShell);
     if (!frame)
       return;
-    this._session.emit('protocol', 'Page.eventFired', {
+    this._session.emit('pageEventFired', {
       frameId: frame.id(),
       name: 'DOMContentLoaded',
     });
@@ -361,7 +320,7 @@ class PageAgent {
     const frame = this._frameTree.frameForDocShell(docShell);
     if (!frame)
       return;
-    this._session.emit('protocol', 'Page.uncaughtError', {
+    this._session.emit('pageUncaughtError', {
       frameId: frame.id(),
       message: errorEvent.message,
       stack: errorEvent.error.stack
@@ -373,7 +332,7 @@ class PageAgent {
     const frame = this._frameTree.frameForDocShell(docShell);
     if (!frame)
       return;
-    this._session.emit('protocol', 'Page.eventFired', {
+    this._session.emit('pageEventFired', {
       frameId: frame.id(),
       name: 'load'
     });
@@ -384,14 +343,14 @@ class PageAgent {
     const frame = this._frameTree.frameForDocShell(docShell);
     if (!frame)
       return;
-    this._session.emit('protocol', 'Page.eventFired', {
+    this._session.emit('pageEventFired', {
       frameId: frame.id(),
       name: 'load'
     });
   }
 
   _onNavigationStarted(frame) {
-    this._session.emit('protocol', 'Page.navigationStarted', {
+    this._session.emit('pageNavigationStarted', {
       frameId: frame.id(),
       navigationId: frame.pendingNavigationId(),
       url: frame.pendingNavigationURL(),
@@ -399,7 +358,7 @@ class PageAgent {
   }
 
   _onNavigationAborted(frame, navigationId, errorText) {
-    this._session.emit('protocol', 'Page.navigationAborted', {
+    this._session.emit('pageNavigationAborted', {
       frameId: frame.id(),
       navigationId,
       errorText,
@@ -407,14 +366,14 @@ class PageAgent {
   }
 
   _onSameDocumentNavigation(frame) {
-    this._session.emit('protocol', 'Page.sameDocumentNavigation', {
+    this._session.emit('pageSameDocumentNavigation', {
       frameId: frame.id(),
       url: frame.url(),
     });
   }
 
   _onNavigationCommitted(frame) {
-    this._session.emit('protocol', 'Page.navigationCommitted', {
+    this._session.emit('pageNavigationCommitted', {
       frameId: frame.id(),
       navigationId: frame.lastCommittedNavigationId() || undefined,
       url: frame.url(),
@@ -431,7 +390,7 @@ class PageAgent {
   }
 
   _onFrameAttached(frame) {
-    this._session.emit('protocol', 'Page.frameAttached', {
+    this._session.emit('pageFrameAttached', {
       frameId: frame.id(),
       parentFrameId: frame.parentFrame() ? frame.parentFrame().id() : undefined,
     });
@@ -440,16 +399,19 @@ class PageAgent {
 
   _onFrameDetached(frame) {
     this._frameData.delete(frame);
-    this._session.emit('protocol', 'Page.frameDetached', {
+    this._session.emit('pageFrameDetached', {
       frameId: frame.id(),
     });
   }
 
   dispose() {
+    for (const workerData of this._workerData.values())
+      workerData.dispose();
+    this._workerData.clear();
     for (const frameData of this._frameData.values())
       frameData.dispose();
+    this._frameData.clear();
     helper.removeListeners(this._eventListeners);
-    this._wdm.removeListener(this._wdmListener);
   }
 
   async navigate({frameId, url, referer}) {

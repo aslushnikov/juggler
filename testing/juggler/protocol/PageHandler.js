@@ -10,13 +10,76 @@ const Cu = Components.utils;
 const XUL_NS = 'http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul';
 const helper = new Helper();
 
+class WorkerHandler {
+  constructor(chromeSession, contentChannel, sessionId, workerId) {
+    this._chromeSession = chromeSession;
+    this._sessionId = sessionId;
+    this._contentWorker = contentChannel.connect(sessionId + workerId);
+    this._workerId = workerId;
+
+    const emitWrappedProtocolEvent = eventName => {
+      return params => {
+        this._chromeSession.emitEvent('Page.dispatchMessageFromWorker', {
+          workerId,
+          message: JSON.stringify({method: eventName, params}),
+        });
+      }
+    }
+
+    this._eventListeners = [
+      contentChannel.register(sessionId + workerId, {
+        runtimeConsole: emitWrappedProtocolEvent('Runtime.console'),
+        runtimeExecutionContextCreated: emitWrappedProtocolEvent('Runtime.executionContextCreated'),
+        runtimeExecutionContextDestroyed: emitWrappedProtocolEvent('Runtime.executionContextDestroyed'),
+      }),
+    ];
+  }
+
+  async sendMessage(message) {
+    const [domain, method] = message.method.split('.');
+    if (domain !== 'Runtime')
+      throw new Error('ERROR: can only dispatch to Runtime domain inside worker');
+    const result = await this._contentWorker.send(method, message.params);
+    this._chromeSession.emitEvent('Page.dispatchMessageFromWorker', {
+      workerId: this._workerId,
+      message: JSON.stringify({result, id: message.id}),
+    });
+  }
+
+  dispose() {
+    this._contentWorker.dispose();
+    helper.removeListeners(this._eventListeners);
+  }
+}
+
 class PageHandler {
   constructor(chromeSession, sessionId, contentChannel) {
     this._chromeSession = chromeSession;
-    this._contentSession = contentChannel.connect(sessionId + 'page');
+    this._contentChannel = contentChannel;
+    this._sessionId = sessionId;
+    this._contentPage = contentChannel.connect(sessionId + 'page');
+    this._workers = new Map();
+
+    const emitProtocolEvent = eventName => {
+      return (...args) => this._chromeSession.emitEvent(eventName, ...args);
+    }
+
     this._eventListeners = [
       contentChannel.register(sessionId + 'page', {
-        protocol: (eventName, params) => this._chromeSession.emitEvent(eventName, params),
+        pageBindingCalled: emitProtocolEvent('Page.bindingCalled'),
+        pageDispatchMessageFromWorker: emitProtocolEvent('Page.dispatchMessageFromWorker'),
+        pageEventFired: emitProtocolEvent('Page.eventFired'),
+        pageFileChooserOpened: emitProtocolEvent('Page.fileChooserOpened'),
+        pageFrameAttached: emitProtocolEvent('Page.frameAttached'),
+        pageFrameDetached: emitProtocolEvent('Page.frameDetached'),
+        pageNavigationAborted: emitProtocolEvent('Page.navigationAborted'),
+        pageNavigationCommitted: emitProtocolEvent('Page.navigationCommitted'),
+        pageNavigationStarted: emitProtocolEvent('Page.navigationStarted'),
+        pageReady: emitProtocolEvent('Page.ready'),
+        pageSameDocumentNavigation: emitProtocolEvent('Page.sameDocumentNavigation'),
+        pageUncaughtError: emitProtocolEvent('Page.uncaughtError'),
+        pageWorkerCreated: this._onWorkerCreated.bind(this),
+        pageWorkerDestroyed: this._onWorkerDestroyed.bind(this),
       }),
     ];
     this._pageTarget = TargetRegistry.instance().targetForId(chromeSession.targetId());
@@ -24,6 +87,21 @@ class PageHandler {
     this._dialogs = new Map();
 
     this._enabled = false;
+  }
+
+  _onWorkerCreated({workerId, frameId, url}) {
+    const worker = new WorkerHandler(this._chromeSession, this._contentChannel, this._sessionId, workerId);
+    this._workers.set(workerId, worker);
+    this._chromeSession.emitEvent('Page.workerCreated', {workerId, frameId, url});
+  }
+
+  _onWorkerDestroyed({workerId}) {
+    const worker = this._workers.get(workerId);
+    if (!worker)
+      return;
+    this._workers.delete(workerId);
+    worker.dispose();
+    this._chromeSession.emitEvent('Page.workerDestroyed', {workerId});
   }
 
   async close({runBeforeUnload}) {
@@ -54,12 +132,13 @@ class PageHandler {
   }
 
   dispose() {
+    this._contentPage.dispose();
     helper.removeListeners(this._eventListeners);
   }
 
   async setViewportSize({viewportSize}) {
     const size = this._pageTarget.setViewportSize(viewportSize);
-    await this._contentSession.send('awaitViewportDimensions', {
+    await this._contentPage.send('awaitViewportDimensions', {
       width: size.width,
       height: size.height
     });
@@ -92,99 +171,99 @@ class PageHandler {
   }
 
   async setFileInputFiles(options) {
-    return await this._contentSession.send('setFileInputFiles', options);
+    return await this._contentPage.send('setFileInputFiles', options);
   }
 
   async setEmulatedMedia(options) {
-    return await this._contentSession.send('setEmulatedMedia', options);
+    return await this._contentPage.send('setEmulatedMedia', options);
   }
 
   async setCacheDisabled(options) {
-    return await this._contentSession.send('setCacheDisabled', options);
+    return await this._contentPage.send('setCacheDisabled', options);
   }
 
   async addBinding(options) {
-    return await this._contentSession.send('addBinding', options);
+    return await this._contentPage.send('addBinding', options);
   }
 
   async adoptNode(options) {
-    return await this._contentSession.send('adoptNode', options);
+    return await this._contentPage.send('adoptNode', options);
   }
 
   async screenshot(options) {
-    return await this._contentSession.send('screenshot', options);
+    return await this._contentPage.send('screenshot', options);
   }
 
   async getBoundingBox(options) {
-    return await this._contentSession.send('getBoundingBox', options);
+    return await this._contentPage.send('getBoundingBox', options);
   }
 
   async getContentQuads(options) {
-    return await this._contentSession.send('getContentQuads', options);
+    return await this._contentPage.send('getContentQuads', options);
   }
 
   /**
    * @param {{frameId: string, url: string}} options
    */
   async navigate(options) {
-    return await this._contentSession.send('navigate', options);
+    return await this._contentPage.send('navigate', options);
   }
 
   /**
    * @param {{frameId: string, url: string}} options
    */
   async goBack(options) {
-    return await this._contentSession.send('goBack', options);
+    return await this._contentPage.send('goBack', options);
   }
 
   /**
    * @param {{frameId: string, url: string}} options
    */
   async goForward(options) {
-    return await this._contentSession.send('goForward', options);
+    return await this._contentPage.send('goForward', options);
   }
 
   /**
    * @param {{frameId: string, url: string}} options
    */
   async reload(options) {
-    return await this._contentSession.send('reload', options);
+    return await this._contentPage.send('reload', options);
   }
 
   async describeNode(options) {
-    return await this._contentSession.send('describeNode', options);
+    return await this._contentPage.send('describeNode', options);
   }
 
   async scrollIntoViewIfNeeded(options) {
-    return await this._contentSession.send('scrollIntoViewIfNeeded', options);
+    return await this._contentPage.send('scrollIntoViewIfNeeded', options);
   }
 
   async addScriptToEvaluateOnNewDocument(options) {
-    return await this._contentSession.send('addScriptToEvaluateOnNewDocument', options);
+    return await this._contentPage.send('addScriptToEvaluateOnNewDocument', options);
   }
 
   async removeScriptToEvaluateOnNewDocument(options) {
-    return await this._contentSession.send('removeScriptToEvaluateOnNewDocument', options);
+    return await this._contentPage.send('removeScriptToEvaluateOnNewDocument', options);
   }
 
   async dispatchKeyEvent(options) {
-    return await this._contentSession.send('dispatchKeyEvent', options);
+    return await this._contentPage.send('dispatchKeyEvent', options);
   }
 
   async dispatchTouchEvent(options) {
-    return await this._contentSession.send('dispatchTouchEvent', options);
+    return await this._contentPage.send('dispatchTouchEvent', options);
   }
 
   async dispatchMouseEvent(options) {
-    return await this._contentSession.send('dispatchMouseEvent', options);
+    return await this._contentPage.send('dispatchMouseEvent', options);
   }
 
   async insertText(options) {
-    return await this._contentSession.send('insertText', options);
+    return await this._contentPage.send('insertText', options);
   }
 
   async crash(options) {
-    return await this._contentSession.send('crash', options);
+    return await this._contentPage.send('crash', options);
   }
 
   async handleDialog({dialogId, accept, promptText}) {
@@ -198,15 +277,18 @@ class PageHandler {
   }
 
   async setInterceptFileChooserDialog(options) {
-    return await this._contentSession.send('setInterceptFileChooserDialog', options);
+    return await this._contentPage.send('setInterceptFileChooserDialog', options);
   }
 
   async handleFileChooser(options) {
-    return await this._contentSession.send('handleFileChooser', options);
+    return await this._contentPage.send('handleFileChooser', options);
   }
 
-  async sendMessageToWorker(options) {
-    return await this._contentSession.send('sendMessageToWorker', options);
+  async sendMessageToWorker({workerId, message}) {
+    const worker = this._workers.get(workerId);
+    if (!worker)
+      throw new Error('ERROR: cannot find worker with id ' + workerId);
+    return await worker.sendMessage(JSON.parse(message));
   }
 }
 

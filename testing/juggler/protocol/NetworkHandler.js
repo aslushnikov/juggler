@@ -13,7 +13,7 @@ const helper = new Helper();
 class NetworkHandler {
   constructor(chromeSession, sessionId, contentChannel) {
     this._chromeSession = chromeSession;
-    this._contentSession = contentChannel.connect(sessionId + 'page');
+    this._contentPage = contentChannel.connect(sessionId + 'page');
     this._networkObserver = NetworkObserver.instance();
     this._httpActivity = new Map();
     this._enabled = false;
@@ -72,6 +72,7 @@ class NetworkHandler {
   }
 
   dispose() {
+    this._contentPage.dispose();
     helper.removeListeners(this._eventListeners);
   }
 
@@ -121,7 +122,7 @@ class NetworkHandler {
     this._pendingRequstWillBeSentEvents.add(pendingRequestPromise);
     let details = null;
     try {
-      details = await this._contentSession.send('requestDetails', {channelId: httpChannel.channelId});
+      details = await this._contentPage.send('requestDetails', {channelId: httpChannel.channelId});
     } catch (e) {
       pendingRequestCallback();
       this._pendingRequstWillBeSentEvents.delete(pendingRequestPromise);

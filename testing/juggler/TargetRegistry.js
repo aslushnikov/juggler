@@ -152,7 +152,7 @@ class PageTarget {
     this._browserContext = browserContext;
     this._openerId = opener ? opener.id() : undefined;
     this._url = tab.linkedBrowser.currentURI.spec;
-    this._channel = SimpleChannel.createForMessageManager('browser::page', tab.linkedBrowser.messageManager);
+    this._channel = SimpleChannel.createForMessageManager(`browser::page[${this._targetId}]`, tab.linkedBrowser.messageManager);
 
     const navigationListener = {
       QueryInterface: ChromeUtils.generateQI([ Ci.nsIWebProgressListener]),

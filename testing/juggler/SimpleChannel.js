@@ -9,7 +9,7 @@ class SimpleChannel {
     const channel = new SimpleChannel(name);
 
     const messageListener = {
-      receiveMessage: message => channel._onMessage(message)
+      receiveMessage: message => channel._onMessage(message.data)
     };
     mm.addMessageListener(SIMPLE_CHANNEL_MESSAGE_NAME, messageListener);
 
@@ -23,6 +23,7 @@ class SimpleChannel {
   constructor(name) {
     this._name = name;
     this._messageId = 0;
+    this._connectorId = 0;
     this._pendingMessages = new Map();
     this._handlers = new Map();
     this.transport = {
@@ -39,22 +40,26 @@ class SimpleChannel {
     for (const {resolve, reject, methodName} of this._pendingMessages.values())
       reject(new Error(`Failed "${methodName}": ${this._name} is disposed.`));
     this._pendingMessages.clear();
+    this._handlers.clear();
     this.transport.dispose();
   }
 
+  _rejectCallbacksFromConnector(connectorId) {
+    for (const [messageId, callback] of this._pendingMessages) {
+      if (callback.connectorId === connectorId) {
+        callback.reject(new Error(`Failed "${callback.methodName}": connector for namespace "${callback.namespace}" in channel "${this._name}" is disposed.`));
+        this._pendingMessages.delete(messageId);
+      }
+    }
+  }
+
   connect(namespace) {
+    const connectorId = ++this._connectorId;
     return {
-      send: (...args) => this._send(namespace, ...args),
-      emit: (...args) => void this._send(namespace, ...args).catch(e => {}),
+      send: (...args) => this._send(namespace, connectorId, ...args),
+      emit: (...args) => void this._send(namespace, connectorId, ...args).catch(e => {}),
+      dispose: () => this._rejectCallbacksFromConnector(connectorId),
     };
-  }
-
-  handler(namespace) {
-    return this._handlers.get(namespace);
-  }
-
-  handlers() {
-    return [...this._handlers.values()];
   }
 
   register(namespace, handler) {
@@ -69,23 +74,24 @@ class SimpleChannel {
   }
 
   /**
-   * @param {string} sessionId
+   * @param {string} namespace
+   * @param {number} connectorId
    * @param {string} methodName
-   * @param {*} params
+   * @param {...*} params
    * @return {!Promise<*>}
    */
-  async _send(namespace, methodName, ...params) {
+  async _send(namespace, connectorId, methodName, ...params) {
     if (this._disposed)
       throw new Error(`ERROR: channel ${this._name} is already disposed! Cannot send "${methodName}" to "${namespace}"`);
     const id = ++this._messageId;
     const promise = new Promise((resolve, reject) => {
-      this._pendingMessages.set(id, {resolve, reject, methodName});
+      this._pendingMessages.set(id, {connectorId, resolve, reject, methodName, namespace});
     });
     this.transport.sendMessage({requestId: id, methodName, params, namespace});
     return promise;
   }
 
-  async _onMessage({data}) {
+  async _onMessage(data) {
     if (data.responseId) {
       const {resolve, reject} = this._pendingMessages.get(data.responseId);
       this._pendingMessages.delete(data.responseId);

@@ -11,31 +11,39 @@ const helper = new Helper();
 class RuntimeHandler {
   constructor(chromeSession, sessionId, contentChannel) {
     this._chromeSession = chromeSession;
-    this._contentSession = contentChannel.connect(sessionId + 'runtime');
+    this._contentRuntime = contentChannel.connect(sessionId + 'runtime');
+
+    const emitProtocolEvent = eventName => {
+      return (...args) => this._chromeSession.emitEvent(eventName, ...args);
+    }
+
     this._eventListeners = [
       contentChannel.register(sessionId + 'runtime', {
-        protocol: (eventName, params) => this._chromeSession.emitEvent(eventName, params),
+        runtimeConsole: emitProtocolEvent('Runtime.console'),
+        runtimeExecutionContextCreated: emitProtocolEvent('Runtime.executionContextCreated'),
+        runtimeExecutionContextDestroyed: emitProtocolEvent('Runtime.executionContextDestroyed'),
       }),
     ];
   }
 
   async evaluate(options) {
-    return await this._contentSession.send('evaluate', options);
+    return await this._contentRuntime.send('evaluate', options);
   }
 
   async callFunction(options) {
-    return await this._contentSession.send('callFunction', options);
+    return await this._contentRuntime.send('callFunction', options);
   }
 
   async getObjectProperties(options) {
-    return await this._contentSession.send('getObjectProperties', options);
+    return await this._contentRuntime.send('getObjectProperties', options);
   }
 
   async disposeObject(options) {
-    return await this._contentSession.send('disposeObject', options);
+    return await this._contentRuntime.send('disposeObject', options);
   }
 
   dispose() {
+    this._contentRuntime.dispose();
     helper.removeListeners(this._eventListeners);
   }
 }

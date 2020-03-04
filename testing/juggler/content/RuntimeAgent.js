@@ -50,17 +50,19 @@ const disallowedMessageCategories = new Set([
 ]);
 
 class RuntimeAgent {
-  constructor(session, onWorkerConsoleMessage) {
+  constructor(channel, channelId, isWorker = false) {
     this._debugger = new Debugger();
     this._pendingPromises = new Map();
-    this._session = session;
     this._executionContexts = new Map();
     this._windowToExecutionContext = new Map();
-    this._eventListeners = [];
+    this._session = channel.connect(channelId + 'runtime');
+    this._eventListeners = [
+      channel.register(channelId + 'runtime', this),
+    ];
     this._enabled = false;
     this._filteredConsoleMessageHashes = new Set();
     this._onErrorFromWorker = null;
-    this._onWorkerConsoleMessage = onWorkerConsoleMessage;
+    this._isWorker = isWorker;
   }
 
   enable() {
@@ -70,8 +72,7 @@ class RuntimeAgent {
     for (const executionContext of this._executionContexts.values())
       this._notifyExecutionContextCreated(executionContext);
 
-    const isWorker = !!this._onWorkerConsoleMessage;
-    if (isWorker) {
+    if (this._isWorker) {
       this._registerConsoleEventHandler();
     } else {
       const {Services} = ChromeUtils.import("resource://gre/modules/Services.jsm");
@@ -105,7 +106,7 @@ class RuntimeAgent {
           [Ci.nsIConsoleMessage.warn]: 'warn',
           [Ci.nsIConsoleMessage.error]: 'error',
         };
-        this._session.emit('protocol', 'Runtime.console', {
+        this._session.emit('runtimeConsole', {
           args: [{
             value: message.message,
           }],
@@ -144,7 +145,7 @@ class RuntimeAgent {
 
   _registerConsoleEventHandler() {
     setConsoleEventHandler(message => {
-      this._onWorkerConsoleMessage(this._consoleMessageHash(message));
+      this._session.emit('workerConsoleMessage', this._consoleMessageHash(message));
       const executionContext = Array.from(this._executionContexts.values())[0];
       this._onConsoleMessage(executionContext, message);
     });
@@ -168,7 +169,7 @@ class RuntimeAgent {
     if (!type)
       return;
     const args = message.arguments.map(arg => executionContext.rawValueToRemoteObject(arg));
-    this._session.emit('protocol', 'Runtime.console', {
+    this._session.emit('runtimeConsole', {
       args,
       type,
       executionContextId: executionContext.id(),
@@ -183,7 +184,7 @@ class RuntimeAgent {
   _notifyExecutionContextCreated(executionContext) {
     if (!this._enabled)
       return;
-    this._session.emit('protocol', 'Runtime.executionContextCreated', {
+    this._session.emit('runtimeExecutionContextCreated', {
       executionContextId: executionContext._id,
       auxData: executionContext._auxData,
     });
@@ -192,12 +193,13 @@ class RuntimeAgent {
   _notifyExecutionContextDestroyed(executionContext) {
     if (!this._enabled)
       return;
-    this._session.emit('protocol', 'Runtime.executionContextDestroyed', {
+    this._session.emit('runtimeExecutionContextDestroyed', {
       executionContextId: executionContext._id,
     });
   }
 
   dispose() {
+    this._session.dispose();
     for (const tearDown of this._eventListeners)
       tearDown.call(null);
     this._eventListeners = [];

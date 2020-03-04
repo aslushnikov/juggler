@@ -4,6 +4,7 @@ const Cr = Components.results;
 const Cu = Components.utils;
 
 const {Helper} = ChromeUtils.import('chrome://juggler/content/Helper.js');
+const {SimpleChannel} = ChromeUtils.import('chrome://juggler/content/SimpleChannel.js');
 const {EventEmitter} = ChromeUtils.import('resource://gre/modules/EventEmitter.jsm');
 
 const helper = new Helper();
@@ -17,6 +18,7 @@ class FrameTree {
       this._browsingContextGroup.__jugglerFrameTrees = new Set();
     this._browsingContextGroup.__jugglerFrameTrees.add(this);
 
+    this._workers = new Map();
     this._docShellToFrame = new Map();
     this._frameIdToFrame = new Map();
     this._pageReady = !waitForInitialNavigation;
@@ -30,6 +32,17 @@ class FrameTree {
     ]);
     this._scriptsToEvaluateOnNewDocument = [];
 
+    this._wdm = Cc["@mozilla.org/dom/workers/workerdebuggermanager;1"].createInstance(Ci.nsIWorkerDebuggerManager);
+    this._wdmListener = {
+      QueryInterface: ChromeUtils.generateQI([Ci.nsIWorkerDebuggerManagerListener]),
+      onRegister: this._onWorkerCreated.bind(this),
+      onUnregister: this._onWorkerDestroyed.bind(this),
+    };
+    this._wdm.addListener(this._wdmListener);
+    for (const workerDebugger of this._wdm.getWorkerDebuggerEnumerator())
+      this._onWorkerCreated(workerDebugger);
+
+
     const flags = Ci.nsIWebProgress.NOTIFY_STATE_DOCUMENT |
                   Ci.nsIWebProgress.NOTIFY_FRAME_LOCATION;
     this._eventListeners = [
@@ -37,6 +50,41 @@ class FrameTree {
       helper.addObserver(subject => this._onDocShellDestroyed(subject.QueryInterface(Ci.nsIDocShell)), 'webnavigation-destroy'),
       helper.addProgressListener(webProgress, this, flags),
     ];
+  }
+
+  workers() {
+    return [...this._workers.values()];
+  }
+
+  _frameForWorker(workerDebugger) {
+    if (workerDebugger.type !== Ci.nsIWorkerDebugger.TYPE_DEDICATED)
+      return null;
+    const docShell = workerDebugger.window.docShell;
+    return this._docShellToFrame.get(docShell) || null;
+  }
+
+  _onWorkerCreated(workerDebugger) {
+    // Note: we do not interoperate with firefox devtools.
+    if (workerDebugger.isInitialized)
+      return;
+    const frame = this._frameForWorker(workerDebugger);
+    if (!frame)
+      return;
+    const worker = new Worker(frame, workerDebugger);
+    this._workers.set(workerDebugger, worker);
+    this.emit(FrameTree.Events.WorkerCreated, worker);
+  }
+
+  _onWorkerDestroyed(workerDebugger) {
+    const frame = this._frameForWorker(workerDebugger);
+    if (!frame)
+      return;
+    const worker = this._workers.get(workerDebugger);
+    if (!worker)
+      return;
+    worker.dispose();
+    this._workers.delete(workerDebugger);
+    this.emit(FrameTree.Events.WorkerDestroyed, worker);
   }
 
   allFramesInBrowsingContextGroup(group) {
@@ -84,6 +132,7 @@ class FrameTree {
 
   dispose() {
     this._browsingContextGroup.__jugglerFrameTrees.delete(this);
+    this._wdm.removeListener(this._wdmListener);
     helper.removeListeners(this._eventListeners);
   }
 
@@ -192,6 +241,8 @@ class FrameTree {
 FrameTree.Events = {
   FrameAttached: 'frameattached',
   FrameDetached: 'framedetached',
+  WorkerCreated: 'workercreated',
+  WorkerDestroyed: 'workerdestroyed',
   NavigationStarted: 'navigationstarted',
   NavigationCommitted: 'navigationcommitted',
   NavigationAborted: 'navigationaborted',
@@ -267,6 +318,53 @@ class Frame {
 
   url() {
     return this._url;
+  }
+
+}
+
+class Worker {
+  constructor(frame, workerDebugger) {
+    this._frame = frame;
+    this._workerId = helper.generateId();
+    this._workerDebugger = workerDebugger;
+
+    workerDebugger.initialize('chrome://juggler/content/content/WorkerMain.js');
+
+    this._channel = new SimpleChannel(`content::worker[${this._workerId}]`);
+    this._channel.transport = {
+      sendMessage: obj => workerDebugger.postMessage(JSON.stringify(obj)),
+      dispose: () => {},
+    };
+    this._workerDebuggerListener = {
+      QueryInterface: ChromeUtils.generateQI([Ci.nsIWorkerDebuggerListener]),
+      onMessage: msg => void this._channel._onMessage(JSON.parse(msg)),
+      onClose: () => void this._channel.dispose(),
+      onError: (filename, lineno, message) => {
+        dump(`Error in worker: ${message} @${filename}:${lineno}\n`);
+      },
+    };
+    workerDebugger.addListener(this._workerDebuggerListener);
+  }
+
+  channel() {
+    return this._channel;
+  }
+
+  frame() {
+    return this._frame;
+  }
+
+  id() {
+    return this._workerId;
+  }
+
+  url() {
+    return this._workerDebugger.url;
+  }
+
+  dispose() {
+    this._channel.dispose();
+    this._workerDebugger.removeListener(this._workerDebuggerListener);
   }
 }
 

@@ -12,22 +12,22 @@ let networkMonitor;
 const helper = new Helper();
 const messageManager = this;
 
-function createContentSession(channel, sessionId) {
-  const runtimeAgent = new RuntimeAgent(channel.connect(sessionId + 'runtime'));
-  const pageAgent = new PageAgent(messageManager, channel.connect(sessionId + 'page'), runtimeAgent, frameTree, networkMonitor);
+const sessions = new Map();
 
-  channel.register(sessionId + 'runtime', runtimeAgent);
-  channel.register(sessionId + 'page', pageAgent);
+function createContentSession(channel, sessionId) {
+  const runtimeAgent = new RuntimeAgent(channel, sessionId);
+  const pageAgent = new PageAgent(messageManager, channel, sessionId, runtimeAgent, frameTree, networkMonitor);
+  sessions.set(sessionId, [runtimeAgent, pageAgent]);
 
   runtimeAgent.enable();
   pageAgent.enable();
 }
 
-function disposeContentSession(channel, sessionId) {
-  channel.handler(sessionId + 'runtime').dispose();
-  channel.handler(sessionId + 'page').dispose();
-  channel.unregister(sessionId + 'runtime');
-  channel.unregister(sessionId + 'page');
+function disposeContentSession(sessionId) {
+  const handlers = sessions.get(sessionId);
+  sessions.delete(sessionId);
+  for (const handler of handlers)
+    handler.dispose();
 }
 
 function initialize() {
@@ -67,7 +67,7 @@ function initialize() {
     },
 
     detach({sessionId}) {
-      disposeContentSession(channel, sessionId);
+      disposeContentSession(sessionId);
     },
 
     addScriptToEvaluateOnNewDocument({script}) {
@@ -81,9 +81,10 @@ function initialize() {
   const gListeners = [
     helper.addEventListener(messageManager, 'unload', msg => {
       helper.removeListeners(gListeners);
-      for (const handler of channel.handlers())
-        handler.dispose();
       channel.dispose();
+
+      for (const sessionId of sessions.keys())
+        disposeContentSession(sessionId);
 
       scrollbarManager.dispose();
       networkMonitor.dispose();
