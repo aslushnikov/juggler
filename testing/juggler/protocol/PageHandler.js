@@ -13,10 +13,28 @@ const helper = new Helper();
 class PageHandler {
   constructor(chromeSession, sessionId, contentChannel) {
     this._chromeSession = chromeSession;
-    this._contentSession = contentChannel.connect(sessionId + 'page');
+    this._contentPage = contentChannel.connect(sessionId + 'page');
+
+    const emitProtocolEvent = eventName => {
+      return (...args) => this._chromeSession.emitEvent(eventName, ...args);
+    }
+
     this._eventListeners = [
       contentChannel.register(sessionId + 'page', {
-        protocol: (eventName, params) => this._chromeSession.emitEvent(eventName, params),
+        pageBindingCalled: emitProtocolEvent('Page.bindingCalled'),
+        pageDispatchMessageFromWorker: emitProtocolEvent('Page.dispatchMessageFromWorker'),
+        pageEventFired: emitProtocolEvent('Page.eventFired'),
+        pageFileChooserOpened: emitProtocolEvent('Page.fileChooserOpened'),
+        pageFrameAttached: emitProtocolEvent('Page.frameAttached'),
+        pageFrameDetached: emitProtocolEvent('Page.frameDetached'),
+        pageNavigationAborted: emitProtocolEvent('Page.navigationAborted'),
+        pageNavigationCommitted: emitProtocolEvent('Page.navigationCommitted'),
+        pageNavigationStarted: emitProtocolEvent('Page.navigationStarted'),
+        pageReady: emitProtocolEvent('Page.ready'),
+        pageSameDocumentNavigation: emitProtocolEvent('Page.sameDocumentNavigation'),
+        pageUncaughtError: emitProtocolEvent('Page.uncaughtError'),
+        pageWorkerCreated: emitProtocolEvent('Page.workerCreated'),
+        pageWorkerDestroyed: emitProtocolEvent('Page.workerDestroyed'),
       }),
     ];
     this._pageTarget = TargetRegistry.instance().targetForId(chromeSession.targetId());
@@ -54,12 +72,13 @@ class PageHandler {
   }
 
   dispose() {
+    this._contentPage.dispose();
     helper.removeListeners(this._eventListeners);
   }
 
   async setViewportSize({viewportSize}) {
     const size = this._pageTarget.setViewportSize(viewportSize);
-    await this._contentSession.send('awaitViewportDimensions', {
+    await this._contentPage.send('awaitViewportDimensions', {
       width: size.width,
       height: size.height
     });
@@ -92,99 +111,99 @@ class PageHandler {
   }
 
   async setFileInputFiles(options) {
-    return await this._contentSession.send('setFileInputFiles', options);
+    return await this._contentPage.send('setFileInputFiles', options);
   }
 
   async setEmulatedMedia(options) {
-    return await this._contentSession.send('setEmulatedMedia', options);
+    return await this._contentPage.send('setEmulatedMedia', options);
   }
 
   async setCacheDisabled(options) {
-    return await this._contentSession.send('setCacheDisabled', options);
+    return await this._contentPage.send('setCacheDisabled', options);
   }
 
   async addBinding(options) {
-    return await this._contentSession.send('addBinding', options);
+    return await this._contentPage.send('addBinding', options);
   }
 
   async adoptNode(options) {
-    return await this._contentSession.send('adoptNode', options);
+    return await this._contentPage.send('adoptNode', options);
   }
 
   async screenshot(options) {
-    return await this._contentSession.send('screenshot', options);
+    return await this._contentPage.send('screenshot', options);
   }
 
   async getBoundingBox(options) {
-    return await this._contentSession.send('getBoundingBox', options);
+    return await this._contentPage.send('getBoundingBox', options);
   }
 
   async getContentQuads(options) {
-    return await this._contentSession.send('getContentQuads', options);
+    return await this._contentPage.send('getContentQuads', options);
   }
 
   /**
    * @param {{frameId: string, url: string}} options
    */
   async navigate(options) {
-    return await this._contentSession.send('navigate', options);
+    return await this._contentPage.send('navigate', options);
   }
 
   /**
    * @param {{frameId: string, url: string}} options
    */
   async goBack(options) {
-    return await this._contentSession.send('goBack', options);
+    return await this._contentPage.send('goBack', options);
   }
 
   /**
    * @param {{frameId: string, url: string}} options
    */
   async goForward(options) {
-    return await this._contentSession.send('goForward', options);
+    return await this._contentPage.send('goForward', options);
   }
 
   /**
    * @param {{frameId: string, url: string}} options
    */
   async reload(options) {
-    return await this._contentSession.send('reload', options);
+    return await this._contentPage.send('reload', options);
   }
 
   async describeNode(options) {
-    return await this._contentSession.send('describeNode', options);
+    return await this._contentPage.send('describeNode', options);
   }
 
   async scrollIntoViewIfNeeded(options) {
-    return await this._contentSession.send('scrollIntoViewIfNeeded', options);
+    return await this._contentPage.send('scrollIntoViewIfNeeded', options);
   }
 
   async addScriptToEvaluateOnNewDocument(options) {
-    return await this._contentSession.send('addScriptToEvaluateOnNewDocument', options);
+    return await this._contentPage.send('addScriptToEvaluateOnNewDocument', options);
   }
 
   async removeScriptToEvaluateOnNewDocument(options) {
-    return await this._contentSession.send('removeScriptToEvaluateOnNewDocument', options);
+    return await this._contentPage.send('removeScriptToEvaluateOnNewDocument', options);
   }
 
   async dispatchKeyEvent(options) {
-    return await this._contentSession.send('dispatchKeyEvent', options);
+    return await this._contentPage.send('dispatchKeyEvent', options);
   }
 
   async dispatchTouchEvent(options) {
-    return await this._contentSession.send('dispatchTouchEvent', options);
+    return await this._contentPage.send('dispatchTouchEvent', options);
   }
 
   async dispatchMouseEvent(options) {
-    return await this._contentSession.send('dispatchMouseEvent', options);
+    return await this._contentPage.send('dispatchMouseEvent', options);
   }
 
   async insertText(options) {
-    return await this._contentSession.send('insertText', options);
+    return await this._contentPage.send('insertText', options);
   }
 
   async crash(options) {
-    return await this._contentSession.send('crash', options);
+    return await this._contentPage.send('crash', options);
   }
 
   async handleDialog({dialogId, accept, promptText}) {
@@ -198,15 +217,15 @@ class PageHandler {
   }
 
   async setInterceptFileChooserDialog(options) {
-    return await this._contentSession.send('setInterceptFileChooserDialog', options);
+    return await this._contentPage.send('setInterceptFileChooserDialog', options);
   }
 
   async handleFileChooser(options) {
-    return await this._contentSession.send('handleFileChooser', options);
+    return await this._contentPage.send('handleFileChooser', options);
   }
 
   async sendMessageToWorker(options) {
-    return await this._contentSession.send('sendMessageToWorker', options);
+    return await this._contentPage.send('sendMessageToWorker', options);
   }
 }
 

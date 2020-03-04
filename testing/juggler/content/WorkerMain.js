@@ -19,7 +19,7 @@ class WorkerSession {
     this._send({command: 'dispatch', message: JSON.stringify(protocolMessage)});
   }
 
-  emit(protocol, eventName, params) {
+  emit(eventName, params) {
     this._dispatchProtocolMessage({method: eventName, params});
   }
 

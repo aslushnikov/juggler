@@ -105,7 +105,7 @@ class RuntimeAgent {
           [Ci.nsIConsoleMessage.warn]: 'warn',
           [Ci.nsIConsoleMessage.error]: 'error',
         };
-        this._session.emit('protocol', 'Runtime.console', {
+        this._session.emit('runtimeConsole', {
           args: [{
             value: message.message,
           }],
@@ -168,7 +168,7 @@ class RuntimeAgent {
     if (!type)
       return;
     const args = message.arguments.map(arg => executionContext.rawValueToRemoteObject(arg));
-    this._session.emit('protocol', 'Runtime.console', {
+    this._session.emit('runtimeConsole', {
       args,
       type,
       executionContextId: executionContext.id(),
@@ -183,7 +183,7 @@ class RuntimeAgent {
   _notifyExecutionContextCreated(executionContext) {
     if (!this._enabled)
       return;
-    this._session.emit('protocol', 'Runtime.executionContextCreated', {
+    this._session.emit('runtimeExecutionContextCreated', {
       executionContextId: executionContext._id,
       auxData: executionContext._auxData,
     });
@@ -192,7 +192,7 @@ class RuntimeAgent {
   _notifyExecutionContextDestroyed(executionContext) {
     if (!this._enabled)
       return;
-    this._session.emit('protocol', 'Runtime.executionContextDestroyed', {
+    this._session.emit('runtimeExecutionContextDestroyed', {
       executionContextId: executionContext._id,
     });
   }

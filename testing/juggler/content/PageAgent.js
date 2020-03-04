@@ -71,7 +71,7 @@ class FrameData {
 
   exposeFunction(name) {
     Cu.exportFunction((...args) => {
-      this._agent._session.emit('protocol', 'Page.bindingCalled', {
+      this._agent._session.emit('pageBindingCalled', {
         executionContextId: this.mainContext.id(),
         name,
         payload: args[0]
@@ -114,7 +114,7 @@ class FrameData {
   workerCreated(workerDebugger) {
     const workerId = helper.generateId();
     this._workers.set(workerId, workerDebugger);
-    this._agent._session.emit('protocol', 'Page.workerCreated', {
+    this._agent._session.emit('pageWorkerCreated', {
       workerId,
       frameId: this._frame.id(),
       url: workerDebugger.url,
@@ -126,7 +126,7 @@ class FrameData {
     }
     registeredWorkerListeners.set(workerId, message => {
       if (message.command === 'dispatch') {
-        this._agent._session.emit('protocol', 'Page.dispatchMessageFromWorker', {
+        this._agent._session.emit('pageDispatchMessageFromWorker', {
           workerId,
           message: message.message,
         });
@@ -140,7 +140,7 @@ class FrameData {
   workerDestroyed(wd) {
     for (const [workerId, workerDebugger] of this._workers) {
       if (workerDebugger === wd) {
-        this._agent._session.emit('protocol', 'Page.workerDestroyed', {
+        this._agent._session.emit('pageWorkerDestroyed', {
           workerId,
         });
         this._workers.delete(workerId);
@@ -196,7 +196,7 @@ class PageAgent {
       const frame = this._frameTree.frameForDocShell(domWindow.docShell);
       if (!frame)
         return;
-      this._session.emit('protocol', 'Page.uncaughtError', {
+      this._session.emit('pageUncaughtError', {
         frameId: frame.id(),
         message,
         stack,
@@ -286,7 +286,7 @@ class PageAgent {
       helper.on(this._frameTree, 'navigationcommitted', this._onNavigationCommitted.bind(this)),
       helper.on(this._frameTree, 'navigationaborted', this._onNavigationAborted.bind(this)),
       helper.on(this._frameTree, 'samedocumentnavigation', this._onSameDocumentNavigation.bind(this)),
-      helper.on(this._frameTree, 'pageready', () => this._session.send('protocol', 'Page.ready', {})),
+      helper.on(this._frameTree, 'pageready', () => this._session.emit('pageReady', {})),
     ];
 
     this._wdm.addListener(this._wdmListener);
@@ -294,7 +294,7 @@ class PageAgent {
       this._onWorkerCreated(workerDebugger);
 
     if (this._frameTree.isPageReady())
-      this._session.send('protocol', 'Page.ready', {});
+      this._session.emit('pageReady', {});
   }
 
   setInterceptFileChooserDialog({enabled}) {
@@ -332,7 +332,7 @@ class PageAgent {
     if (inputElement.ownerGlobal.docShell !== this._docShell)
       return;
     const frameData = this._findFrameForNode(inputElement);
-    this._session.send('protocol', 'Page.fileChooserOpened', {
+    this._session.emit('pageFileChooserOpened', {
       executionContextId: frameData.mainContext.id(),
       element: frameData.mainContext.rawValueToRemoteObject(inputElement)
     });
@@ -350,7 +350,7 @@ class PageAgent {
     const frame = this._frameTree.frameForDocShell(docShell);
     if (!frame)
       return;
-    this._session.emit('protocol', 'Page.eventFired', {
+    this._session.emit('pageEventFired', {
       frameId: frame.id(),
       name: 'DOMContentLoaded',
     });
@@ -361,7 +361,7 @@ class PageAgent {
     const frame = this._frameTree.frameForDocShell(docShell);
     if (!frame)
       return;
-    this._session.emit('protocol', 'Page.uncaughtError', {
+    this._session.emit('pageUncaughtError', {
       frameId: frame.id(),
       message: errorEvent.message,
       stack: errorEvent.error.stack
@@ -373,7 +373,7 @@ class PageAgent {
     const frame = this._frameTree.frameForDocShell(docShell);
     if (!frame)
       return;
-    this._session.emit('protocol', 'Page.eventFired', {
+    this._session.emit('pageEventFired', {
       frameId: frame.id(),
       name: 'load'
     });
@@ -384,14 +384,14 @@ class PageAgent {
     const frame = this._frameTree.frameForDocShell(docShell);
     if (!frame)
       return;
-    this._session.emit('protocol', 'Page.eventFired', {
+    this._session.emit('pageEventFired', {
       frameId: frame.id(),
       name: 'load'
     });
   }
 
   _onNavigationStarted(frame) {
-    this._session.emit('protocol', 'Page.navigationStarted', {
+    this._session.emit('pageNavigationStarted', {
       frameId: frame.id(),
       navigationId: frame.pendingNavigationId(),
       url: frame.pendingNavigationURL(),
@@ -399,7 +399,7 @@ class PageAgent {
   }
 
   _onNavigationAborted(frame, navigationId, errorText) {
-    this._session.emit('protocol', 'Page.navigationAborted', {
+    this._session.emit('pageNavigationAborted', {
       frameId: frame.id(),
       navigationId,
       errorText,
@@ -407,14 +407,14 @@ class PageAgent {
   }
 
   _onSameDocumentNavigation(frame) {
-    this._session.emit('protocol', 'Page.sameDocumentNavigation', {
+    this._session.emit('pageSameDocumentNavigation', {
       frameId: frame.id(),
       url: frame.url(),
     });
   }
 
   _onNavigationCommitted(frame) {
-    this._session.emit('protocol', 'Page.navigationCommitted', {
+    this._session.emit('pageNavigationCommitted', {
       frameId: frame.id(),
       navigationId: frame.lastCommittedNavigationId() || undefined,
       url: frame.url(),
@@ -431,7 +431,7 @@ class PageAgent {
   }
 
   _onFrameAttached(frame) {
-    this._session.emit('protocol', 'Page.frameAttached', {
+    this._session.emit('pageFrameAttached', {
       frameId: frame.id(),
       parentFrameId: frame.parentFrame() ? frame.parentFrame().id() : undefined,
     });
@@ -440,7 +440,7 @@ class PageAgent {
 
   _onFrameDetached(frame) {
     this._frameData.delete(frame);
-    this._session.emit('protocol', 'Page.frameDetached', {
+    this._session.emit('pageFrameDetached', {
       frameId: frame.id(),
     });
   }
