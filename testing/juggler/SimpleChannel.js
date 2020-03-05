@@ -1,0 +1,124 @@
+"use strict";
+// Note: this file should be loadabale with eval() into worker environment.
+// Avoid Components.*, ChromeUtils and global const variables.
+
+const SIMPLE_CHANNEL_MESSAGE_NAME = 'juggler:simplechannel';
+
+class SimpleChannel {
+  static createForMessageManager(name, mm) {
+    const channel = new SimpleChannel(name);
+
+    const messageListener = {
+      receiveMessage: message => channel._onMessage(message)
+    };
+    mm.addMessageListener(SIMPLE_CHANNEL_MESSAGE_NAME, messageListener);
+
+    channel.transport.sendMessage = obj => mm.sendAsyncMessage(SIMPLE_CHANNEL_MESSAGE_NAME, obj);
+    channel.transport.dispose = () => {
+      mm.removeMessageListener(SIMPLE_CHANNEL_MESSAGE_NAME, messageListener);
+    };
+    return channel;
+  }
+
+  constructor(name) {
+    this._name = name;
+    this._messageId = 0;
+    this._pendingMessages = new Map();
+    this._handlers = new Map();
+    this.transport = {
+      sendMessage: null,
+      dispose: null,
+    };
+    this._disposed = false;
+  }
+
+  dispose() {
+    if (this._disposed)
+      return;
+    this._disposed = true;
+    for (const {resolve, reject, methodName} of this._pendingMessages.values())
+      reject(new Error(`Failed "${methodName}": ${this._name} is disposed.`));
+    this._pendingMessages.clear();
+    this.transport.dispose();
+  }
+
+  connect(namespace) {
+    return {
+      send: (...args) => this._send(namespace, ...args),
+      emit: (...args) => void this._send(namespace, ...args).catch(e => {}),
+    };
+  }
+
+  handler(namespace) {
+    return this._handlers.get(namespace);
+  }
+
+  handlers() {
+    return [...this._handlers.values()];
+  }
+
+  register(namespace, handler) {
+    if (this._handlers.has(namespace))
+      throw new Error('ERROR: double-register for namespace ' + namespace);
+    this._handlers.set(namespace, handler);
+    return () => this.unregister(namespace);
+  }
+
+  unregister(namespace) {
+    this._handlers.delete(namespace);
+  }
+
+  /**
+   * @param {string} sessionId
+   * @param {string} methodName
+   * @param {*} params
+   * @return {!Promise<*>}
+   */
+  async _send(namespace, methodName, ...params) {
+    if (this._disposed)
+      throw new Error(`ERROR: channel ${this._name} is already disposed! Cannot send "${methodName}" to "${namespace}"`);
+    const id = ++this._messageId;
+    const promise = new Promise((resolve, reject) => {
+      this._pendingMessages.set(id, {resolve, reject, methodName});
+    });
+    this.transport.sendMessage({requestId: id, methodName, params, namespace});
+    return promise;
+  }
+
+  async _onMessage({data}) {
+    if (data.responseId) {
+      const {resolve, reject} = this._pendingMessages.get(data.responseId);
+      this._pendingMessages.delete(data.responseId);
+      if (data.error)
+        reject(new Error(data.error));
+      else
+        resolve(data.result);
+    } else if (data.requestId) {
+      const namespace = data.namespace;
+      const handler = this._handlers.get(namespace);
+      if (!handler) {
+        this.transport.sendMessage({responseId: data.requestId, error: `error in channel "${this._name}": No handler for namespace "${namespace}"`});
+        return;
+      }
+      const method = handler[data.methodName];
+      if (!method) {
+        this.transport.sendMessage({responseId: data.requestId, error: `error in channel "${this._name}": No method "${data.methodName}" in namespace "${namespace}"`});
+        return;
+      }
+      try {
+        const result = await method.call(handler, ...data.params);
+        this.transport.sendMessage({responseId: data.requestId, result});
+      } catch (error) {
+        this.transport.sendMessage({responseId: data.requestId, error: `error in channel "${this._name}": exception while running method "${data.methodName}" in namespace "${namespace}": ${error.message} ${error.stack}`});
+        return;
+      }
+    } else {
+      dump(`
+        ERROR: unknown message in channel "${this._name}": ${JSON.stringify(data)}
+      `);
+    }
+  }
+}
+
+var EXPORTED_SYMBOLS = ['SimpleChannel'];
+this.SimpleChannel = SimpleChannel;
