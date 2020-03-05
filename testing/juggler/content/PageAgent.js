@@ -32,11 +32,11 @@ class WorkerData {
         disposeObject: (options) =>this._workerRuntime.send('disposeObject', options),
       }),
     ];
-    worker.channel().connect('').emit('connect', {sessionId});
+    worker.channel().connect('').emit('attach', {sessionId});
   }
 
   dispose() {
-    this._worker.channel().connect('').emit('disconnect', {sessionId: this._sessionId});
+    this._worker.channel().connect('').emit('detach', {sessionId: this._sessionId});
     this._workerRuntime.dispose();
     this._browserWorker.dispose();
     helper.removeListeners(this._eventListeners);
@@ -88,7 +88,7 @@ class FrameData {
 
   exposeFunction(name) {
     Cu.exportFunction((...args) => {
-      this._agent._session.emit('pageBindingCalled', {
+      this._agent._browserPage.emit('pageBindingCalled', {
         executionContextId: this.mainContext.id(),
         name,
         payload: args[0]
@@ -136,7 +136,7 @@ class PageAgent {
     this._messageManager = messageManager;
     this._browserChannel = browserChannel;
     this._sessionId = sessionId;
-    this._session = browserChannel.connect(sessionId + 'page');
+    this._browserPage = browserChannel.connect(sessionId + 'page');
     this._runtime = runtimeAgent;
     this._frameTree = frameTree;
     this._networkMonitor = networkMonitor;
@@ -147,7 +147,33 @@ class PageAgent {
     this._bindingsToAdd = new Set();
 
     this._eventListeners = [
-      browserChannel.register(sessionId + 'page', this),
+      browserChannel.register(sessionId + 'page', {
+        addBinding: this._addBinding.bind(this),
+        addScriptToEvaluateOnNewDocument: this._addScriptToEvaluateOnNewDocument.bind(this),
+        adoptNode: this._adoptNode.bind(this),
+        awaitViewportDimensions: this._awaitViewportDimensions.bind(this),
+        crash: this._crash.bind(this),
+        describeNode: this._describeNode.bind(this),
+        dispatchKeyEvent: this._dispatchKeyEvent.bind(this),
+        dispatchMouseEvent: this._dispatchMouseEvent.bind(this),
+        dispatchTouchEvent: this._dispatchTouchEvent.bind(this),
+        getBoundingBox: this._getBoundingBox.bind(this),
+        getContentQuads: this._getContentQuads.bind(this),
+        getFullAXTree: this._getFullAXTree.bind(this),
+        goBack: this._goBack.bind(this),
+        goForward: this._goForward.bind(this),
+        insertText: this._insertText.bind(this),
+        navigate: this._navigate.bind(this),
+        reload: this._reload.bind(this),
+        removeScriptToEvaluateOnNewDocument: this._removeScriptToEvaluateOnNewDocument.bind(this),
+        requestDetails: this._requestDetails.bind(this),
+        screenshot: this._screenshot.bind(this),
+        scrollIntoViewIfNeeded: this._scrollIntoViewIfNeeded.bind(this),
+        setCacheDisabled: this._setCacheDisabled.bind(this),
+        setEmulatedMedia: this._setEmulatedMedia.bind(this),
+        setFileInputFiles: this._setFileInputFiles.bind(this),
+        setInterceptFileChooserDialog: this._setInterceptFileChooserDialog.bind(this),
+      }),
     ];
     this._enabled = false;
 
@@ -160,7 +186,7 @@ class PageAgent {
       const frame = this._frameTree.frameForDocShell(domWindow.docShell);
       if (!frame)
         return;
-      this._session.emit('pageUncaughtError', {
+      this._browserPage.emit('pageUncaughtError', {
         frameId: frame.id(),
         message,
         stack,
@@ -168,7 +194,7 @@ class PageAgent {
     });
   }
 
-  async awaitViewportDimensions({width, height}) {
+  async _awaitViewportDimensions({width, height}) {
     const win = this._frameTree.mainFrame().domWindow();
     if (win.innerWidth === width && win.innerHeight === height)
       return;
@@ -182,11 +208,11 @@ class PageAgent {
     });
   }
 
-  requestDetails({channelId}) {
+  _requestDetails({channelId}) {
     return this._networkMonitor.requestDetails(channelId);
   }
 
-  async setEmulatedMedia({type, colorScheme}) {
+  async _setEmulatedMedia({type, colorScheme}) {
     const docShell = this._frameTree.mainFrame().docShell();
     const cv = docShell.contentViewer;
     if (type === '')
@@ -200,7 +226,7 @@ class PageAgent {
     }
   }
 
-  addScriptToEvaluateOnNewDocument({script, worldName}) {
+  _addScriptToEvaluateOnNewDocument({script, worldName}) {
     const scriptId = helper.generateId();
     this._scriptsToEvaluateOnNewDocument.set(scriptId, {script, worldName});
     if (worldName) {
@@ -210,11 +236,11 @@ class PageAgent {
     return {scriptId};
   }
 
-  removeScriptToEvaluateOnNewDocument({scriptId}) {
+  _removeScriptToEvaluateOnNewDocument({scriptId}) {
     this._scriptsToEvaluateOnNewDocument.delete(scriptId);
   }
 
-  setCacheDisabled({cacheDisabled}) {
+  _setCacheDisabled({cacheDisabled}) {
     const enable = Ci.nsIRequest.LOAD_NORMAL;
     const disable = Ci.nsIRequest.LOAD_BYPASS_CACHE |
                   Ci.nsIRequest.INHIBIT_CACHING;
@@ -253,19 +279,19 @@ class PageAgent {
       helper.on(this._frameTree, 'navigationcommitted', this._onNavigationCommitted.bind(this)),
       helper.on(this._frameTree, 'navigationaborted', this._onNavigationAborted.bind(this)),
       helper.on(this._frameTree, 'samedocumentnavigation', this._onSameDocumentNavigation.bind(this)),
-      helper.on(this._frameTree, 'pageready', () => this._session.emit('pageReady', {})),
+      helper.on(this._frameTree, 'pageready', () => this._browserPage.emit('pageReady', {})),
       helper.on(this._frameTree, 'workercreated', this._onWorkerCreated.bind(this)),
       helper.on(this._frameTree, 'workerdestroyed', this._onWorkerDestroyed.bind(this)),
     ]);
 
     if (this._frameTree.isPageReady())
-      this._session.emit('pageReady', {});
+      this._browserPage.emit('pageReady', {});
   }
 
   _onWorkerCreated(worker) {
     const workerData = new WorkerData(this, this._browserChannel, this._sessionId, worker);
     this._workerData.set(worker.id(), workerData);
-    this._session.emit('pageWorkerCreated', {
+    this._browserPage.emit('pageWorkerCreated', {
       workerId: worker.id(),
       frameId: worker.frame().id(),
       url: worker.url(),
@@ -278,12 +304,12 @@ class PageAgent {
       return;
     this._workerData.delete(worker.id());
     workerData.dispose();
-    this._session.emit('pageWorkerDestroyed', {
+    this._browserPage.emit('pageWorkerDestroyed', {
       workerId: worker.id(),
     });
   }
 
-  setInterceptFileChooserDialog({enabled}) {
+  _setInterceptFileChooserDialog({enabled}) {
     this._docShell.fileInputInterceptionEnabled = !!enabled;
   }
 
@@ -291,7 +317,7 @@ class PageAgent {
     if (inputElement.ownerGlobal.docShell !== this._docShell)
       return;
     const frameData = this._findFrameForNode(inputElement);
-    this._session.emit('pageFileChooserOpened', {
+    this._browserPage.emit('pageFileChooserOpened', {
       executionContextId: frameData.mainContext.id(),
       element: frameData.mainContext.rawValueToRemoteObject(inputElement)
     });
@@ -309,7 +335,7 @@ class PageAgent {
     const frame = this._frameTree.frameForDocShell(docShell);
     if (!frame)
       return;
-    this._session.emit('pageEventFired', {
+    this._browserPage.emit('pageEventFired', {
       frameId: frame.id(),
       name: 'DOMContentLoaded',
     });
@@ -320,7 +346,7 @@ class PageAgent {
     const frame = this._frameTree.frameForDocShell(docShell);
     if (!frame)
       return;
-    this._session.emit('pageUncaughtError', {
+    this._browserPage.emit('pageUncaughtError', {
       frameId: frame.id(),
       message: errorEvent.message,
       stack: errorEvent.error.stack
@@ -332,7 +358,7 @@ class PageAgent {
     const frame = this._frameTree.frameForDocShell(docShell);
     if (!frame)
       return;
-    this._session.emit('pageEventFired', {
+    this._browserPage.emit('pageEventFired', {
       frameId: frame.id(),
       name: 'load'
     });
@@ -343,14 +369,14 @@ class PageAgent {
     const frame = this._frameTree.frameForDocShell(docShell);
     if (!frame)
       return;
-    this._session.emit('pageEventFired', {
+    this._browserPage.emit('pageEventFired', {
       frameId: frame.id(),
       name: 'load'
     });
   }
 
   _onNavigationStarted(frame) {
-    this._session.emit('pageNavigationStarted', {
+    this._browserPage.emit('pageNavigationStarted', {
       frameId: frame.id(),
       navigationId: frame.pendingNavigationId(),
       url: frame.pendingNavigationURL(),
@@ -358,7 +384,7 @@ class PageAgent {
   }
 
   _onNavigationAborted(frame, navigationId, errorText) {
-    this._session.emit('pageNavigationAborted', {
+    this._browserPage.emit('pageNavigationAborted', {
       frameId: frame.id(),
       navigationId,
       errorText,
@@ -366,14 +392,14 @@ class PageAgent {
   }
 
   _onSameDocumentNavigation(frame) {
-    this._session.emit('pageSameDocumentNavigation', {
+    this._browserPage.emit('pageSameDocumentNavigation', {
       frameId: frame.id(),
       url: frame.url(),
     });
   }
 
   _onNavigationCommitted(frame) {
-    this._session.emit('pageNavigationCommitted', {
+    this._browserPage.emit('pageNavigationCommitted', {
       frameId: frame.id(),
       navigationId: frame.lastCommittedNavigationId() || undefined,
       url: frame.url(),
@@ -390,7 +416,7 @@ class PageAgent {
   }
 
   _onFrameAttached(frame) {
-    this._session.emit('pageFrameAttached', {
+    this._browserPage.emit('pageFrameAttached', {
       frameId: frame.id(),
       parentFrameId: frame.parentFrame() ? frame.parentFrame().id() : undefined,
     });
@@ -399,7 +425,7 @@ class PageAgent {
 
   _onFrameDetached(frame) {
     this._frameData.delete(frame);
-    this._session.emit('pageFrameDetached', {
+    this._browserPage.emit('pageFrameDetached', {
       frameId: frame.id(),
     });
   }
@@ -414,7 +440,7 @@ class PageAgent {
     helper.removeListeners(this._eventListeners);
   }
 
-  async navigate({frameId, url, referer}) {
+  async _navigate({frameId, url, referer}) {
     try {
       const uri = NetUtil.newURI(url);
     } catch (e) {
@@ -446,14 +472,14 @@ class PageAgent {
     return {navigationId: frame.pendingNavigationId(), navigationURL: frame.pendingNavigationURL()};
   }
 
-  async reload({frameId, url}) {
+  async _reload({frameId, url}) {
     const frame = this._frameTree.frame(frameId);
     const docShell = frame.docShell().QueryInterface(Ci.nsIWebNavigation);
     docShell.reload(Ci.nsIWebNavigation.LOAD_FLAGS_NONE);
     return {navigationId: frame.pendingNavigationId(), navigationURL: frame.pendingNavigationURL()};
   }
 
-  async goBack({frameId, url}) {
+  async _goBack({frameId, url}) {
     const frame = this._frameTree.frame(frameId);
     const docShell = frame.docShell();
     if (!docShell.canGoBack)
@@ -462,7 +488,7 @@ class PageAgent {
     return {navigationId: frame.pendingNavigationId(), navigationURL: frame.pendingNavigationURL()};
   }
 
-  async goForward({frameId, url}) {
+  async _goForward({frameId, url}) {
     const frame = this._frameTree.frame(frameId);
     const docShell = frame.docShell();
     if (!docShell.canGoForward)
@@ -471,7 +497,7 @@ class PageAgent {
     return {navigationId: frame.pendingNavigationId(), navigationURL: frame.pendingNavigationURL()};
   }
 
-  addBinding({name}) {
+  _addBinding({name}) {
     if (this._bindingsToAdd.has(name))
       throw new Error(`Binding with name ${name} already exists`);
     this._bindingsToAdd.add(name);
@@ -479,7 +505,7 @@ class PageAgent {
       frameData.exposeFunction(name);
   }
 
-  async adoptNode({frameId, objectId, executionContextId}) {
+  async _adoptNode({frameId, objectId, executionContextId}) {
     const frame = this._frameTree.frame(frameId);
     if (!frame)
       throw new Error('Failed to find frame with id = ' + frameId);
@@ -493,7 +519,7 @@ class PageAgent {
     return { remoteObject: context.rawValueToRemoteObject(unsafeObject) };
   }
 
-  async setFileInputFiles({objectId, frameId, files}) {
+  async _setFileInputFiles({objectId, frameId, files}) {
     const frame = this._frameTree.frame(frameId);
     if (!frame)
       throw new Error('Failed to find frame with id = ' + frameId);
@@ -504,7 +530,7 @@ class PageAgent {
     unsafeObject.mozSetFileArray(nsFiles);
   }
 
-  getContentQuads({objectId, frameId}) {
+  _getContentQuads({objectId, frameId}) {
     const frame = this._frameTree.frame(frameId);
     if (!frame)
       throw new Error('Failed to find frame with id = ' + frameId);
@@ -522,7 +548,7 @@ class PageAgent {
     return {quads};
   }
 
-  describeNode({objectId, frameId}) {
+  _describeNode({objectId, frameId}) {
     const frame = this._frameTree.frame(frameId);
     if (!frame)
       throw new Error('Failed to find frame with id = ' + frameId);
@@ -544,7 +570,7 @@ class PageAgent {
     };
   }
 
-  async scrollIntoViewIfNeeded({objectId, frameId, rect}) {
+  async _scrollIntoViewIfNeeded({objectId, frameId, rect}) {
     const frame = this._frameTree.frame(frameId);
     if (!frame)
       throw new Error('Failed to find frame with id = ' + frameId);
@@ -606,7 +632,7 @@ class PageAgent {
     return {x: x1, y: y1, width: x2 - x1, height: y2 - y1};
   }
 
-  async getBoundingBox({frameId, objectId}) {
+  async _getBoundingBox({frameId, objectId}) {
     const frame = this._frameTree.frame(frameId);
     if (!frame)
       throw new Error('Failed to find frame with id = ' + frameId);
@@ -617,7 +643,7 @@ class PageAgent {
     return {boundingBox: {x: box.x + frame.domWindow().scrollX, y: box.y + frame.domWindow().scrollY, width: box.width, height: box.height}};
   }
 
-  async screenshot({mimeType, fullPage, clip}) {
+  async _screenshot({mimeType, fullPage, clip}) {
     const content = this._messageManager.content;
     if (clip) {
       const data = takeScreenshot(content, clip.x, clip.y, clip.width, clip.height, mimeType);
@@ -634,7 +660,7 @@ class PageAgent {
     return {data};
   }
 
-  async dispatchKeyEvent({type, keyCode, code, key, repeat, location, text}) {
+  async _dispatchKeyEvent({type, keyCode, code, key, repeat, location, text}) {
     const frame = this._frameTree.mainFrame();
     const tip = frame.textInputProcessor();
     if (key === 'Meta' && Services.appinfo.OS !== 'Darwin')
@@ -665,7 +691,7 @@ class PageAgent {
     }
   }
 
-  async dispatchTouchEvent({type, touchPoints, modifiers}) {
+  async _dispatchTouchEvent({type, touchPoints, modifiers}) {
     const frame = this._frameTree.mainFrame();
     const defaultPrevented = frame.domWindow().windowUtils.sendTouchEvent(
       type.toLowerCase(),
@@ -681,7 +707,7 @@ class PageAgent {
     return {defaultPrevented};
   }
 
-  async dispatchMouseEvent({type, x, y, button, clickCount, modifiers, buttons}) {
+  async _dispatchMouseEvent({type, x, y, button, clickCount, modifiers, buttons}) {
     const frame = this._frameTree.mainFrame();
     frame.domWindow().windowUtils.sendMouseEvent(
       type,
@@ -713,12 +739,12 @@ class PageAgent {
     }
   }
 
-  async insertText({text}) {
+  async _insertText({text}) {
     const frame = this._frameTree.mainFrame();
     frame.textInputProcessor().commitCompositionWith(text);
   }
 
-  async crash() {
+  async _crash() {
     dump(`Crashing intentionally\n`);
     // This is to intentionally crash the frame.
     // We crash by using js-ctypes and dereferencing
@@ -731,7 +757,7 @@ class PageAgent {
     badptr.contents;
   }
 
-  async getFullAXTree({objectId}) {
+  async _getFullAXTree({objectId}) {
     let unsafeObject = null;
     if (objectId) {
       unsafeObject = this._frameData.get(this._frameTree.mainFrame()).unsafeObject(objectId);

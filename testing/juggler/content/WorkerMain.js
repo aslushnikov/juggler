@@ -13,14 +13,14 @@ channel.transport = {
 };
 
 channel.register('', {
-  connect: ({sessionId}) => {
+  attach: ({sessionId}) => {
     const runtimeAgent = new RuntimeAgent(channel, sessionId, true /* isWorker */);
     runtimeAgents.set(sessionId, runtimeAgent);
     runtimeAgent.createExecutionContext(null /* domWindow */, global, {});
     runtimeAgent.enable();
   },
 
-  disconnect: ({sessionId}) => {
+  detach: ({sessionId}) => {
     const runtimeAgent = runtimeAgents.get(sessionId);
     runtimeAgents.delete(sessionId);
     runtimeAgent.dispose();

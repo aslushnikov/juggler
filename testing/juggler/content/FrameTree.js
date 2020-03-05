@@ -76,9 +76,6 @@ class FrameTree {
   }
 
   _onWorkerDestroyed(workerDebugger) {
-    const frame = this._frameForWorker(workerDebugger);
-    if (!frame)
-      return;
     const worker = this._workers.get(workerDebugger);
     if (!worker)
       return;

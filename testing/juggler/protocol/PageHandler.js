@@ -280,10 +280,6 @@ class PageHandler {
     return await this._contentPage.send('setInterceptFileChooserDialog', options);
   }
 
-  async handleFileChooser(options) {
-    return await this._contentPage.send('handleFileChooser', options);
-  }
-
   async sendMessageToWorker({workerId, message}) {
     const worker = this._workers.get(workerId);
     if (!worker)

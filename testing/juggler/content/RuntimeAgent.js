@@ -50,14 +50,19 @@ const disallowedMessageCategories = new Set([
 ]);
 
 class RuntimeAgent {
-  constructor(channel, channelId, isWorker = false) {
+  constructor(channel, sessionId, isWorker = false) {
     this._debugger = new Debugger();
     this._pendingPromises = new Map();
     this._executionContexts = new Map();
     this._windowToExecutionContext = new Map();
-    this._session = channel.connect(channelId + 'runtime');
+    this._session = channel.connect(sessionId + 'runtime');
     this._eventListeners = [
-      channel.register(channelId + 'runtime', this),
+      channel.register(sessionId + 'runtime', {
+        evaluate: this._evaluate.bind(this),
+        callFunction: this._callFunction.bind(this),
+        getObjectProperties: this._getObjectProperties.bind(this),
+        disposeObject: this._disposeObject.bind(this),
+      }),
     ];
     this._enabled = false;
     this._filteredConsoleMessageHashes = new Set();
@@ -276,7 +281,7 @@ class RuntimeAgent {
     this._notifyExecutionContextDestroyed(destroyedContext);
   }
 
-  async evaluate({executionContextId, expression, returnByValue}) {
+  async _evaluate({executionContextId, expression, returnByValue}) {
     const executionContext = this._executionContexts.get(executionContextId);
     if (!executionContext)
       throw new Error('Failed to find execution context with id = ' + executionContextId);
@@ -289,7 +294,7 @@ class RuntimeAgent {
     return {result};
   }
 
-  async callFunction({executionContextId, functionDeclaration, args, returnByValue}) {
+  async _callFunction({executionContextId, functionDeclaration, args, returnByValue}) {
     const executionContext = this._executionContexts.get(executionContextId);
     if (!executionContext)
       throw new Error('Failed to find execution context with id = ' + executionContextId);
@@ -302,14 +307,14 @@ class RuntimeAgent {
     return {result};
   }
 
-  async getObjectProperties({executionContextId, objectId}) {
+  async _getObjectProperties({executionContextId, objectId}) {
     const executionContext = this._executionContexts.get(executionContextId);
     if (!executionContext)
       throw new Error('Failed to find execution context with id = ' + executionContextId);
     return {properties: executionContext.getObjectProperties(objectId)};
   }
 
-  async disposeObject({executionContextId, objectId}) {
+  async _disposeObject({executionContextId, objectId}) {
     const executionContext = this._executionContexts.get(executionContextId);
     if (!executionContext)
       throw new Error('Failed to find execution context with id = ' + executionContextId);
