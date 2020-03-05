@@ -55,6 +55,13 @@ class TargetRegistry {
     Services.obs.addObserver(this, 'oop-frameloader-crashed');
   }
 
+  async ensurePermissionsInContextPages(browserContextId, permissions) {
+    const browserContext = this._contextManager.browserContextForId(browserContextId);
+    const pageTargets = [...this._targets.values()].filter(target => target instanceof PageTarget);
+    const contextPages = pageTargets.filter(target => target._browserContext === browserContext);
+    await Promise.all(contextPages.map(page => page._channel.connect('').send('ensurePermissions', permissions).catch(e => void e)));
+  }
+
   async newPage({browserContextId}) {
     const browserContext = this._contextManager.browserContextForId(browserContextId);
     const tab = this._mainWindow.gBrowser.addTab('about:blank', {

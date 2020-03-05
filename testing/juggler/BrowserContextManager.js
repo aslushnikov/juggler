@@ -98,7 +98,7 @@ class BrowserContext {
     this._principals.push(principal);
     for (const permission of ALL_PERMISSIONS) {
       const action = permissions.includes(permission) ? Ci.nsIPermissionManager.ALLOW_ACTION : Ci.nsIPermissionManager.DENY_ACTION;
-      Services.perms.addFromPrincipal(principal, permission, action);
+      Services.perms.addFromPrincipal(principal, permission, action, Ci.nsIPermissionManager.EXPIRE_NEVER, 0 /* expireTime */);
     }
   }
 

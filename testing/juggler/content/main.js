@@ -1,3 +1,4 @@
+const {Services} = ChromeUtils.import("resource://gre/modules/Services.jsm");
 const {Helper} = ChromeUtils.import('chrome://juggler/content/Helper.js');
 const {FrameTree} = ChromeUtils.import('chrome://juggler/content/content/FrameTree.js');
 const {NetworkMonitor} = ChromeUtils.import('chrome://juggler/content/content/NetworkMonitor.js');
@@ -5,6 +6,13 @@ const {ScrollbarManager} = ChromeUtils.import('chrome://juggler/content/content/
 const {SimpleChannel} = ChromeUtils.import('chrome://juggler/content/SimpleChannel.js');
 const {RuntimeAgent} = ChromeUtils.import('chrome://juggler/content/content/RuntimeAgent.js');
 const {PageAgent} = ChromeUtils.import('chrome://juggler/content/content/PageAgent.js');
+
+const ALL_PERMISSIONS = [
+  'geo',
+  'microphone',
+  'camera',
+  'desktop-notifications',
+];
 
 const scrollbarManager = new ScrollbarManager(docShell);
 let frameTree;
@@ -72,6 +80,31 @@ function initialize() {
 
     addScriptToEvaluateOnNewDocument({script}) {
       frameTree.addScriptToEvaluateOnNewDocument(script);
+    },
+
+    async ensurePermissions(permissions) {
+      const checkPermissions = () => {
+        for (const permission of ALL_PERMISSIONS) {
+          const actual = Services.perms.testExactPermissionFromPrincipal(this._docShell.domWindow.document.nodePrincipal, permission);
+          const expected = permissions.include(permission) ? Ci.nsIPermissionManager.ALLOW_ACTION : Ci.nsIPermissionManager.DENY_ACTION;
+          if (actual !== expected)
+            return false;
+        }
+        return true;
+      }
+
+      if (checkPermissions())
+        return;
+
+      // Track all 'perm-changed' events and wait until permissions are expected.
+      await new Promise(resolve => {
+        const listeners = [helper.addObserver(() => {
+          if (!checkPermission())
+            return;
+          helper.removeListeners(listeners);
+          resolve();
+        }, 'perm-changed')];
+      });
     },
 
     dispose() {

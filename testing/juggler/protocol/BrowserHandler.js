@@ -5,6 +5,7 @@ const { allowAllCerts } = ChromeUtils.import(
   "chrome://marionette/content/cert.js"
 );
 const {BrowserContextManager} = ChromeUtils.import("chrome://juggler/content/BrowserContextManager.js");
+const {TargetRegistry} = ChromeUtils.import("chrome://juggler/content/TargetRegistry.js");
 
 class BrowserHandler {
   /**
@@ -13,6 +14,7 @@ class BrowserHandler {
   constructor() {
     this._sweepingOverride = null;
     this._contextManager = BrowserContextManager.instance();
+    this._targetRegistry = TargetRegistry.instance();
   }
 
   async close() {
@@ -35,8 +37,9 @@ class BrowserHandler {
     }
   }
 
-  grantPermissions({browserContextId, origin, permissions}) {
+  async grantPermissions({browserContextId, origin, permissions}) {
     this._contextManager.browserContextForId(browserContextId).grantPermissions(origin, permissions);
+    await this._targetRegistry.ensurePermissionsInContextPages(browserContextId, permissions);
   }
 
   resetPermissions({browserContextId}) {
