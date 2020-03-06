@@ -355,6 +355,9 @@ class ExecutionContext {
 
   async evaluateScript(script, exceptionDetails = {}) {
     const userInputHelper = this._domWindow ? this._domWindow.windowUtils.setHandlingUserInput(true) : null;
+    if (this._domWindow && this._domWindow.document)
+      this._domWindow.document.notifyUserGestureActivation();
+
     let {success, obj} = this._getResult(this._global.executeInGlobal(script), exceptionDetails);
     userInputHelper && userInputHelper.destruct();
     if (!success)
