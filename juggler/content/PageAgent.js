@@ -318,7 +318,7 @@ class PageAgent {
   _linkClicked(sync, anchorElement) {
     if (anchorElement.ownerGlobal.docShell !== this._docShell)
       return;
-    this._session.emit('pageLinkClicked', { phase: sync ? 'after' : 'before' });
+    this._browserPage.emit('pageLinkClicked', { phase: sync ? 'after' : 'before' });
   }
 
   _filePickerShown(inputElement) {
