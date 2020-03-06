@@ -3367,7 +3367,6 @@ nsDocShell::GetMessageManager(ContentFrameMessageManager** aMessageManager) {
   return NS_OK;
 }
 
-NS_IMETHODIMP
 nsDocShell* nsDocShell::GetRootDocShell() {
   nsCOMPtr<nsIDocShellTreeItem> rootAsItem;
   GetInProcessSameTypeRootTreeItem(getter_AddRefs(rootAsItem));

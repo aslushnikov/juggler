@@ -244,8 +244,23 @@ class NetworkObserver {
       this._sendOnRequest(httpChannel, true);
       new ResponseBodyListener(this, browser, httpChannel);
     } else {
-      new NotificationCallbacks(this, browser, httpChannel, true);
-      // We'll issue onRequest once it's intercepted.
+      const previousCallbacks = httpChannel.notificationCallbacks;
+      let shouldIntercept = true;
+      if (previousCallbacks instanceof Ci.nsIInterfaceRequestor) {
+        const interceptor = previousCallbacks.getInterface(Ci.nsINetworkInterceptController);
+        // We assume that interceptor is a service worker if there is one.
+        if (interceptor && interceptor.shouldPrepareForIntercept(httpChannel.URI, httpChannel)) {
+          new NotificationCallbacks(this, browser, httpChannel, false);
+          this._sendOnRequest(httpChannel, false);
+          new ResponseBodyListener(this, browser, httpChannel);
+        } else {
+          // We'll issue onRequest once it's intercepted.
+          new NotificationCallbacks(this, browser, httpChannel, true);
+        }
+      } else {
+        // We'll issue onRequest once it's intercepted.
+        new NotificationCallbacks(this, browser, httpChannel, true);
+      }
     }
   }
 
