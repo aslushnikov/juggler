@@ -634,7 +634,7 @@ static bool IsDebugger() {
 NS_IMETHODIMP
 nsCertOverrideService::
     SetDisableAllSecurityChecksAndLetAttackersInterceptMyData(bool aDisable) {
-  if (!(PR_GetEnv("XPCSHELL_TEST_PROFILE_DIR") || IsDebugger())) {
+  if (false /* juggler hacks */ && !(PR_GetEnv("XPCSHELL_TEST_PROFILE_DIR") || IsDebugger())) {
     return NS_ERROR_NOT_AVAILABLE;
   }
 
