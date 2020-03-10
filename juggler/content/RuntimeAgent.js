@@ -52,7 +52,6 @@ const disallowedMessageCategories = new Set([
 class RuntimeAgent {
   constructor(channel, sessionId, isWorker = false) {
     this._debugger = new Debugger();
-    this._pendingPromises = new Map();
     this._executionContexts = new Map();
     this._windowToExecutionContext = new Map();
     this._session = channel.connect(sessionId + 'runtime');
@@ -210,44 +209,6 @@ class RuntimeAgent {
     this._eventListeners = [];
   }
 
-  async _awaitPromise(executionContext, obj, exceptionDetails = {}) {
-    if (obj.promiseState === 'fulfilled')
-      return {success: true, obj: obj.promiseValue};
-    if (obj.promiseState === 'rejected') {
-      const global = executionContext._global;
-      exceptionDetails.text = global.executeInGlobalWithBindings('e.message', {e: obj.promiseReason}).return;
-      exceptionDetails.stack = global.executeInGlobalWithBindings('e.stack', {e: obj.promiseReason}).return;
-      return {success: false, obj: null};
-    }
-    let resolve, reject;
-    const promise = new Promise((a, b) => {
-      resolve = a;
-      reject = b;
-    });
-    this._pendingPromises.set(obj.promiseID, {resolve, reject, executionContext, exceptionDetails});
-    if (this._pendingPromises.size === 1)
-      this._debugger.onPromiseSettled = this._onPromiseSettled.bind(this);
-    return await promise;
-  }
-
-  _onPromiseSettled(obj) {
-    const pendingPromise = this._pendingPromises.get(obj.promiseID);
-    if (!pendingPromise)
-      return;
-    this._pendingPromises.delete(obj.promiseID);
-    if (!this._pendingPromises.size)
-      this._debugger.onPromiseSettled = undefined;
-
-    if (obj.promiseState === 'fulfilled') {
-      pendingPromise.resolve({success: true, obj: obj.promiseValue});
-      return;
-    };
-    const global = pendingPromise.executionContext._global;
-    pendingPromise.exceptionDetails.text = global.executeInGlobalWithBindings('e.message', {e: obj.promiseReason}).return;
-    pendingPromise.exceptionDetails.stack = global.executeInGlobalWithBindings('e.stack', {e: obj.promiseReason}).return;
-    pendingPromise.resolve({success: false, obj: null});
-  }
-
   createExecutionContext(domWindow, contextGlobal, auxData) {
     // Note: domWindow is null for workers.
     const context = new ExecutionContext(this, domWindow, contextGlobal, this._debugger.addDebuggee(contextGlobal), auxData);
@@ -266,14 +227,9 @@ class RuntimeAgent {
   }
 
   destroyExecutionContext(destroyedContext) {
-    for (const [promiseID, {reject, executionContext}] of this._pendingPromises) {
-      if (executionContext === destroyedContext) {
-        reject(new Error('Execution context was destroyed!'));
-        this._pendingPromises.delete(promiseID);
-      }
-    }
-    if (!this._pendingPromises.size)
-      this._debugger.onPromiseSettled = undefined;
+    for (const reject of destroyedContext._pendingAsyncEvaluations.values())
+      reject(new Error('Execution context was destroyed!'));
+    destroyedContext._pendingAsyncEvaluations.clear();
     this._debugger.removeDebuggee(destroyedContext._contextGlobal);
     this._executionContexts.delete(destroyedContext._id);
     if (destroyedContext._domWindow)
@@ -326,6 +282,7 @@ class ExecutionContext {
   constructor(runtime, domWindow, contextGlobal, global, auxData) {
     this._runtime = runtime;
     this._domWindow = domWindow;
+    this._pendingAsyncEvaluations = new Set();
     this._contextGlobal = contextGlobal;
     this._global = global;
     this._remoteObjects = new Map();
@@ -363,7 +320,7 @@ class ExecutionContext {
     if (!success)
       return null;
     if (obj && obj.isPromise) {
-      const awaitResult = await this._runtime._awaitPromise(this, obj, exceptionDetails);
+      const awaitResult = await this._awaitPromise(obj, exceptionDetails);
       if (!awaitResult.success)
         return null;
       obj = awaitResult.obj;
@@ -397,12 +354,43 @@ class ExecutionContext {
     if (!success)
       return null;
     if (obj && obj.isPromise) {
-      const awaitResult = await this._runtime._awaitPromise(this, obj, exceptionDetails);
+      const awaitResult = await this._awaitPromise(obj, exceptionDetails);
       if (!awaitResult.success)
         return null;
       obj = awaitResult.obj;
     }
     return this._createRemoteObject(obj);
+  }
+
+  async _awaitPromise(obj, exceptionDetails) {
+    return new Promise(async (resolve, reject) => {
+      this._pendingAsyncEvaluations.add(reject);
+      try {
+        resolve(await this._awaitPromiseInternal(obj, exceptionDetails));
+      } catch(e) {
+        reject(e);
+      } finally {
+        this._pendingAsyncEvaluations.delete(reject);
+      }
+    });
+  }
+
+  async _awaitPromiseInternal(obj, exceptionDetails) {
+    if (obj.promiseState === 'pending') {
+      try {
+        // This might never resolve if execution context got destroyed.
+        await obj.unsafeDereference();
+      } catch (e) {
+        // ignore.
+      }
+    }
+    if (obj.promiseState === 'rejected') {
+      exceptionDetails.text = this._global.executeInGlobalWithBindings('e.message', {e: obj.promiseReason}).return;
+      exceptionDetails.stack = this._global.executeInGlobalWithBindings('e.stack', {e: obj.promiseReason}).return;
+      return {success: false, obj: null};
+    }
+    // obj.promiseState === 'fulfilled'
+    return {success: true, obj: obj.promiseValue};
   }
 
   unsafeObject(objectId) {
