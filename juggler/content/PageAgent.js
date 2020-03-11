@@ -357,7 +357,7 @@ class PageAgent {
     this._browserPage.emit('pageUncaughtError', {
       frameId: frame.id(),
       message: errorEvent.message,
-      stack: errorEvent.error.stack
+      stack: errorEvent.error ? errorEvent.error.stack : '',
     });
   }
 
