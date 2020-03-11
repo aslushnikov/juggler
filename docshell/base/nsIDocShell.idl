@@ -1132,4 +1132,8 @@ interface nsIDocShell : nsIDocShellTreeItem
    * @see nsISHEntry synchronizeLayoutHistoryState().
    */
   void synchronizeLayoutHistoryState();
+
+  attribute boolean fileInputInterceptionEnabled;
+
+  attribute boolean bypassCSPEnabled;
 };
