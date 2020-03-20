@@ -49,41 +49,72 @@ const disallowedMessageCategories = new Set([
   'xbl javascript',
 ]);
 
-class RuntimeAgent {
-  constructor(channel, sessionId, isWorker = false) {
+class Runtime {
+  constructor(isWorker = false) {
     this._debugger = new Debugger();
     this._pendingPromises = new Map();
     this._executionContexts = new Map();
     this._windowToExecutionContext = new Map();
-    this._session = channel.connect(sessionId + 'runtime');
-    this._eventListeners = [
-      channel.register(sessionId + 'runtime', {
-        evaluate: this._evaluate.bind(this),
-        callFunction: this._callFunction.bind(this),
-        getObjectProperties: this._getObjectProperties.bind(this),
-        disposeObject: this._disposeObject.bind(this),
-      }),
-    ];
-    this._enabled = false;
-    this._filteredConsoleMessageHashes = new Set();
-    this._onErrorFromWorker = null;
-    this._isWorker = isWorker;
-  }
-
-  enable() {
-    if (this._enabled)
-      return;
-    this._enabled = true;
-    for (const executionContext of this._executionContexts.values())
-      this._notifyExecutionContextCreated(executionContext);
-
-    if (this._isWorker) {
-      this._registerConsoleEventHandler();
+    this._eventListeners = [];
+    if (isWorker) {
+      this._registerWorkerConsoleHandler();
     } else {
       const {Services} = ChromeUtils.import("resource://gre/modules/Services.jsm");
       this._registerConsoleServiceListener(Services);
       this._registerConsoleObserver(Services);
     }
+    // We can't use event listener here to be compatible with Worker Global Context.
+    // Use plain callbacks instead.
+    this.events = {
+      onConsoleMessage: createEvent(),
+      onErrorFromWorker: createEvent(),
+      onExecutionContextCreated: createEvent(),
+      onExecutionContextDestroyed: createEvent(),
+    };
+  }
+
+  executionContexts() {
+    return [...this._executionContexts.values()];
+  }
+
+  async evaluate({executionContextId, expression, returnByValue}) {
+    const executionContext = this.findExecutionContext(executionContextId);
+    if (!executionContext)
+      throw new Error('Failed to find execution context with id = ' + executionContextId);
+    const exceptionDetails = {};
+    let result = await executionContext.evaluateScript(expression, exceptionDetails);
+    if (!result)
+      return {exceptionDetails};
+    if (returnByValue)
+      result = executionContext.ensureSerializedToValue(result);
+    return {result};
+  }
+
+  async callFunction({executionContextId, functionDeclaration, args, returnByValue}) {
+    const executionContext = this.findExecutionContext(executionContextId);
+    if (!executionContext)
+      throw new Error('Failed to find execution context with id = ' + executionContextId);
+    const exceptionDetails = {};
+    let result = await executionContext.evaluateFunction(functionDeclaration, args, exceptionDetails);
+    if (!result)
+      return {exceptionDetails};
+    if (returnByValue)
+      result = executionContext.ensureSerializedToValue(result);
+    return {result};
+  }
+
+  async getObjectProperties({executionContextId, objectId}) {
+    const executionContext = this.findExecutionContext(executionContextId);
+    if (!executionContext)
+      throw new Error('Failed to find execution context with id = ' + executionContextId);
+    return {properties: executionContext.getObjectProperties(objectId)};
+  }
+
+  async disposeObject({executionContextId, objectId}) {
+    const executionContext = this.findExecutionContext(executionContextId);
+    if (!executionContext)
+      throw new Error('Failed to find execution context with id = ' + executionContextId);
+    return executionContext.disposeObject(objectId);
   }
 
   _registerConsoleServiceListener(Services) {
@@ -98,8 +129,7 @@ class RuntimeAgent {
         }
         const errorWindow = Services.wm.getOuterWindowWithId(message.outerWindowID);
         if (message.category === 'Web Worker' && (message.flags & Ci.nsIScriptError.exceptionFlag)) {
-          if (this._onErrorFromWorker)
-            this._onErrorFromWorker(errorWindow, message.message, '' + message.stack);
+          emitEvent(this.events.onErrorFromWorker, errorWindow, message.message, '' + message.stack);
           return;
         }
         const executionContext = this._windowToExecutionContext.get(errorWindow);
@@ -111,7 +141,7 @@ class RuntimeAgent {
           [Ci.nsIConsoleMessage.warn]: 'warn',
           [Ci.nsIConsoleMessage.error]: 'error',
         };
-        this._session.emit('runtimeConsole', {
+        emitEvent(this.events.onConsoleMessage, {
           args: [{
             value: message.message,
           }],
@@ -131,11 +161,6 @@ class RuntimeAgent {
 
   _registerConsoleObserver(Services) {
     const consoleObserver = ({wrappedJSObject}, topic, data) => {
-      const hash = this._consoleMessageHash(wrappedJSObject);
-      if (this._filteredConsoleMessageHashes.has(hash)) {
-        this._filteredConsoleMessageHashes.delete(hash);
-        return;
-      }
       const executionContext = Array.from(this._executionContexts.values()).find(context => {
         const domWindow = context._domWindow;
         return domWindow && domWindow.windowUtils.currentInnerWindowID === wrappedJSObject.innerID;
@@ -148,25 +173,12 @@ class RuntimeAgent {
     this._eventListeners.push(() => Services.obs.removeObserver(consoleObserver, "console-api-log-event"));
   }
 
-  _registerConsoleEventHandler() {
+  _registerWorkerConsoleHandler() {
     setConsoleEventHandler(message => {
-      this._session.emit('workerConsoleMessage', this._consoleMessageHash(message));
       const executionContext = Array.from(this._executionContexts.values())[0];
       this._onConsoleMessage(executionContext, message);
     });
     this._eventListeners.push(() => setConsoleEventHandler(null));
-  }
-
-  filterConsoleMessage(messageHash) {
-    this._filteredConsoleMessageHashes.add(messageHash);
-  }
-
-  setOnErrorFromWorker(onErrorFromWorker) {
-    this._onErrorFromWorker = onErrorFromWorker;
-  }
-
-  _consoleMessageHash(message) {
-    return `${message.timeStamp}/${message.filename}/${message.lineNumber}/${message.columnNumber}/${message.sourceId}/${message.level}`;
   }
 
   _onConsoleMessage(executionContext, message) {
@@ -174,7 +186,7 @@ class RuntimeAgent {
     if (!type)
       return;
     const args = message.arguments.map(arg => executionContext.rawValueToRemoteObject(arg));
-    this._session.emit('runtimeConsole', {
+    emitEvent(this.events.onConsoleMessage, {
       args,
       type,
       executionContextId: executionContext.id(),
@@ -186,25 +198,7 @@ class RuntimeAgent {
     });
   }
 
-  _notifyExecutionContextCreated(executionContext) {
-    if (!this._enabled)
-      return;
-    this._session.emit('runtimeExecutionContextCreated', {
-      executionContextId: executionContext._id,
-      auxData: executionContext._auxData,
-    });
-  }
-
-  _notifyExecutionContextDestroyed(executionContext) {
-    if (!this._enabled)
-      return;
-    this._session.emit('runtimeExecutionContextDestroyed', {
-      executionContextId: executionContext._id,
-    });
-  }
-
   dispose() {
-    this._session.dispose();
     for (const tearDown of this._eventListeners)
       tearDown.call(null);
     this._eventListeners = [];
@@ -254,7 +248,7 @@ class RuntimeAgent {
     this._executionContexts.set(context._id, context);
     if (domWindow)
       this._windowToExecutionContext.set(domWindow, context);
-    this._notifyExecutionContextCreated(context);
+    emitEvent(this.events.onExecutionContextCreated, context);
     return context;
   }
 
@@ -278,47 +272,7 @@ class RuntimeAgent {
     this._executionContexts.delete(destroyedContext._id);
     if (destroyedContext._domWindow)
       this._windowToExecutionContext.delete(destroyedContext._domWindow);
-    this._notifyExecutionContextDestroyed(destroyedContext);
-  }
-
-  async _evaluate({executionContextId, expression, returnByValue}) {
-    const executionContext = this._executionContexts.get(executionContextId);
-    if (!executionContext)
-      throw new Error('Failed to find execution context with id = ' + executionContextId);
-    const exceptionDetails = {};
-    let result = await executionContext.evaluateScript(expression, exceptionDetails);
-    if (!result)
-      return {exceptionDetails};
-    if (returnByValue)
-      result = executionContext.ensureSerializedToValue(result);
-    return {result};
-  }
-
-  async _callFunction({executionContextId, functionDeclaration, args, returnByValue}) {
-    const executionContext = this._executionContexts.get(executionContextId);
-    if (!executionContext)
-      throw new Error('Failed to find execution context with id = ' + executionContextId);
-    const exceptionDetails = {};
-    let result = await executionContext.evaluateFunction(functionDeclaration, args, exceptionDetails);
-    if (!result)
-      return {exceptionDetails};
-    if (returnByValue)
-      result = executionContext.ensureSerializedToValue(result);
-    return {result};
-  }
-
-  async _getObjectProperties({executionContextId, objectId}) {
-    const executionContext = this._executionContexts.get(executionContextId);
-    if (!executionContext)
-      throw new Error('Failed to find execution context with id = ' + executionContextId);
-    return {properties: executionContext.getObjectProperties(objectId)};
-  }
-
-  async _disposeObject({executionContextId, objectId}) {
-    const executionContext = this._executionContexts.get(executionContextId);
-    if (!executionContext)
-      throw new Error('Failed to find execution context with id = ' + executionContextId);
-    return executionContext.disposeObject(objectId);
+    emitEvent(this.events.onExecutionContextDestroyed, destroyedContext);
   }
 }
 
@@ -555,5 +509,26 @@ class ExecutionContext {
   }
 }
 
-var EXPORTED_SYMBOLS = ['RuntimeAgent'];
-this.RuntimeAgent = RuntimeAgent;
+const listenersSymbol = Symbol('listeners');
+
+function createEvent() {
+  const listeners = new Set();
+  const subscribeFunction = listener => {
+    listeners.add(listener);
+    return () => listeners.delete(listener);
+  }
+  subscribeFunction[listenersSymbol] = listeners;
+  return subscribeFunction;
+}
+
+function emitEvent(event, ...args) {
+  let listeners = event[listenersSymbol];
+  if (!listeners || !listeners.size)
+    return;
+  listeners = new Set(listeners);
+  for (const listener of listeners)
+    listener.call(null, ...args);
+}
+
+var EXPORTED_SYMBOLS = ['Runtime'];
+this.Runtime = Runtime;

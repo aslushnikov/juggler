@@ -23,7 +23,6 @@ class WorkerData {
         runtimeConsole: emit('runtimeConsole'),
         runtimeExecutionContextCreated: emit('runtimeExecutionContextCreated'),
         runtimeExecutionContextDestroyed: emit('runtimeExecutionContextDestroyed'),
-        workerConsoleMessage: (hash) => pageAgent._runtime.filterConsoleMessage(hash),
       }),
       browserChannel.register(sessionId + worker.id(), {
         evaluate: (options) => this._workerRuntime.send('evaluate', options),
@@ -44,37 +43,21 @@ class WorkerData {
 }
 
 class FrameData {
-  constructor(agent, frame) {
+  constructor(agent, runtime, frame) {
     this._agent = agent;
+    this._runtime = runtime;
     this._frame = frame;
     this._isolatedWorlds = new Map();
     this.reset();
   }
 
   reset() {
-    if (this.mainContext)
-      this._agent._runtime.destroyExecutionContext(this.mainContext);
     for (const world of this._isolatedWorlds.values())
-      this._agent._runtime.destroyExecutionContext(world);
+      this._runtime.destroyExecutionContext(world);
     this._isolatedWorlds.clear();
 
-    this.mainContext = this._agent._runtime.createExecutionContext(this._frame.domWindow(), this._frame.domWindow(), {
-      frameId: this._frame.id(),
-      name: '',
-    });
-
-    for (const script of this._agent._frameTree.scriptsToEvaluateOnNewDocument()) {
-      // TODO: this should actually be handled in FrameTree, but first we have to move
-      // execution contexts there.
-      try {
-        let result = this.mainContext.evaluateScript(script);
-        if (result && result.objectId)
-          this.mainContext.disposeObject(result.objectId);
-      } catch (e) {
-      }
-    }
-    for (const {script, worldName} of this._agent._scriptsToEvaluateOnNewDocument.values()) {
-      const context = worldName ? this.createIsolatedWorld(worldName) : this.mainContext;
+    for (const {script, worldName} of this._agent._isolatedWorlds.values()) {
+      const context = worldName ? this.createIsolatedWorld(worldName) : this._frame.executionContext();
       try {
         let result = context.evaluateScript(script);
         if (result && result.objectId)
@@ -92,7 +75,7 @@ class FrameData {
       wantExportHelpers: false,
       wantXrays: true,
     });
-    const world = this._agent._runtime.createExecutionContext(this._frame.domWindow(), sandbox, {
+    const world = this._runtime.createExecutionContext(this._frame.domWindow(), sandbox, {
       frameId: this._frame.id(),
       name,
     });
@@ -101,35 +84,37 @@ class FrameData {
   }
 
   unsafeObject(objectId) {
-    if (this.mainContext) {
-      const result = this.mainContext.unsafeObject(objectId);
-      if (result)
-        return result.object;
-    }
-    for (const world of this._isolatedWorlds.values()) {
-      const result = world.unsafeObject(objectId);
+    const contexts = [this._frame.executionContext(), ...this._isolatedWorlds.values()];
+    for (const context of contexts) {
+      const result = context.unsafeObject(objectId);
       if (result)
         return result.object;
     }
     throw new Error('Cannot find object with id = ' + objectId);
   }
 
-  dispose() {}
+  dispose() {
+    for (const world of this._isolatedWorlds.values())
+      this._runtime.destroyExecutionContext(world);
+    this._isolatedWorlds.clear();
+  }
 }
 
 class PageAgent {
-  constructor(messageManager, browserChannel, sessionId, runtimeAgent, frameTree, networkMonitor) {
+  constructor(messageManager, browserChannel, sessionId, frameTree, networkMonitor) {
     this._messageManager = messageManager;
     this._browserChannel = browserChannel;
     this._sessionId = sessionId;
     this._browserPage = browserChannel.connect(sessionId + 'page');
-    this._runtime = runtimeAgent;
+    this._browserRuntime = browserChannel.connect(sessionId + 'runtime');
     this._frameTree = frameTree;
+    this._runtime = frameTree.runtime();
     this._networkMonitor = networkMonitor;
 
     this._frameData = new Map();
     this._workerData = new Map();
     this._scriptsToEvaluateOnNewDocument = new Map();
+    this._isolatedWorlds = new Map();
 
     this._eventListeners = [
       browserChannel.register(sessionId + 'page', {
@@ -159,6 +144,12 @@ class PageAgent {
         setFileInputFiles: this._setFileInputFiles.bind(this),
         setInterceptFileChooserDialog: this._setInterceptFileChooserDialog.bind(this),
       }),
+      browserChannel.register(sessionId + 'runtime', {
+        evaluate: this._runtime.evaluate.bind(this._runtime),
+        callFunction: this._runtime.callFunction.bind(this._runtime),
+        getObjectProperties: this._runtime.getObjectProperties.bind(this._runtime),
+        disposeObject: this._runtime.disposeObject.bind(this._runtime),
+      }),
     ];
     this._enabled = false;
 
@@ -166,17 +157,6 @@ class PageAgent {
     this._docShell = docShell;
     this._initialDPPX = docShell.contentViewer.overrideDPPX;
     this._customScrollbars = null;
-
-    this._runtime.setOnErrorFromWorker((domWindow, message, stack) => {
-      const frame = this._frameTree.frameForDocShell(domWindow.docShell);
-      if (!frame)
-        return;
-      this._browserPage.emit('pageUncaughtError', {
-        frameId: frame.id(),
-        message,
-        stack,
-      });
-    });
   }
 
   async _awaitViewportDimensions({width, height}) {
@@ -212,17 +192,24 @@ class PageAgent {
   }
 
   _addScriptToEvaluateOnNewDocument({script, worldName}) {
+    if (worldName)
+      return this._createIsolatedWorld({script, worldName});
+    return {scriptId: this._frameTree.addScriptToEvaluateOnNewDocument(script)};
+  }
+
+  _createIsolatedWorld({script, worldName}) {
     const scriptId = helper.generateId();
-    this._scriptsToEvaluateOnNewDocument.set(scriptId, {script, worldName});
-    if (worldName) {
-      for (const frameData of this._frameData.values())
-        frameData.createIsolatedWorld(worldName);
-    }
+    this._isolatedWorlds.set(scriptId, {script, worldName});
+    for (const frameData of this._frameData.values())
+      frameData.createIsolatedWorld(worldName);
     return {scriptId};
   }
 
   _removeScriptToEvaluateOnNewDocument({scriptId}) {
-    this._scriptsToEvaluateOnNewDocument.delete(scriptId);
+    if (this._isolatedWorlds.has(scriptId))
+      this._isolatedWorlds.delete(scriptId);
+    else
+      this._frameTree.removeScriptToEvaluateOnNewDocument(scriptId);
   }
 
   _setCacheDisabled({cacheDisabled}) {
@@ -271,10 +258,38 @@ class PageAgent {
       helper.on(this._frameTree, 'workercreated', this._onWorkerCreated.bind(this)),
       helper.on(this._frameTree, 'workerdestroyed', this._onWorkerDestroyed.bind(this)),
       helper.addObserver(this._onWindowOpen.bind(this), 'webNavigation-createdNavigationTarget-from-js'),
+      this._runtime.events.onErrorFromWorker((domWindow, message, stack) => {
+        const frame = this._frameTree.frameForDocShell(domWindow.docShell);
+        if (!frame)
+          return;
+        this._browserPage.emit('pageUncaughtError', {
+          frameId: frame.id(),
+          message,
+          stack,
+        });
+      }),
+      this._runtime.events.onConsoleMessage(msg => this._browserRuntime.emit('runtimeConsole', msg)),
+      this._runtime.events.onExecutionContextCreated(this._onExecutionContextCreated.bind(this)),
+      this._runtime.events.onExecutionContextDestroyed(this._onExecutionContextDestroyed.bind(this)),
     ]);
+    for (const context of this._runtime.executionContexts())
+      this._onExecutionContextCreated(context);
 
     if (this._frameTree.isPageReady())
       this._browserPage.emit('pageReady', {});
+  }
+
+  _onExecutionContextCreated(executionContext) {
+    this._browserRuntime.emit('runtimeExecutionContextCreated', {
+      executionContextId: executionContext.id(),
+      auxData: executionContext.auxData(),
+    });
+  }
+
+  _onExecutionContextDestroyed(executionContext) {
+    this._browserRuntime.emit('runtimeExecutionContextDestroyed', {
+      executionContextId: executionContext.id(),
+    });
   }
 
   _onWorkerCreated(worker) {
@@ -331,8 +346,8 @@ class PageAgent {
       return;
     const frameData = this._findFrameForNode(inputElement);
     this._browserPage.emit('pageFileChooserOpened', {
-      executionContextId: frameData.mainContext.id(),
-      element: frameData.mainContext.rawValueToRemoteObject(inputElement)
+      executionContextId: frameData._frame.executionContext().id(),
+      element: frameData._frame.executionContext().rawValueToRemoteObject(inputElement)
     });
   }
 
@@ -429,7 +444,7 @@ class PageAgent {
       frameId: frame.id(),
       parentFrameId: frame.parentFrame() ? frame.parentFrame().id() : undefined,
     });
-    this._frameData.set(frame, new FrameData(this, frame));
+    this._frameData.set(frame, new FrameData(this, this._runtime, frame));
   }
 
   _onFrameDetached(frame) {
@@ -440,9 +455,8 @@ class PageAgent {
   }
 
   _onBindingCalled({frame, name, payload}) {
-    const frameData = this._frameData.get(frame);
     this._browserPage.emit('pageBindingCalled', {
-      executionContextId: frameData.mainContext.id(),
+      executionContextId: frame.executionContext().id(),
       name,
       payload
     });

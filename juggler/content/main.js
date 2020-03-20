@@ -4,7 +4,6 @@ const {FrameTree} = ChromeUtils.import('chrome://juggler/content/content/FrameTr
 const {NetworkMonitor} = ChromeUtils.import('chrome://juggler/content/content/NetworkMonitor.js');
 const {ScrollbarManager} = ChromeUtils.import('chrome://juggler/content/content/ScrollbarManager.js');
 const {SimpleChannel} = ChromeUtils.import('chrome://juggler/content/SimpleChannel.js');
-const {RuntimeAgent} = ChromeUtils.import('chrome://juggler/content/content/RuntimeAgent.js');
 const {PageAgent} = ChromeUtils.import('chrome://juggler/content/content/PageAgent.js');
 
 const ALL_PERMISSIONS = [
@@ -23,11 +22,8 @@ const messageManager = this;
 const sessions = new Map();
 
 function createContentSession(channel, sessionId) {
-  const runtimeAgent = new RuntimeAgent(channel, sessionId);
-  const pageAgent = new PageAgent(messageManager, channel, sessionId, runtimeAgent, frameTree, networkMonitor);
-  sessions.set(sessionId, [runtimeAgent, pageAgent]);
-
-  runtimeAgent.enable();
+  const pageAgent = new PageAgent(messageManager, channel, sessionId, frameTree, networkMonitor);
+  sessions.set(sessionId, [pageAgent]);
   pageAgent.enable();
 }
 

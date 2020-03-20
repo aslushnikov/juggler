@@ -6,6 +6,7 @@ const Cu = Components.utils;
 const {Helper} = ChromeUtils.import('chrome://juggler/content/Helper.js');
 const {SimpleChannel} = ChromeUtils.import('chrome://juggler/content/SimpleChannel.js');
 const {EventEmitter} = ChromeUtils.import('resource://gre/modules/EventEmitter.jsm');
+const {Runtime} = ChromeUtils.import('chrome://juggler/content/content/Runtime.js');
 
 const helper = new Helper();
 
@@ -17,8 +18,10 @@ class FrameTree {
     if (!this._browsingContextGroup.__jugglerFrameTrees)
       this._browsingContextGroup.__jugglerFrameTrees = new Set();
     this._browsingContextGroup.__jugglerFrameTrees.add(this);
+    this._scriptsToEvaluateOnNewDocument = new Map();
 
     this._bindings = new Map();
+    this._runtime = new Runtime(false /* isWorker */);
     this._workers = new Map();
     this._docShellToFrame = new Map();
     this._frameIdToFrame = new Map();
@@ -31,7 +34,6 @@ class FrameTree {
       Ci.nsIWebProgressListener2,
       Ci.nsISupportsWeakReference,
     ]);
-    this._scriptsToEvaluateOnNewDocument = [];
 
     this._wdm = Cc["@mozilla.org/dom/workers/workerdebuggermanager;1"].createInstance(Ci.nsIWorkerDebuggerManager);
     this._wdmListener = {
@@ -43,13 +45,12 @@ class FrameTree {
     for (const workerDebugger of this._wdm.getWorkerDebuggerEnumerator())
       this._onWorkerCreated(workerDebugger);
 
-
     const flags = Ci.nsIWebProgress.NOTIFY_STATE_DOCUMENT |
                   Ci.nsIWebProgress.NOTIFY_FRAME_LOCATION;
     this._eventListeners = [
+      helper.addObserver(this._onDOMWindowCreated.bind(this), 'content-document-global-created'),
       helper.addObserver(subject => this._onDocShellCreated(subject.QueryInterface(Ci.nsIDocShell)), 'webnavigation-create'),
       helper.addObserver(subject => this._onDocShellDestroyed(subject.QueryInterface(Ci.nsIDocShell)), 'webnavigation-destroy'),
-      helper.addObserver(window => this._onDOMWindowCreated(window), 'content-document-global-created'),
       helper.addProgressListener(webProgress, this, flags),
     ];
   }
@@ -58,11 +59,23 @@ class FrameTree {
     return [...this._workers.values()];
   }
 
+  runtime() {
+    return this._runtime;
+  }
+
   _frameForWorker(workerDebugger) {
     if (workerDebugger.type !== Ci.nsIWorkerDebugger.TYPE_DEDICATED)
       return null;
     const docShell = workerDebugger.window.docShell;
     return this._docShellToFrame.get(docShell) || null;
+  }
+
+  _onDOMWindowCreated(window) {
+    const frame = this._docShellToFrame.get(window.docShell) || null;
+    if (!frame)
+      return;
+    frame._onGlobalObjectCleared();
+    this.emit(FrameTree.Events.GlobalObjectCreated, { frame, window });
   }
 
   _onWorkerCreated(workerDebugger) {
@@ -106,30 +119,19 @@ class FrameTree {
   }
 
   addScriptToEvaluateOnNewDocument(script) {
-    this._scriptsToEvaluateOnNewDocument.push(script);
+    const scriptId = helper.generateId();
+    this._scriptsToEvaluateOnNewDocument.set(scriptId, script);
+    return scriptId;
   }
 
-  scriptsToEvaluateOnNewDocument() {
-    return this._scriptsToEvaluateOnNewDocument;
+  removeScriptToEvaluateOnNewDocument(scriptId) {
+    this._scriptsToEvaluateOnNewDocument.delete(scriptId);
   }
 
   addBinding(name, script) {
     this._bindings.set(name, script);
     for (const frame of this.frames())
-      this._addBindingToFrame(frame, name, script);
-  }
-
-  _addBindingToFrame(frame, name, script) {
-    Cu.exportFunction((...args) => {
-      this.emit(FrameTree.Events.BindingCalled, {
-        frame,
-        name,
-        payload: args[0]
-      });
-    }, frame.domWindow(), {
-      defineAs: name,
-    });
-    frame.domWindow().eval(script);
+      frame._addBinding(name, script);
   }
 
   frameForDocShell(docShell) {
@@ -159,6 +161,7 @@ class FrameTree {
   dispose() {
     this._browsingContextGroup.__jugglerFrameTrees.delete(this);
     this._wdm.removeListener(this._wdmListener);
+    this._runtime.dispose();
     helper.removeListeners(this._eventListeners);
   }
 
@@ -236,12 +239,14 @@ class FrameTree {
 
   _createFrame(docShell) {
     const parentFrame = this._docShellToFrame.get(docShell.parent) || null;
-    const frame = new Frame(this, docShell, parentFrame);
+    const frame = new Frame(this, this._runtime, docShell, parentFrame);
     this._docShellToFrame.set(docShell, frame);
     this._frameIdToFrame.set(frame.id(), frame);
-    for (const [name, script] of this._bindings)
-      this._addBindingToFrame(frame, name, script);
     this.emit(FrameTree.Events.FrameAttached, frame);
+    // Create execution context **after** reporting frame.
+    // This is our protocol contract.
+    if (frame.domWindow())
+      frame._onGlobalObjectCleared();
     return frame;
   }
 
@@ -249,16 +254,6 @@ class FrameTree {
     const frame = this._docShellToFrame.get(docShell);
     if (frame)
       this._detachFrame(frame);
-  }
-
-  _onDOMWindowCreated(window) {
-    const docShell = window.docShell;
-    const frame = this.frameForDocShell(docShell);
-    if (!frame)
-      return;
-    for (const [name, script] of this._bindings)
-      this._addBindingToFrame(frame, name, script);
-    this.emit(FrameTree.Events.GlobalObjectCreated, { frame, window });
   }
 
   _detachFrame(frame) {
@@ -270,6 +265,7 @@ class FrameTree {
     if (frame._parentFrame)
       frame._parentFrame._children.delete(frame);
     frame._parentFrame = null;
+    frame.dispose();
     this.emit(FrameTree.Events.FrameDetached, frame);
   }
 }
@@ -289,8 +285,9 @@ FrameTree.Events = {
 };
 
 class Frame {
-  constructor(frameTree, docShell, parentFrame) {
+  constructor(frameTree, runtime, docShell, parentFrame) {
     this._frameTree = frameTree;
+    this._runtime = runtime;
     this._docShell = docShell;
     this._children = new Set();
     this._frameId = helper.generateId();
@@ -308,6 +305,50 @@ class Frame {
     this._pendingNavigationURL = null;
 
     this._textInputProcessor = null;
+    this._executionContext = null;
+  }
+
+  dispose() {
+    if (this._executionContext)
+      this._runtime.destroyExecutionContext(this._executionContext);
+    this._executionContext = null;
+  }
+
+  _addBinding(name, script) {
+    Cu.exportFunction((...args) => {
+      this._frameTree.emit(FrameTree.Events.BindingCalled, {
+        frame: this,
+        name,
+        payload: args[0]
+      });
+    }, this.domWindow(), {
+      defineAs: name,
+    });
+    this.domWindow().eval(script);
+  }
+
+  _onGlobalObjectCleared() {
+    if (this._executionContext)
+      this._runtime.destroyExecutionContext(this._executionContext);
+    this._executionContext = this._runtime.createExecutionContext(this.domWindow(), this.domWindow(), {
+      frameId: this._frameId,
+      name: '',
+    });
+    for (const [name, script] of this._frameTree._bindings)
+      this._addBinding(name, script);
+    for (const script of this._frameTree._scriptsToEvaluateOnNewDocument.values()) {
+      try {
+        const result = this._executionContext.evaluateScript(script);
+        if (result && result.objectId)
+          this._executionContext.disposeObject(result.objectId);
+      } catch (e) {
+        dump(`ERROR: ${e.message}\n${e.stack}\n`);
+      }
+    }
+  }
+
+  executionContext() {
+    return this._executionContext;
   }
 
   textInputProcessor() {
