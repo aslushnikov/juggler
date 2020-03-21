@@ -612,7 +612,7 @@ class PageAgent {
     if (!unsafeObject.isConnected)
       throw new Error('Node is detached from document');
     await this._scrollNodeIntoViewIfNeeded(unsafeObject);
-    const box = this._getBoundingBox(unsafeObject);
+    const box = this._getNodeBoundingBox(unsafeObject);
     if (rect) {
       box.x += rect.x;
       box.y += rect.y;
@@ -646,7 +646,7 @@ class PageAgent {
     // TODO: implement.
   }
 
-  _getBoundingBox(unsafeObject) {
+  _getNodeBoundingBox(unsafeObject) {
     if (!unsafeObject.getBoxQuads)
       throw new Error('RemoteObject is not a node');
     const quads = unsafeObject.getBoxQuads({relativeTo: this._frameTree.mainFrame().domWindow().document});
@@ -671,7 +671,7 @@ class PageAgent {
     if (!frame)
       throw new Error('Failed to find frame with id = ' + frameId);
     const unsafeObject = this._frameData.get(frame).unsafeObject(objectId);
-    const box = this._getBoundingBox(unsafeObject);
+    const box = this._getNodeBoundingBox(unsafeObject);
     if (!box)
       return {boundingBox: null};
     return {boundingBox: {x: box.x + frame.domWindow().scrollX, y: box.y + frame.domWindow().scrollY, width: box.width, height: box.height}};
