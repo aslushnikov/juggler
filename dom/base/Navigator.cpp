@@ -313,14 +313,18 @@ void Navigator::GetAppName(nsAString& aAppName, CallerType aCallerType) const {
  * An empty array will be returned if there is no valid languages.
  */
 /* static */
-void Navigator::GetAcceptLanguages(nsTArray<nsString>& aLanguages) {
+void Navigator::GetAcceptLanguages(const nsString* aLanguageOverride, nsTArray<nsString>& aLanguages) {
   MOZ_ASSERT(NS_IsMainThread());
 
   aLanguages.Clear();
 
   // E.g. "de-de, en-us,en".
   nsAutoString acceptLang;
-  Preferences::GetLocalizedString("intl.accept_languages", acceptLang);
+  if (aLanguageOverride && aLanguageOverride->Length())
+    acceptLang = *aLanguageOverride;
+  else
+    Preferences::GetLocalizedString("intl.accept_languages", acceptLang);
+    
 
   // Split values on commas.
   nsCharSeparatedTokenizer langTokenizer(acceptLang, ',');
@@ -376,7 +380,9 @@ void Navigator::GetLanguage(nsAString& aLanguage) {
 }
 
 void Navigator::GetLanguages(nsTArray<nsString>& aLanguages) {
-  GetAcceptLanguages(aLanguages);
+  nsString languageOverride;
+  mWindow->GetDocShell()->GetLanguageOverride(languageOverride);
+  GetAcceptLanguages(&languageOverride, aLanguages);
 
   // The returned value is cached by the binding code. The window listen to the
   // accept languages change and will clear the cache when needed. It has to
