@@ -53,6 +53,7 @@
 #include "mozilla/dom/ContentFrameMessageManager.h"
 #include "mozilla/dom/DocGroup.h"
 #include "mozilla/dom/Element.h"
+#include "mozilla/dom/Geolocation.h"
 #include "mozilla/dom/HTMLAnchorElement.h"
 #include "mozilla/dom/PerformanceNavigation.h"
 #include "mozilla/dom/PermissionMessageUtils.h"
@@ -96,6 +97,7 @@
 #include "nsIDocShellTreeItem.h"
 #include "nsIDocShellTreeOwner.h"
 #include "mozilla/dom/Document.h"
+#include "mozilla/dom/Element.h"
 #include "nsIDocumentLoaderFactory.h"
 #include "nsIDOMWindow.h"
 #include "nsIEditingSession.h"
@@ -351,6 +353,9 @@ nsDocShell::nsDocShell(BrowsingContext* aBrowsingContext,
       mUseStrictSecurityChecks(false),
       mObserveErrorPages(true),
       mCSSErrorReportingEnabled(false),
+      mFileInputInterceptionEnabled(false),
+      mBypassCSPEnabled(false),
+      mOnlineOverride(nsIDocShell::ONLINE_OVERRIDE_NONE),
       mAllowAuth(mItemType == typeContent),
       mAllowKeywordFixup(false),
       mIsOffScreenBrowser(false),
@@ -1223,6 +1228,7 @@ bool nsDocShell::SetCurrentURI(nsIURI* aURI, nsIRequest* aRequest,
     isSubFrame = mLSHE->GetIsSubFrame();
   }
 
+  FireOnFrameLocationChange(this, aRequest, aURI, aLocationFlags);
   if (!isSubFrame && !isRoot) {
     /*
      * We don't want to send OnLocationChange notifications when
@@ -3362,6 +3368,109 @@ nsDocShell::GetMessageManager(ContentFrameMessageManager** aMessageManager) {
   mm.forget(aMessageManager);
   return NS_OK;
 }
+
+// =============== Juggler Begin =======================
+
+nsDocShell* nsDocShell::GetRootDocShell() {
+  nsCOMPtr<nsIDocShellTreeItem> rootAsItem;
+  GetInProcessSameTypeRootTreeItem(getter_AddRefs(rootAsItem));
+  nsCOMPtr<nsIDocShell> rootShell = do_QueryInterface(rootAsItem);
+  return nsDocShell::Cast(rootShell);
+}
+
+NS_IMETHODIMP
+nsDocShell::GetBypassCSPEnabled(bool* aEnabled) {
+  MOZ_ASSERT(aEnabled);
+  *aEnabled = mBypassCSPEnabled;
+  return NS_OK;
+}
+
+NS_IMETHODIMP
+nsDocShell::SetBypassCSPEnabled(bool aEnabled) {
+  mBypassCSPEnabled = aEnabled;
+  return NS_OK;
+}
+
+bool nsDocShell::IsBypassCSPEnabled() {
+  return GetRootDocShell()->mBypassCSPEnabled;
+}
+
+NS_IMETHODIMP
+nsDocShell::GetLanguageOverride(nsAString& aLanguageOverride) {
+  MOZ_ASSERT(aEnabled);
+  aLanguageOverride = GetRootDocShell()->mLanguageOverride;
+  return NS_OK;
+}
+
+NS_IMETHODIMP
+nsDocShell::SetLanguageOverride(const nsAString& aLanguageOverride) {
+  mLanguageOverride = aLanguageOverride;
+  return NS_OK;
+}
+
+NS_IMETHODIMP
+nsDocShell::GetFileInputInterceptionEnabled(bool* aEnabled) {
+  MOZ_ASSERT(aEnabled);
+  *aEnabled = GetRootDocShell()->mFileInputInterceptionEnabled;
+  return NS_OK;
+}
+
+NS_IMETHODIMP
+nsDocShell::SetFileInputInterceptionEnabled(bool aEnabled) {
+  mFileInputInterceptionEnabled = aEnabled;
+  return NS_OK;
+}
+
+bool nsDocShell::IsFileInputInterceptionEnabled() {
+  return GetRootDocShell()->mFileInputInterceptionEnabled;
+}
+
+void nsDocShell::FilePickerShown(mozilla::dom::Element* element) {
+  nsCOMPtr<nsIObserverService> observerService =
+      mozilla::services::GetObserverService();
+  observerService->NotifyObservers(
+      ToSupports(element), "juggler-file-picker-shown", nullptr);
+}
+
+RefPtr<nsGeolocationService> nsDocShell::GetGeolocationServiceOverride() {
+  return GetRootDocShell()->mGeolocationServiceOverride;
+}
+
+NS_IMETHODIMP
+nsDocShell::SetGeolocationOverride(nsIDOMGeoPosition* aGeolocationOverride) {
+  if (aGeolocationOverride) {
+    if (!mGeolocationServiceOverride) {
+      mGeolocationServiceOverride = new nsGeolocationService();
+      mGeolocationServiceOverride->Init();
+    }
+    mGeolocationServiceOverride->Update(aGeolocationOverride);
+  } else {
+    mGeolocationServiceOverride = nullptr;
+  }
+  return NS_OK;
+}
+
+NS_IMETHODIMP
+nsDocShell::GetOnlineOverride(OnlineOverride* aOnlineOverride) {
+  *aOnlineOverride = GetRootDocShell()->mOnlineOverride;
+  return NS_OK;
+}
+
+NS_IMETHODIMP
+nsDocShell::SetOnlineOverride(OnlineOverride aOnlineOverride) {
+  // We don't have a way to verify this coming from Javascript, so this check is
+  // still needed.
+  if (!(aOnlineOverride == ONLINE_OVERRIDE_NONE ||
+        aOnlineOverride == ONLINE_OVERRIDE_ONLINE ||
+        aOnlineOverride == ONLINE_OVERRIDE_OFFLINE)) {
+    return NS_ERROR_INVALID_ARG;
+  }
+
+  mOnlineOverride = aOnlineOverride;
+  return NS_OK;
+}
+
+// =============== Juggler End =======================
 
 NS_IMETHODIMP
 nsDocShell::GetIsNavigating(bool* aOut) {
@@ -12138,6 +12247,9 @@ class OnLinkClickEvent : public Runnable {
                                 mNoOpenerImplied, nullptr, nullptr,
                                 mIsUserTriggered, mTriggeringPrincipal, mCsp);
     }
+    nsCOMPtr<nsIObserverService> observerService = mozilla::services::GetObserverService();
+    observerService->NotifyObservers(ToSupports(mContent), "juggler-link-click-sync", nullptr);
+
     return NS_OK;
   }
 
@@ -12227,6 +12339,9 @@ nsresult nsDocShell::OnLinkClick(
       this, aContent, aURI, target, aFileName, aPostDataStream,
       aHeadersDataStream, noOpenerImplied, aIsUserTriggered, aIsTrusted,
       aTriggeringPrincipal, aCsp);
+
+  nsCOMPtr<nsIObserverService> observerService = mozilla::services::GetObserverService();
+  observerService->NotifyObservers(ToSupports(aContent), "juggler-link-click", nullptr);
   return DispatchToTabGroup(TaskCategory::UI, ev.forget());
 }
 
