@@ -72,7 +72,7 @@ function initialize() {
   const { userAgent, bypassCSP, javaScriptDisabled, viewport, scriptsToEvaluateOnNewDocument, bindings, locale, geolocation, onlineOverride } = browserContextOptions;
 
   if (userAgent !== undefined)
-    docShell.customUserAgent = userAgent;
+    docShell.browsingContext.customUserAgent = userAgent;
   if (bypassCSP !== undefined)
     docShell.bypassCSPEnabled = bypassCSP;
   if (javaScriptDisabled !== undefined)
