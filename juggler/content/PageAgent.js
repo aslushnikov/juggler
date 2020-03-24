@@ -496,6 +496,7 @@ class PageAgent {
     const frame = this._frameTree.frame(frameId);
     const docShell = frame.docShell().QueryInterface(Ci.nsIWebNavigation);
     docShell.loadURI(url, {
+      triggeringPrincipal: Services.scriptSecurityManager.getSystemPrincipal(),
       flags: Ci.nsIWebNavigation.LOAD_FLAGS_NONE,
       referrerInfo,
       postData: null,
