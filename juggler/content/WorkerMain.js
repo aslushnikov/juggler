@@ -13,7 +13,21 @@ channel.transport = {
 };
 
 const runtime = new Runtime(true /* isWorker */);
-runtime.createExecutionContext(null /* domWindow */, global, {});
+
+(() => {
+  // Create execution context in the runtime only when the script
+  // source was actually evaluated in it.
+  const dbg = new Debugger(global);
+  if (dbg.findScripts({global}).length) {
+    runtime.createExecutionContext(null /* domWindow */, global, {});
+  } else {
+    dbg.onNewScript = function(s) {
+      dbg.onNewScript = undefined;
+      dbg.removeAllDebuggees();
+      runtime.createExecutionContext(null /* domWindow */, global, {});
+    };
+  }
+})();
 
 class RuntimeAgent {
   constructor(runtime, channel, sessionId) {
