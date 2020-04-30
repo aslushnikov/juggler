@@ -2,6 +2,7 @@
 
 const {Helper} = ChromeUtils.import('chrome://juggler/content/Helper.js');
 const {Services} = ChromeUtils.import("resource://gre/modules/Services.jsm");
+const {NetworkObserver, PageNetwork} = ChromeUtils.import('chrome://juggler/content/NetworkObserver.js');
 
 const Cc = Components.classes;
 const Ci = Components.interfaces;
@@ -56,6 +57,7 @@ class PageHandler {
     this._contentChannel = contentChannel;
     this._contentPage = contentChannel.connect(session.sessionId() + 'page');
     this._workers = new Map();
+    this._pageNetwork = NetworkObserver.instance().pageNetworkForTarget(target);
 
     const emitProtocolEvent = eventName => {
       return (...args) => this._session.emitEvent(eventName, ...args);
@@ -219,6 +221,11 @@ class PageHandler {
    */
   async goForward(options) {
     return await this._contentPage.send('goForward', options);
+  }
+
+  async setPaused({paused}) {
+    this._pageNetwork.setFrozen(paused);
+    return await this._contentPage.send('setPaused', {paused});
   }
 
   /**

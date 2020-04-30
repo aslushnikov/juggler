@@ -1375,6 +1375,16 @@ nsDOMWindowUtils::SuppressEventHandling(bool aSuppress) {
   return NS_OK;
 }
 
+NS_IMETHODIMP
+nsDOMWindowUtils::SetRequestAnimationFrameSuspended(bool aSuspend) {
+  nsCOMPtr<Document> doc = GetDocument();
+  NS_ENSURE_TRUE(doc, NS_ERROR_FAILURE);
+
+  doc->SetRequestAnimationFrameSuspended(aSuspend);
+
+  return NS_OK;
+}
+
 static nsresult getScrollXYAppUnits(const nsWeakPtr& aWindow, bool aFlushLayout,
                                     nsPoint& aScrollPos) {
   nsCOMPtr<nsPIDOMWindowOuter> window = do_QueryReferent(aWindow);

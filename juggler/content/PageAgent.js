@@ -132,6 +132,7 @@ class PageAgent {
         getFullAXTree: this._getFullAXTree.bind(this),
         goBack: this._goBack.bind(this),
         goForward: this._goForward.bind(this),
+        setPaused: this._setPaused.bind(this),
         insertText: this._insertText.bind(this),
         navigate: this._navigate.bind(this),
         reload: this._reload.bind(this),
@@ -533,6 +534,31 @@ class PageAgent {
       return {navigationId: null, navigationURL: null};
     docShell.goForward();
     return {navigationId: frame.pendingNavigationId(), navigationURL: frame.pendingNavigationURL()};
+  }
+
+  async _setPaused({paused}) {
+    const frame = this._frameTree.mainFrame();
+    if (paused) {
+      dump(`
+        Suspending timeouts!
+      `);
+      frame.domWindow().windowUtils.suspendTimeouts();
+      frame.domWindow().windowUtils.setRequestAnimationFrameSuspended(true);
+      const animations = frame.domWindow().document.getAnimations();
+      for (const animation of animations)
+        animation.startTime = null;
+    } else {
+      dump(`
+        Resuming timeouts!
+      `);
+      frame.domWindow().windowUtils.resumeTimeouts();
+      frame.domWindow().windowUtils.setRequestAnimationFrameSuspended(false);
+      const animations = frame.domWindow().document.getAnimations();
+      for (const animation of animations) {
+        const currentTime = animation.currentTime || 0;
+        animation.startTime = animation.timeline.currentTime - currentTime / animation.playbackRate;
+      }
+    }
   }
 
   async _adoptNode({frameId, objectId, executionContextId}) {

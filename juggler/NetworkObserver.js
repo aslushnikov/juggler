@@ -51,6 +51,19 @@ class PageNetwork {
     this._responseStorage = null;
     this._requestInterceptionEnabled = false;
     this._requestIdToInterceptor = null;
+
+    this._frozen = false;
+    this._frozenCallbacks = [];
+  }
+
+  setFrozen(frozen) {
+    this._frozen = frozen;
+    if (!frozen) {
+      const callbacks = this._frozenCallbacks;
+      this._frozenCallbacks = [];
+      for (const callback of callbacks)
+        callback();
+    }
   }
 
   addSession() {
@@ -69,6 +82,13 @@ class PageNetwork {
       this._requestInterceptionEnabled = false;
       this._requestIdToInterceptor = null;
     }
+  }
+
+  _callWhenNotFrozen(callback) {
+    if (this._frozen)
+      this._frozenCallbacks.push(callback);
+    else
+      callback();
   }
 
   _isActive() {
@@ -290,7 +310,7 @@ class NetworkObserver {
     this._appendExtraHTTPHeaders(httpChannel, pageNetwork._extraHTTPHeaders);
     const requestId = this._requestId(httpChannel);
     const isRedirect = this._redirectMap.has(requestId);
-    const interceptionEnabled = this._isInterceptionEnabledForPage(pageNetwork);
+    const interceptionEnabled = this._isInterceptionEnabledForPage(pageNetwork) || pageNetwork._frozen;
     if (!interceptionEnabled) {
       new NotificationCallbacks(this, pageNetwork, httpChannel, false);
       this._sendOnRequest(httpChannel, false);
@@ -358,12 +378,14 @@ class NetworkObserver {
       return;
     }
 
-    const interceptionEnabled = this._isInterceptionEnabledForPage(pageNetwork);
-    this._sendOnRequest(httpChannel, !!interceptionEnabled);
-    if (interceptionEnabled)
-      pageNetwork._ensureInterceptors().set(this._requestId(httpChannel), interceptor);
-    else
-      interceptor._resume();
+    pageNetwork._callWhenNotFrozen(() => {
+      const interceptionEnabled = this._isInterceptionEnabledForPage(pageNetwork);
+      this._sendOnRequest(httpChannel, !!interceptionEnabled);
+      if (interceptionEnabled)
+        pageNetwork._ensureInterceptors().set(this._requestId(httpChannel), interceptor);
+      else
+        interceptor._resume();
+    });
   }
 
   _sendOnRequest(httpChannel, isIntercepted) {

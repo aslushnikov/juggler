@@ -1336,6 +1336,7 @@ Document::Document(const char* aContentType)
       mSubtreeModifiedDepth(0),
       mPreloadPictureDepth(0),
       mEventsSuppressed(0),
+      mRequestAnimationFrameSuspended(false),
       mIgnoreDestructiveWritesCounter(0),
       mFrameRequestCallbackCounter(0),
       mStaticCloneCount(0),
@@ -6280,7 +6281,7 @@ void Document::UpdateFrameRequestCallbackSchedulingState(
   // variable, add UpdateFrameRequestCallbackSchedulingState() calls to the
   // places where that variable can change.
   bool shouldBeScheduled = mPresShell && IsEventHandlingEnabled() &&
-                           !mFrameRequestCallbacks.IsEmpty();
+                           !mRequestAnimationFrameSuspended && !mFrameRequestCallbacks.IsEmpty();
   if (shouldBeScheduled == mFrameRequestCallbacksScheduled) {
     // nothing to do
     return;

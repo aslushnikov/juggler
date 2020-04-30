@@ -579,6 +579,11 @@ const Page = {
         runBeforeUnload: t.Optional(t.Boolean),
       },
     },
+    'setPaused': {
+      params: {
+        paused: t.Boolean,
+      },
+    },
     'setFileInputFiles': {
       params: {
         frameId: t.String,

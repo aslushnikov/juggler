@@ -2709,6 +2709,11 @@ class Document : public nsINode,
     return !EventHandlingSuppressed() && mScriptGlobalObject;
   }
 
+  void SetRequestAnimationFrameSuspended(bool suspended) {
+    mRequestAnimationFrameSuspended = suspended;
+    UpdateFrameRequestCallbackSchedulingState();
+  }
+
   void DecreaseEventSuppression() {
     MOZ_ASSERT(mEventsSuppressed);
     --mEventsSuppressed;
@@ -4731,6 +4736,7 @@ class Document : public nsINode,
   RefPtr<Document> mDisplayDocument;
 
   uint32_t mEventsSuppressed;
+  bool mRequestAnimationFrameSuspended;
 
   // Any XHR ChannelEventQueues that were suspended on this document while
   // events were suppressed.

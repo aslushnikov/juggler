@@ -1311,6 +1311,11 @@ interface nsIDOMWindowUtils : nsISupports {
   void resumeTimeouts();
 
   /**
+   * Suspend/resume RAFs on this document
+   */
+  void setRequestAnimationFrameSuspended(in boolean suspend);
+
+  /**
    * What type of layer manager the widget associated with this window is
    * using. "Basic" is unaccelerated; other types are accelerated. Throws an
    * error if there is no widget associated with this window.
