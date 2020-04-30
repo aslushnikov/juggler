@@ -47,6 +47,8 @@ void ResumeWorkersForWindow(nsPIDOMWindowInner* aWindow);
 void PropagateFirstPartyStorageAccessGrantedToWorkers(
     nsPIDOMWindowInner* aWindow);
 
+void ResetDefaultLocaleInAllWorkers();
+
 // All of these are implemented in WorkerScope.cpp
 
 bool IsWorkerGlobal(JSObject* global);

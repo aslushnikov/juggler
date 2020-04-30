@@ -335,7 +335,7 @@ nsAppStartup::Quit(uint32_t aMode) {
     nsCOMPtr<nsISimpleEnumerator> windowEnumerator;
     nsCOMPtr<nsIWindowMediator> mediator(
         do_GetService(NS_WINDOWMEDIATOR_CONTRACTID));
-    if (mediator) {
+    if (ferocity != eForceQuit && mediator) {
       mediator->GetEnumerator(nullptr, getter_AddRefs(windowEnumerator));
       if (windowEnumerator) {
         bool more;

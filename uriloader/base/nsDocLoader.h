@@ -204,6 +204,11 @@ class nsDocLoader : public nsIDocumentLoader,
   void FireOnLocationChange(nsIWebProgress* aWebProgress, nsIRequest* aRequest,
                             nsIURI* aUri, uint32_t aFlags);
 
+  void FireOnFrameLocationChange(nsIWebProgress* aWebProgress,
+                               nsIRequest* aRequest,
+                               nsIURI *aUri,
+                               uint32_t aFlags);
+
   MOZ_MUST_USE bool RefreshAttempted(nsIWebProgress* aWebProgress, nsIURI* aURI,
                                      int32_t aDelay, bool aSameURI);
 

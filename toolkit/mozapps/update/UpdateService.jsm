@@ -3076,7 +3076,7 @@ UpdateService.prototype = {
       ).running;
     }
 
-    return (
+    return true || (
       (Cu.isInAutomation || marionetteRunning) &&
       Services.prefs.getBoolPref(PREF_APP_UPDATE_DISABLEDFORTESTING, false)
     );

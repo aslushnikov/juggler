@@ -15,6 +15,12 @@
 #  include <unistd.h>  // for getpid()
 #endif
 
+#if JS_HAS_INTL_API && !MOZ_SYSTEM_ICU
+#  include "unicode/locid.h"
+#endif /* JS_HAS_INTL_API && !MOZ_SYSTEM_ICU */
+
+#include "js/LocaleSensitive.h"
+
 #include "mozilla/ArrayUtils.h"
 #include "mozilla/Attributes.h"
 #include "mozilla/AutoRestore.h"
@@ -55,6 +61,7 @@
 #include "mozilla/dom/ContentFrameMessageManager.h"
 #include "mozilla/dom/DocGroup.h"
 #include "mozilla/dom/Element.h"
+#include "mozilla/dom/Geolocation.h"
 #include "mozilla/dom/HTMLAnchorElement.h"
 #include "mozilla/dom/PerformanceNavigation.h"
 #include "mozilla/dom/PermissionMessageUtils.h"
@@ -73,6 +80,8 @@
 #include "mozilla/dom/nsCSPContext.h"
 #include "mozilla/dom/LoadURIOptionsBinding.h"
 #include "mozilla/dom/JSWindowActorChild.h"
+#include "mozilla/dom/WorkerCommon.h"
+
 #include "mozilla/net/DocumentChannel.h"
 #include "nsSHEntry.h"
 #include "mozilla/net/DocumentChannelChild.h"
@@ -98,6 +107,7 @@
 #include "nsIDocShellTreeItem.h"
 #include "nsIDocShellTreeOwner.h"
 #include "mozilla/dom/Document.h"
+#include "mozilla/dom/Element.h"
 #include "nsIDocumentLoaderFactory.h"
 #include "nsIDOMWindow.h"
 #include "nsIEditingSession.h"
@@ -185,6 +195,7 @@
 #include "nsGlobalWindow.h"
 #include "nsISearchService.h"
 #include "nsJSEnvironment.h"
+#include "nsJSUtils.h"
 #include "nsNetCID.h"
 #include "nsNetUtil.h"
 #include "nsObjectLoadingContent.h"
@@ -381,6 +392,11 @@ nsDocShell::nsDocShell(BrowsingContext* aBrowsingContext,
       mUseErrorPages(false),
       mObserveErrorPages(true),
       mCSSErrorReportingEnabled(false),
+      mFileInputInterceptionEnabled(false),
+      mOverrideHasFocus(false),
+      mBypassCSPEnabled(false),
+      mOnlineOverride(nsIDocShell::ONLINE_OVERRIDE_NONE),
+      mColorSchemeOverride(COLOR_SCHEME_OVERRIDE_NONE),
       mAllowAuth(mItemType == typeContent),
       mAllowKeywordFixup(false),
       mIsOffScreenBrowser(false),
@@ -1256,6 +1272,7 @@ bool nsDocShell::SetCurrentURI(nsIURI* aURI, nsIRequest* aRequest,
     isSubFrame = mLSHE->GetIsSubFrame();
   }
 
+  FireOnFrameLocationChange(this, aRequest, aURI, aLocationFlags);
   if (!isSubFrame && !isRoot) {
     /*
      * We don't want to send OnLocationChange notifications when
@@ -3343,6 +3360,184 @@ nsDocShell::GetMessageManager(ContentFrameMessageManager** aMessageManager) {
   mm.forget(aMessageManager);
   return NS_OK;
 }
+
+// =============== Juggler Begin =======================
+
+nsDocShell* nsDocShell::GetRootDocShell() {
+  nsCOMPtr<nsIDocShellTreeItem> rootAsItem;
+  GetInProcessSameTypeRootTreeItem(getter_AddRefs(rootAsItem));
+  nsCOMPtr<nsIDocShell> rootShell = do_QueryInterface(rootAsItem);
+  return nsDocShell::Cast(rootShell);
+}
+
+NS_IMETHODIMP
+nsDocShell::GetBypassCSPEnabled(bool* aEnabled) {
+  MOZ_ASSERT(aEnabled);
+  *aEnabled = mBypassCSPEnabled;
+  return NS_OK;
+}
+
+NS_IMETHODIMP
+nsDocShell::SetBypassCSPEnabled(bool aEnabled) {
+  mBypassCSPEnabled = aEnabled;
+  return NS_OK;
+}
+
+bool nsDocShell::IsBypassCSPEnabled() {
+  return GetRootDocShell()->mBypassCSPEnabled;
+}
+
+NS_IMETHODIMP
+nsDocShell::GetOverrideHasFocus(bool* aEnabled) {
+  MOZ_ASSERT(aEnabled);
+  *aEnabled = mOverrideHasFocus;
+  return NS_OK;
+}
+
+NS_IMETHODIMP
+nsDocShell::SetOverrideHasFocus(bool aEnabled) {
+  mOverrideHasFocus = aEnabled;
+  return NS_OK;
+}
+
+bool nsDocShell::ShouldOverrideHasFocus() const {
+  return mOverrideHasFocus;
+}
+
+NS_IMETHODIMP
+nsDocShell::GetLanguageOverride(nsAString& aLanguageOverride) {
+  MOZ_ASSERT(aEnabled);
+  aLanguageOverride = GetRootDocShell()->mLanguageOverride;
+  return NS_OK;
+}
+
+
+static void SetIcuLocale(const nsAString& aLanguageOverride) {
+  icu::Locale locale(NS_LossyConvertUTF16toASCII(aLanguageOverride).get());
+  if (icu::Locale::getDefault() == locale)
+    return;
+  UErrorCode error_code = U_ZERO_ERROR;
+  const char* lang = locale.getLanguage();
+  if (lang != nullptr && *lang != '\0') {
+    icu::Locale::setDefault(locale, error_code);
+  } else {
+    fprintf(stderr, "SetIcuLocale Failed to set the ICU default locale to %s\n", NS_LossyConvertUTF16toASCII(aLanguageOverride).get());
+  }
+
+  AutoJSAPI jsapi;
+  jsapi.Init();
+  JSContext* cx = jsapi.cx();
+  JS_ResetDefaultLocale(JS_GetRuntime(cx));
+
+  ResetDefaultLocaleInAllWorkers();
+}
+
+NS_IMETHODIMP
+nsDocShell::SetLanguageOverride(const nsAString& aLanguageOverride) {
+  mLanguageOverride = aLanguageOverride;
+  SetIcuLocale(aLanguageOverride);
+  return NS_OK;
+}
+
+NS_IMETHODIMP
+nsDocShell::OverrideTimezone(const nsAString& aTimezoneOverride,
+                             bool* aSuccess) {
+  NS_ENSURE_ARG(aSuccess);
+  NS_LossyConvertUTF16toASCII timeZoneId(aTimezoneOverride);
+  *aSuccess = nsJSUtils::SetTimeZoneOverride(timeZoneId.get());
+
+  // Set TZ which affects localtime_s().
+  auto setTimeZoneEnv = [](const char* value) {
+#if defined(_WIN32)
+    return _putenv_s("TZ", value) == 0;
+#else
+    return setenv("TZ", value, true) == 0;
+#endif /* _WIN32 */
+  };
+  if (*aSuccess) {
+    *aSuccess = setTimeZoneEnv(timeZoneId.get());
+    if (!*aSuccess) {
+      fprintf(stderr, "Failed to set 'TZ' to '%s'\n", timeZoneId.get());
+    }
+  }
+  return NS_OK;
+}
+
+NS_IMETHODIMP
+nsDocShell::GetFileInputInterceptionEnabled(bool* aEnabled) {
+  MOZ_ASSERT(aEnabled);
+  *aEnabled = GetRootDocShell()->mFileInputInterceptionEnabled;
+  return NS_OK;
+}
+
+NS_IMETHODIMP
+nsDocShell::SetFileInputInterceptionEnabled(bool aEnabled) {
+  mFileInputInterceptionEnabled = aEnabled;
+  return NS_OK;
+}
+
+bool nsDocShell::IsFileInputInterceptionEnabled() {
+  return GetRootDocShell()->mFileInputInterceptionEnabled;
+}
+
+void nsDocShell::FilePickerShown(mozilla::dom::Element* element) {
+  nsCOMPtr<nsIObserverService> observerService =
+      mozilla::services::GetObserverService();
+  observerService->NotifyObservers(
+      ToSupports(element), "juggler-file-picker-shown", nullptr);
+}
+
+RefPtr<nsGeolocationService> nsDocShell::GetGeolocationServiceOverride() {
+  return GetRootDocShell()->mGeolocationServiceOverride;
+}
+
+NS_IMETHODIMP
+nsDocShell::SetGeolocationOverride(nsIDOMGeoPosition* aGeolocationOverride) {
+  if (aGeolocationOverride) {
+    if (!mGeolocationServiceOverride) {
+      mGeolocationServiceOverride = new nsGeolocationService();
+      mGeolocationServiceOverride->Init();
+    }
+    mGeolocationServiceOverride->Update(aGeolocationOverride);
+  } else {
+    mGeolocationServiceOverride = nullptr;
+  }
+  return NS_OK;
+}
+
+NS_IMETHODIMP
+nsDocShell::GetOnlineOverride(OnlineOverride* aOnlineOverride) {
+  *aOnlineOverride = GetRootDocShell()->mOnlineOverride;
+  return NS_OK;
+}
+
+NS_IMETHODIMP
+nsDocShell::SetOnlineOverride(OnlineOverride aOnlineOverride) {
+  // We don't have a way to verify this coming from Javascript, so this check is
+  // still needed.
+  if (!(aOnlineOverride == ONLINE_OVERRIDE_NONE ||
+        aOnlineOverride == ONLINE_OVERRIDE_ONLINE ||
+        aOnlineOverride == ONLINE_OVERRIDE_OFFLINE)) {
+    return NS_ERROR_INVALID_ARG;
+  }
+
+  mOnlineOverride = aOnlineOverride;
+  return NS_OK;
+}
+
+NS_IMETHODIMP
+nsDocShell::GetColorSchemeOverride(ColorSchemeOverride* aColorSchemeOverride) {
+  *aColorSchemeOverride = GetRootDocShell()->mColorSchemeOverride;
+  return NS_OK;
+}
+
+NS_IMETHODIMP
+nsDocShell::SetColorSchemeOverride(ColorSchemeOverride aColorSchemeOverride) {
+  mColorSchemeOverride = aColorSchemeOverride;
+  return NS_OK;
+}
+
+// =============== Juggler End =======================
 
 NS_IMETHODIMP
 nsDocShell::GetIsNavigating(bool* aOut) {
@@ -8438,6 +8633,12 @@ nsresult nsDocShell::PerformRetargeting(nsDocShellLoadState* aLoadState,
                      true,  // aForceNoOpener
                      getter_AddRefs(newBC));
       MOZ_ASSERT(!newBC);
+      if (rv == NS_OK) {
+        nsCOMPtr<nsIObserverService> observerService = mozilla::services::GetObserverService();
+        if (observerService) {
+          observerService->NotifyObservers(GetAsSupports(this), "juggler-window-open-in-new-context", nullptr);
+        }
+      }
       return rv;
     }
 
@@ -12145,6 +12346,9 @@ class OnLinkClickEvent : public Runnable {
                                 mNoOpenerImplied, nullptr, nullptr,
                                 mIsUserTriggered, mTriggeringPrincipal, mCsp);
     }
+    nsCOMPtr<nsIObserverService> observerService = mozilla::services::GetObserverService();
+    observerService->NotifyObservers(ToSupports(mContent), "juggler-link-click-sync", nullptr);
+
     return NS_OK;
   }
 
@@ -12234,6 +12438,9 @@ nsresult nsDocShell::OnLinkClick(
       this, aContent, aURI, target, aFileName, aPostDataStream,
       aHeadersDataStream, noOpenerImplied, aIsUserTriggered, aIsTrusted,
       aTriggeringPrincipal, aCsp);
+
+  nsCOMPtr<nsIObserverService> observerService = mozilla::services::GetObserverService();
+  observerService->NotifyObservers(ToSupports(aContent), "juggler-link-click", nullptr);
   return DispatchToTabGroup(TaskCategory::UI, ev.forget());
 }
 
