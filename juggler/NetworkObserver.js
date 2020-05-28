@@ -371,6 +371,7 @@ class NetworkObserver {
     if (!pageNetwork)
       return;
     const causeType = httpChannel.loadInfo ? httpChannel.loadInfo.externalContentPolicyType : Ci.nsIContentPolicy.TYPE_OTHER;
+    const internalCauseType = httpChannel.loadInfo ? httpChannel.loadInfo.internalContentPolicyType : Ci.nsIContentPolicy.TYPE_OTHER;
     const requestId = this._requestId(httpChannel);
     const redirectedFrom = this._redirectMap.get(requestId);
     this._redirectMap.delete(requestId);
@@ -384,6 +385,7 @@ class NetworkObserver {
       method: httpChannel.requestMethod,
       navigationId: httpChannel.isMainDocumentChannel ? this._requestIdBeforeAuthentication(httpChannel) || this._requestId(httpChannel) : undefined,
       cause: causeTypeToString(causeType),
+      internalCause: causeTypeToString(internalCauseType),
     });
   }
 

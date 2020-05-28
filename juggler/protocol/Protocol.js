@@ -403,6 +403,7 @@ const Network = {
       method: t.String,
       navigationId: t.Optional(t.String),
       cause: t.String,
+      internalCause: t.String,
     },
     'responseReceived': {
       securityDetails: t.Nullable(networkTypes.SecurityDetails),
