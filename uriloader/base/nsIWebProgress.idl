@@ -87,6 +87,10 @@ interface nsIWebProgress : nsISupports
    * NOTIFY_REFRESH
    *   Receive onRefreshAttempted events.
    *   This is defined on nsIWebProgressListener2.
+   *
+   * NOTIFY_FRAME_LOCATION
+   *   Receive onFrameLocationChange events.
+   *   This is defined on nsIWebProgressListener2.
    */
   const unsigned long NOTIFY_PROGRESS         = 0x00000010;
   const unsigned long NOTIFY_STATUS           = 0x00000020;
@@ -94,11 +98,12 @@ interface nsIWebProgress : nsISupports
   const unsigned long NOTIFY_LOCATION         = 0x00000080;
   const unsigned long NOTIFY_REFRESH          = 0x00000100;
   const unsigned long NOTIFY_CONTENT_BLOCKING = 0x00000200;
+  const unsigned long NOTIFY_FRAME_LOCATION   = 0x00000400;
 
   /**
    * This flag enables all notifications.
    */
-  const unsigned long NOTIFY_ALL              = 0x000003ff;
+  const unsigned long NOTIFY_ALL              = 0x000007ff;
 
   /**
    * Registers a listener to receive web progress events.

@@ -195,7 +195,7 @@ void MaybeStripOAs(bool aForceStrip, OriginAttributes& aOriginAttributes) {
   }
 
   if (flags != 0) {
-    aOriginAttributes.StripAttributes(flags);
+    // aOriginAttributes.StripAttributes(flags);
   }
 }
 
@@ -228,6 +228,8 @@ nsresult GetOriginFromPrincipal(nsIPrincipal* aPrincipal, bool aForceStripOA,
 
   OriginAppendOASuffix(attrs, aForceStripOA, aOrigin);
 
+  // Disable userContext for permissions.
+  // attrs.StripAttributes(mozilla::OriginAttributes::STRIP_USER_CONTEXT_ID);
   return NS_OK;
 }
 

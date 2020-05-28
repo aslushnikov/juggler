@@ -143,6 +143,15 @@ xpcAccessibleDocument::GetVirtualCursor(nsIAccessiblePivot** aVirtualCursor) {
   return NS_OK;
 }
 
+
+NS_IMETHODIMP
+xpcAccessibleDocument::GetIsUpdatePendingForJugglerAccessibility(bool* updating) {
+  NS_ENSURE_ARG_POINTER(updating);
+  *updating = Intl()->Controller()->IsUpdatePendingForJugglerAccessibility();
+  return NS_OK;
+}
+
+
 ////////////////////////////////////////////////////////////////////////////////
 // xpcAccessibleDocument
 

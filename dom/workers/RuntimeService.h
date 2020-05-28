@@ -117,6 +117,8 @@ class RuntimeService final : public nsIObserver {
 
   void PropagateFirstPartyStorageAccessGranted(nsPIDOMWindowInner* aWindow);
 
+  void ResetDefaultLocaleInAllWorkers();
+
   const NavigatorProperties& GetNavigatorProperties() const {
     return mNavigatorProperties;
   }

@@ -34,7 +34,7 @@ already_AddRefed<nsIPrincipal> Permission::ClonePrincipalForPermission(
 
   mozilla::OriginAttributes attrs = aPrincipal->OriginAttributesRef();
   if (!StaticPrefs::permissions_isolateBy_userContext()) {
-    attrs.StripAttributes(mozilla::OriginAttributes::STRIP_USER_CONTEXT_ID);
+    // attrs.StripAttributes(mozilla::OriginAttributes::STRIP_USER_CONTEXT_ID);
   }
 
   nsAutoCString originNoSuffix;
