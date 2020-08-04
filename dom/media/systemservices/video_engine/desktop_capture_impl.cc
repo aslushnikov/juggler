@@ -211,8 +211,9 @@ int32_t AppDeviceInfoImpl::GetOrientation(const char* deviceUniqueIdUTF8,
 
 VideoCaptureModule* DesktopCaptureImpl::Create(const int32_t id,
                                                const char* uniqueId,
-                                               const CaptureDeviceType type) {
-  return new rtc::RefCountedObject<DesktopCaptureImpl>(id, uniqueId, type);
+                                               const CaptureDeviceType type,
+                                               bool captureCursor) {
+  return new rtc::RefCountedObject<DesktopCaptureImpl>(id, uniqueId, type, captureCursor);
 }
 
 int32_t WindowDeviceInfoImpl::Init() {
@@ -358,19 +359,24 @@ int32_t DesktopCaptureImpl::Init() {
     DesktopCapturer::SourceId sourceId = atoi(_deviceUniqueId.c_str());
     pWindowCapturer->SelectSource(sourceId);
 
-    MouseCursorMonitor* pMouseCursorMonitor =
-        MouseCursorMonitor::CreateForWindow(
-            webrtc::DesktopCaptureOptions::CreateDefault(), sourceId);
-    desktop_capturer_cursor_composer_ =
-        std::unique_ptr<DesktopAndCursorComposer>(new DesktopAndCursorComposer(
-            pWindowCapturer.release(), pMouseCursorMonitor));
+    if (capture_cursor_) {
+      MouseCursorMonitor* pMouseCursorMonitor =
+          MouseCursorMonitor::CreateForWindow(
+              webrtc::DesktopCaptureOptions::CreateDefault(), sourceId);
+      desktop_capturer_cursor_composer_ =
+          std::unique_ptr<DesktopAndCursorComposer>(new DesktopAndCursorComposer(
+              pWindowCapturer.release(), pMouseCursorMonitor));
+    } else {
+      desktop_capturer_cursor_composer_ = std::move(pWindowCapturer);
+    }
   }
 
   return 0;
 }
 
 DesktopCaptureImpl::DesktopCaptureImpl(const int32_t id, const char* uniqueId,
-                                       const CaptureDeviceType type)
+                                       const CaptureDeviceType type,
+                                       bool captureCursor)
     : _id(id),
       _deviceUniqueId(uniqueId),
       _deviceType(type),
@@ -381,6 +387,7 @@ DesktopCaptureImpl::DesktopCaptureImpl(const int32_t id, const char* uniqueId,
       delta_ntp_internal_ms_(
           Clock::GetRealTimeClock()->CurrentNtpInMilliseconds() -
           last_capture_time_),
+      capture_cursor_(captureCursor),
       time_event_(EventWrapper::Create()),
 #if defined(_WIN32)
       capturer_thread_(

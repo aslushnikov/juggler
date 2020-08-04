@@ -104,6 +104,8 @@ void HeadlessWidget::Destroy() {
     }
   }
 
+  SetSnapshotListener(nullptr);
+
   nsBaseWidget::OnDestroy();
 
   nsBaseWidget::Destroy();
@@ -497,6 +499,14 @@ nsresult HeadlessWidget::SynthesizeNativeTouchPoint(
       aPointerOrientation);
   DispatchTouchInput(inputToDispatch);
   return NS_OK;
+}
+
+void HeadlessWidget::SetSnapshotListener(SnapshotListener&& listener) {
+  if (!mCompositorWidget) {
+    fprintf(stderr, "Trying to set SnapshotListener without compositor widget\n");
+    return;
+  }
+  mCompositorWidget->SetSnapshotListener(std::move(listener));
 }
 
 }  // namespace widget

@@ -1091,8 +1091,11 @@ void nsHtml5TreeOpExecutor::AddSpeculationCSP(const nsAString& aCSP) {
   if (!StaticPrefs::security_csp_enable()) {
     return;
   }
-
   NS_ASSERTION(NS_IsMainThread(), "Wrong thread!");
+
+  if (mDocShell && static_cast<nsDocShell*>(mDocShell.get())->IsBypassCSPEnabled()) {
+    return;
+  }
 
   nsresult rv = NS_OK;
   nsCOMPtr<nsIContentSecurityPolicy> preloadCsp = mDocument->GetPreloadCsp();
