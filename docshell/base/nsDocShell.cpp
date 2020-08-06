@@ -11821,7 +11821,6 @@ nsresult nsDocShell::OnLinkClick(
     target = aTargetSpec;
   }
 
-<<<<<<< HEAD
   RefPtr<nsDocShellLoadState> loadState = new nsDocShellLoadState(aURI);
   loadState->SetTarget(target);
   loadState->SetFileName(aFileName);
@@ -11836,19 +11835,8 @@ nsresult nsDocShell::OnLinkClick(
   nsCOMPtr<nsIRunnable> ev =
       new OnLinkClickEvent(this, aContent, loadState, noOpenerImplied,
                            aIsTrusted, aTriggeringPrincipal);
-||||||| parent of ca3ce9fca3e8... chore: bootstrap build #1153
-  nsCOMPtr<nsIRunnable> ev = new OnLinkClickEvent(
-      this, aContent, aURI, target, aFileName, aPostDataStream,
-      aHeadersDataStream, noOpenerImplied, aIsUserTriggered, aIsTrusted,
-      aTriggeringPrincipal, aCsp);
-=======
-  nsCOMPtr<nsIRunnable> ev = new OnLinkClickEvent(
-      this, aContent, aURI, target, aFileName, aPostDataStream,
-      aHeadersDataStream, noOpenerImplied, aIsUserTriggered, aIsTrusted,
-      aTriggeringPrincipal, aCsp);
   nsCOMPtr<nsIObserverService> observerService = mozilla::services::GetObserverService();
   observerService->NotifyObservers(ToSupports(aContent), "juggler-link-click", nullptr);
->>>>>>> ca3ce9fca3e8... chore: bootstrap build #1153
   return Dispatch(TaskCategory::UI, ev.forget());
 }
 

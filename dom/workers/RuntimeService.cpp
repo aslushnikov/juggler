@@ -1939,18 +1939,12 @@ void RuntimeService::PropagateStorageAccessPermissionGranted(
   }
 }
 
-<<<<<<< HEAD
-void RuntimeService::NoteIdleThread(SafeRefPtr<WorkerThread> aThread) {
-||||||| parent of ca3ce9fca3e8... chore: bootstrap build #1153
-void RuntimeService::NoteIdleThread(WorkerThread* aThread) {
-=======
 void RuntimeService::ResetDefaultLocaleInAllWorkers() {
   AssertIsOnMainThread();
   BROADCAST_ALL_WORKERS(ResetDefaultLocale);
 }
 
-void RuntimeService::NoteIdleThread(WorkerThread* aThread) {
->>>>>>> ca3ce9fca3e8... chore: bootstrap build #1153
+void RuntimeService::NoteIdleThread(SafeRefPtr<WorkerThread> aThread) {
   AssertIsOnMainThread();
   MOZ_ASSERT(aThread);
 
