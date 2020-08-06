@@ -209,6 +209,11 @@ class nsDocLoader : public nsIDocumentLoader,
                                       nsIURI* aURI, int32_t aDelay,
                                       bool aSameURI);
 
+  void FireOnFrameLocationChange(nsIWebProgress* aWebProgress,
+                               nsIRequest* aRequest,
+                               nsIURI *aUri,
+                               uint32_t aFlags);
+
   // this function is overridden by the docshell, it is provided so that we
   // can pass more information about redirect state (the normal OnStateChange
   // doesn't get the new channel).

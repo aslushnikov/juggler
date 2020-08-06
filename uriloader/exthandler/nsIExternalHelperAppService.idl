@@ -6,6 +6,8 @@
 
 #include "nsICancelable.idl"
 
+webidl BrowsingContext;
+interface nsIHelperAppLauncher;
 interface nsIURI;
 interface nsIRequest;
 interface nsIStreamListener;
@@ -19,6 +21,17 @@ webidl BrowsingContext;
 %{C++
 class nsExternalAppHandler;
 %}
+
+/**
+ * Interceptor interface used by Juggler.
+ */
+[scriptable, uuid(9a20e9b0-75d0-11ea-bc55-0242ac130003)]
+interface nsIDownloadInterceptor : nsISupports
+{
+  bool interceptDownloadRequest(in nsIHelperAppLauncher aHandler, in nsIRequest aRequest, in BrowsingContext aBrowsingContext, out nsIFile file);
+
+  void onDownloadComplete(in nsIHelperAppLauncher aHandler, in ACString aErrorName);
+};
 
 /**
  * The external helper app service is used for finding and launching
@@ -48,7 +61,7 @@ interface nsIExternalHelperAppService : nsISupports
                                in nsIInterfaceRequestor aContentContext,
                                in boolean aForceSave,
                                [optional] in nsIInterfaceRequestor aWindowContext);
-  
+
   /**
    * Binds an external helper application to a stream listener. The caller
    * should pump data into the returned stream listener. When the OnStopRequest
@@ -81,6 +94,7 @@ interface nsIExternalHelperAppService : nsISupports
   boolean applyDecodingForExtension(in AUTF8String aExtension,
                                     in ACString aEncodingType);
 
+  void setDownloadInterceptor(in nsIDownloadInterceptor interceptor);
 };
 
 /**

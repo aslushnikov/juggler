@@ -159,7 +159,8 @@ class DesktopCaptureImpl : public DesktopCapturer::Callback,
   /* Create a screen capture modules object
    */
   static VideoCaptureModule* Create(const int32_t id, const char* uniqueId,
-                                    const CaptureDeviceType type);
+                                    const CaptureDeviceType type,
+                                    bool captureCursor = true);
   static VideoCaptureModule::DeviceInfo* CreateDeviceInfo(
       const int32_t id, const CaptureDeviceType type);
 
@@ -191,7 +192,7 @@ class DesktopCaptureImpl : public DesktopCapturer::Callback,
 
  protected:
   DesktopCaptureImpl(const int32_t id, const char* uniqueId,
-                     const CaptureDeviceType type);
+                     const CaptureDeviceType type, bool captureCursor);
   virtual ~DesktopCaptureImpl();
   int32_t DeliverCapturedFrame(webrtc::VideoFrame& captureFrame,
                                int64_t capture_time);
@@ -239,10 +240,11 @@ class DesktopCaptureImpl : public DesktopCapturer::Callback,
   void process();
 
  private:
+  bool capture_cursor_ = true;
   // This is created on the main thread and accessed on both the main thread
   // and the capturer thread. It is created prior to the capturer thread
   // starting and is destroyed after it is stopped.
-  std::unique_ptr<DesktopAndCursorComposer> desktop_capturer_cursor_composer_;
+  std::unique_ptr<DesktopCapturer> desktop_capturer_cursor_composer_;
 
   std::unique_ptr<EventWrapper> time_event_;
 #if defined(_WIN32)
