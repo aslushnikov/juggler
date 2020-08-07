@@ -57,7 +57,7 @@ struct CachedPositionAndAccuracy {
 class nsGeolocationService final : public nsIGeolocationUpdate,
                                    public nsIObserver {
  public:
-  static already_AddRefed<nsGeolocationService> GetGeolocationService();
+  static already_AddRefed<nsGeolocationService> GetGeolocationService(nsDocShell* docShell = nullptr);
   static mozilla::StaticRefPtr<nsGeolocationService> sService;
 
   NS_DECL_THREADSAFE_ISUPPORTS
@@ -181,6 +181,8 @@ class Geolocation final : public nsIGeolocationUpdate, public nsWrapperCache {
   // Get the singleton non-window Geolocation instance.  This never returns
   // null.
   static already_AddRefed<Geolocation> NonWindowSingleton();
+
+  nsGeolocationService* GetGeolocationService() { return mService; };
 
  private:
   ~Geolocation();

@@ -3565,6 +3565,13 @@ NS_IMETHODIMP BrowserChild::OnStateChange(nsIWebProgress* aWebProgress,
   return NS_OK;
 }
 
+NS_IMETHODIMP BrowserChild::OnFrameLocationChange(nsIWebProgress *aWebProgress,
+                                             nsIRequest *aRequest,
+                                             nsIURI *aLocation,
+                                             uint32_t aFlags) {
+  return NS_OK;
+}
+
 NS_IMETHODIMP BrowserChild::OnProgressChange(nsIWebProgress* aWebProgress,
                                              nsIRequest* aRequest,
                                              int32_t aCurSelfProgress,

@@ -44,6 +44,7 @@ interface nsIURI;
 interface nsIChannel;
 interface nsIContentViewer;
 interface nsIContentSecurityPolicy;
+interface nsIDOMGeoPosition;
 interface nsIDocShellLoadInfo;
 interface nsIEditor;
 interface nsIEditingSession;
@@ -986,6 +987,33 @@ interface nsIDocShell : nsIDocShellTreeItem
    * @see nsISHEntry synchronizeLayoutHistoryState().
    */
   void synchronizeLayoutHistoryState();
+
+  attribute boolean fileInputInterceptionEnabled;
+
+  attribute boolean overrideHasFocus;
+
+  attribute boolean bypassCSPEnabled;
+
+  attribute AString languageOverride;
+
+  boolean overrideTimezone(in AString timezoneId);
+
+  cenum OnlineOverride: 8 {
+    ONLINE_OVERRIDE_NONE = 0,
+    ONLINE_OVERRIDE_ONLINE = 1,
+    ONLINE_OVERRIDE_OFFLINE = 2,
+  };
+  [infallible] attribute nsIDocShell_OnlineOverride onlineOverride;
+
+  cenum ColorSchemeOverride : 8 {
+    COLOR_SCHEME_OVERRIDE_LIGHT,
+    COLOR_SCHEME_OVERRIDE_DARK,
+    COLOR_SCHEME_OVERRIDE_NO_PREFERENCE,
+    COLOR_SCHEME_OVERRIDE_NONE, /* This clears the override. */
+  };
+  [infallible] attribute nsIDocShell_ColorSchemeOverride colorSchemeOverride;
+
+  void setGeolocationOverride(in nsIDOMGeoPosition position);
 
   /**
    * This attempts to save any applicable layout history state (like
