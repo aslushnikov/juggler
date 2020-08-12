@@ -996,7 +996,7 @@ void PrefLanguagesChanged(const char* /* aPrefName */, void* /* aClosure */) {
   AssertIsOnMainThread();
 
   nsTArray<nsString> languages;
-  Navigator::GetAcceptLanguages(languages);
+  Navigator::GetAcceptLanguages(nullptr, languages);
 
   RuntimeService* runtime = RuntimeService::GetService();
   if (runtime) {
@@ -1195,8 +1195,7 @@ bool RuntimeService::RegisterWorker(WorkerPrivate& aWorkerPrivate) {
       }
 
       // The navigator overridden properties should have already been read.
-
-      Navigator::GetAcceptLanguages(mNavigatorProperties.mLanguages);
+      Navigator::GetAcceptLanguages(nullptr, mNavigatorProperties.mLanguages);
       mNavigatorPropertiesLoaded = true;
     }
 
@@ -1896,6 +1895,11 @@ void RuntimeService::PropagateStorageAccessPermissionGranted(
   }
 }
 
+void RuntimeService::ResetDefaultLocaleInAllWorkers() {
+  AssertIsOnMainThread();
+  BROADCAST_ALL_WORKERS(ResetDefaultLocale);
+}
+
 void RuntimeService::NoteIdleThread(SafeRefPtr<WorkerThread> aThread) {
   AssertIsOnMainThread();
   MOZ_ASSERT(aThread);
@@ -2330,6 +2334,14 @@ void PropagateStorageAccessPermissionGrantedToWorkers(
   RuntimeService* runtime = RuntimeService::GetService();
   if (runtime) {
     runtime->PropagateStorageAccessPermissionGranted(aWindow);
+  }
+}
+
+void ResetDefaultLocaleInAllWorkers() {
+  AssertIsOnMainThread();
+  RuntimeService* runtime = RuntimeService::GetService();
+  if (runtime) {
+    runtime->ResetDefaultLocaleInAllWorkers();
   }
 }
 

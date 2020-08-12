@@ -214,6 +214,11 @@
 @RESPATH@/components/marionette.js
 #endif
 
+@RESPATH@/chrome/juggler@JAREXT@
+@RESPATH@/chrome/juggler.manifest
+@RESPATH@/components/juggler.manifest
+@RESPATH@/components/juggler.js
+
 #if defined(ENABLE_TESTS) && defined(MOZ_DEBUG)
 @RESPATH@/components/TestInterfaceJS.js
 @RESPATH@/components/TestInterfaceJS.manifest

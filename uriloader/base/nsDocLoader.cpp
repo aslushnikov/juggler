@@ -789,6 +789,13 @@ void nsDocLoader::DocLoaderIsEmpty(bool aFlushLayout,
                         ("DocLoader:%p: Firing load event for document.open\n",
                          this));
 
+                nsCOMPtr<nsIObserverService> os = mozilla::services::GetObserverService();
+                if (os) {
+                  nsIPrincipal* principal = doc->NodePrincipal();
+                  if (!principal->IsSystemPrincipal())
+                    os->NotifyObservers(ToSupports(doc), "juggler-document-open-loaded", nullptr);
+                }
+
                 // This is a very cut-down version of
                 // nsDocumentViewer::LoadComplete that doesn't do various things
                 // that are not relevant here because this wasn't an actual
@@ -1346,6 +1353,24 @@ void nsDocLoader::FireOnLocationChange(nsIWebProgress* aWebProgress,
   // Pass the notification up to the parent...
   if (mParent) {
     mParent->FireOnLocationChange(aWebProgress, aRequest, aUri, aFlags);
+  }
+}
+
+void nsDocLoader::FireOnFrameLocationChange(nsIWebProgress* aWebProgress,
+                                       nsIRequest* aRequest,
+                                       nsIURI *aUri,
+                                       uint32_t aFlags) {
+  NOTIFY_LISTENERS(nsIWebProgress::NOTIFY_FRAME_LOCATION,
+    nsCOMPtr<nsIWebProgressListener2> listener2 =
+      do_QueryReferent(info.mWeakListener);
+    if (!listener2)
+      continue;
+    listener2->OnFrameLocationChange(aWebProgress, aRequest, aUri, aFlags);
+  );
+
+  // Pass the notification up to the parent...
+  if (mParent) {
+    mParent->FireOnFrameLocationChange(aWebProgress, aRequest, aUri, aFlags);
   }
 }
 

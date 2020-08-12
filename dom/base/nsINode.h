@@ -2049,6 +2049,10 @@ class nsINode : public mozilla::dom::EventTarget {
                                    nsTArray<RefPtr<DOMQuad>>& aResult,
                                    ErrorResult& aRv);
 
+  void ScrollRectIntoViewIfNeeded(int32_t x, int32_t y,
+                                  int32_t w, int32_t h,
+                                  ErrorResult& aRv);
+
   already_AddRefed<DOMQuad> ConvertQuadFromNode(
       DOMQuad& aQuad, const TextOrElementOrDocument& aFrom,
       const ConvertCoordinateOptions& aOptions, CallerType aCallerType,

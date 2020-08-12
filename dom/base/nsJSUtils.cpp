@@ -506,6 +506,11 @@ bool nsJSUtils::GetScopeChainForElement(
 }
 
 /* static */
+bool nsJSUtils::SetTimeZoneOverride(const char* timezoneId) {
+  return JS::SetTimeZoneOverride(timezoneId);
+}
+
+/* static */
 void nsJSUtils::ResetTimeZone() { JS::ResetTimeZone(); }
 
 /* static */

@@ -2404,7 +2404,11 @@ Maybe<Completion> DebuggerObject::call(JSContext* cx,
         invokeArgs[i].set(args2[i]);
       }
 
+      // Disable CSP for the scope of the call.
+      const JSSecurityCallbacks* securityCallbacks = JS_GetSecurityCallbacks(cx);
+      JS_SetSecurityCallbacks(cx, nullptr);
       ok = js::Call(cx, calleev, thisv, invokeArgs, &result);
+      JS_SetSecurityCallbacks(cx, securityCallbacks);
     }
   }
 

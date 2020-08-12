@@ -213,7 +213,26 @@ int32_t WindowDeviceInfoImpl::GetOrientation(const char* deviceUniqueIdUTF8,
   return 0;
 }
 
+<<<<<<< HEAD
 int32_t BrowserDeviceInfoImpl::Init() {
+||||||| parent of 0d42f8196199... chore: bootstrap build #1157
+VideoCaptureModule* DesktopCaptureImpl::Create(const int32_t id,
+                                               const char* uniqueId,
+                                               const CaptureDeviceType type) {
+  return new rtc::RefCountedObject<DesktopCaptureImpl>(id, uniqueId, type);
+}
+
+int32_t WindowDeviceInfoImpl::Init() {
+=======
+VideoCaptureModule* DesktopCaptureImpl::Create(const int32_t id,
+                                               const char* uniqueId,
+                                               const CaptureDeviceType type,
+                                               bool captureCursor) {
+  return new rtc::RefCountedObject<DesktopCaptureImpl>(id, uniqueId, type, captureCursor);
+}
+
+int32_t WindowDeviceInfoImpl::Init() {
+>>>>>>> 0d42f8196199... chore: bootstrap build #1157
   desktop_device_info_ =
       std::unique_ptr<DesktopDeviceInfo>(DesktopDeviceInfoImpl::Create());
   return 0;
@@ -360,6 +379,7 @@ int32_t DesktopCaptureImpl::Init() {
     DesktopCapturer::SourceId sourceId = atoi(_deviceUniqueId.c_str());
     pWindowCapturer->SelectSource(sourceId);
 
+<<<<<<< HEAD
     MouseCursorMonitor* pMouseCursorMonitor =
         MouseCursorMonitor::CreateForWindow(
             webrtc::DesktopCaptureOptions::CreateDefault(), sourceId);
@@ -374,6 +394,27 @@ int32_t DesktopCaptureImpl::Init() {
     if (!desktop_capturer_cursor_composer_) {
       return -1;
     }
+||||||| parent of 0d42f8196199... chore: bootstrap build #1157
+    MouseCursorMonitor* pMouseCursorMonitor =
+        MouseCursorMonitor::CreateForWindow(
+            webrtc::DesktopCaptureOptions::CreateDefault(), sourceId);
+    desktop_capturer_cursor_composer_ =
+        std::unique_ptr<DesktopAndCursorComposer>(new DesktopAndCursorComposer(
+            pWindowCapturer.release(), pMouseCursorMonitor));
+  }
+=======
+    if (capture_cursor_) {
+      MouseCursorMonitor* pMouseCursorMonitor =
+          MouseCursorMonitor::CreateForWindow(
+              webrtc::DesktopCaptureOptions::CreateDefault(), sourceId);
+      desktop_capturer_cursor_composer_ =
+          std::unique_ptr<DesktopAndCursorComposer>(new DesktopAndCursorComposer(
+              pWindowCapturer.release(), pMouseCursorMonitor));
+    } else {
+      desktop_capturer_cursor_composer_ = std::move(pWindowCapturer);
+    }
+  }
+>>>>>>> 0d42f8196199... chore: bootstrap build #1157
 
     DesktopCapturer::SourceId sourceId = atoi(_deviceUniqueId.c_str());
     desktop_capturer_cursor_composer_->SelectSource(sourceId);
@@ -382,7 +423,8 @@ int32_t DesktopCaptureImpl::Init() {
 }
 
 DesktopCaptureImpl::DesktopCaptureImpl(const int32_t id, const char* uniqueId,
-                                       const CaptureDeviceType type)
+                                       const CaptureDeviceType type,
+                                       bool captureCursor)
     : _id(id),
       _deviceUniqueId(uniqueId),
       _deviceType(type),
@@ -393,6 +435,7 @@ DesktopCaptureImpl::DesktopCaptureImpl(const int32_t id, const char* uniqueId,
       delta_ntp_internal_ms_(
           Clock::GetRealTimeClock()->CurrentNtpInMilliseconds() -
           last_capture_time_),
+      capture_cursor_(captureCursor),
       time_event_(EventWrapper::Create()),
 #if defined(_WIN32)
       capturer_thread_(
