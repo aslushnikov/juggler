@@ -125,8 +125,9 @@ int32_t ScreenDeviceInfoImpl::GetOrientation(const char* deviceUniqueIdUTF8,
 
 VideoCaptureModule* DesktopCaptureImpl::Create(const int32_t id,
                                                const char* uniqueId,
-                                               const CaptureDeviceType type) {
-  return new rtc::RefCountedObject<DesktopCaptureImpl>(id, uniqueId, type);
+                                               const CaptureDeviceType type,
+                                               bool captureCursor) {
+  return new rtc::RefCountedObject<DesktopCaptureImpl>(id, uniqueId, type, captureCursor);
 }
 
 int32_t WindowDeviceInfoImpl::Init() {
@@ -213,26 +214,7 @@ int32_t WindowDeviceInfoImpl::GetOrientation(const char* deviceUniqueIdUTF8,
   return 0;
 }
 
-<<<<<<< HEAD
 int32_t BrowserDeviceInfoImpl::Init() {
-||||||| parent of 0d42f8196199... chore: bootstrap build #1157
-VideoCaptureModule* DesktopCaptureImpl::Create(const int32_t id,
-                                               const char* uniqueId,
-                                               const CaptureDeviceType type) {
-  return new rtc::RefCountedObject<DesktopCaptureImpl>(id, uniqueId, type);
-}
-
-int32_t WindowDeviceInfoImpl::Init() {
-=======
-VideoCaptureModule* DesktopCaptureImpl::Create(const int32_t id,
-                                               const char* uniqueId,
-                                               const CaptureDeviceType type,
-                                               bool captureCursor) {
-  return new rtc::RefCountedObject<DesktopCaptureImpl>(id, uniqueId, type, captureCursor);
-}
-
-int32_t WindowDeviceInfoImpl::Init() {
->>>>>>> 0d42f8196199... chore: bootstrap build #1157
   desktop_device_info_ =
       std::unique_ptr<DesktopDeviceInfo>(DesktopDeviceInfoImpl::Create());
   return 0;
@@ -379,30 +361,6 @@ int32_t DesktopCaptureImpl::Init() {
     DesktopCapturer::SourceId sourceId = atoi(_deviceUniqueId.c_str());
     pWindowCapturer->SelectSource(sourceId);
 
-<<<<<<< HEAD
-    MouseCursorMonitor* pMouseCursorMonitor =
-        MouseCursorMonitor::CreateForWindow(
-            webrtc::DesktopCaptureOptions::CreateDefault(), sourceId);
-    desktop_capturer_cursor_composer_ =
-        std::unique_ptr<DesktopAndCursorComposer>(new DesktopAndCursorComposer(
-            pWindowCapturer.release(), pMouseCursorMonitor));
-  } else if (_deviceType == CaptureDeviceType::Browser) {
-    // XXX We don't capture cursors, so avoid the extra indirection layer. We
-    // could also pass null for the pMouseCursorMonitor.
-    desktop_capturer_cursor_composer_ =
-        DesktopCapturer::CreateTabCapturer(options);
-    if (!desktop_capturer_cursor_composer_) {
-      return -1;
-    }
-||||||| parent of 0d42f8196199... chore: bootstrap build #1157
-    MouseCursorMonitor* pMouseCursorMonitor =
-        MouseCursorMonitor::CreateForWindow(
-            webrtc::DesktopCaptureOptions::CreateDefault(), sourceId);
-    desktop_capturer_cursor_composer_ =
-        std::unique_ptr<DesktopAndCursorComposer>(new DesktopAndCursorComposer(
-            pWindowCapturer.release(), pMouseCursorMonitor));
-  }
-=======
     if (capture_cursor_) {
       MouseCursorMonitor* pMouseCursorMonitor =
           MouseCursorMonitor::CreateForWindow(
@@ -413,8 +371,14 @@ int32_t DesktopCaptureImpl::Init() {
     } else {
       desktop_capturer_cursor_composer_ = std::move(pWindowCapturer);
     }
-  }
->>>>>>> 0d42f8196199... chore: bootstrap build #1157
+  } else if (_deviceType == CaptureDeviceType::Browser) {
+    // XXX We don't capture cursors, so avoid the extra indirection layer. We
+    // could also pass null for the pMouseCursorMonitor.
+    desktop_capturer_cursor_composer_ =
+        DesktopCapturer::CreateTabCapturer(options);
+    if (!desktop_capturer_cursor_composer_) {
+      return -1;
+    }
 
     DesktopCapturer::SourceId sourceId = atoi(_deviceUniqueId.c_str());
     desktop_capturer_cursor_composer_->SelectSource(sourceId);

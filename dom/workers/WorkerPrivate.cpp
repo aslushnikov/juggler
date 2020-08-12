@@ -4824,8 +4824,8 @@ void WorkerPrivate::UpdateContextOptionsInternal(
 
 void WorkerPrivate::ResetDefaultLocaleInternal(JSContext* aCx) {
   JS_ResetDefaultLocale(JS_GetRuntime(aCx));
+  auto data = mWorkerThreadAccessible.Access();
 
-  MOZ_ACCESS_THREAD_BOUND(mWorkerThreadAccessible, data);
   for (uint32_t index = 0; index < data->mChildWorkers.Length(); index++) {
     data->mChildWorkers[index]->ResetDefaultLocale();
   }

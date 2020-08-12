@@ -1730,19 +1730,11 @@ NS_IMETHODIMP nsExternalAppHandler::OnStartRequest(nsIRequest* request) {
 
   bool alwaysAsk = true;
   mMimeInfo->GetAlwaysAskBeforeHandling(&alwaysAsk);
-<<<<<<< HEAD
-||||||| parent of 0d42f8196199... chore: bootstrap build #1157
-  nsAutoCString MIMEType;
-  mMimeInfo->GetMIMEType(MIMEType);
-=======
-  nsAutoCString MIMEType;
-  mMimeInfo->GetMIMEType(MIMEType);
 
   if (isIntercepted) {
     return NS_OK;
   }
 
->>>>>>> 0d42f8196199... chore: bootstrap build #1157
   if (alwaysAsk) {
     // But we *don't* ask if this mimeInfo didn't come from
     // our user configuration datastore and the user has said

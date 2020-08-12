@@ -1897,7 +1897,9 @@ void RuntimeService::PropagateStorageAccessPermissionGranted(
 
 void RuntimeService::ResetDefaultLocaleInAllWorkers() {
   AssertIsOnMainThread();
-  BROADCAST_ALL_WORKERS(ResetDefaultLocale);
+  BroadcastAllWorkers([](auto& worker) {
+    worker.ResetDefaultLocale();
+  });
 }
 
 void RuntimeService::NoteIdleThread(SafeRefPtr<WorkerThread> aThread) {
