@@ -297,6 +297,8 @@ class WorkerPrivate : public RelativeTimeline {
   void UpdateContextOptionsInternal(JSContext* aCx,
                                     const JS::ContextOptions& aContextOptions);
 
+  void ResetDefaultLocaleInternal(JSContext* aCx);
+
   void UpdateLanguagesInternal(const nsTArray<nsString>& aLanguages);
 
   void UpdateJSWorkerMemoryParameterInternal(JSContext* aCx, JSGCParamKey key,
@@ -885,6 +887,8 @@ class WorkerPrivate : public RelativeTimeline {
   void MemoryPressure();
 
   void UpdateContextOptions(const JS::ContextOptions& aContextOptions);
+
+  void ResetDefaultLocale();
 
   void UpdateLanguages(const nsTArray<nsString>& aLanguages);
 

@@ -66,4 +66,27 @@ interface nsIWebProgressListener2 : nsIWebProgressListener {
                              in nsIURI aRefreshURI,
                              in long aMillis,
                              in boolean aSameURI);
+
+  /**
+   * Called when the location of the window or its subframes changes.  This is not
+   * when a load is requested, but rather once it is verified that the load is
+   * going to occur in the given window.  For instance, a load that starts in a
+   * window might send progress and status messages for the new site, but it
+   * will not send the onLocationChange until we are sure that we are loading
+   * this new page here.
+   *
+   * @param aWebProgress
+   *        The nsIWebProgress instance that fired the notification.
+   * @param aRequest
+   *        The associated nsIRequest.  This may be null in some cases.
+   * @param aLocation
+   *        The URI of the location that is being loaded.
+   * @param aFlags
+   *        This is a value which explains the situation or the reason why
+   *        the location has changed.
+   */
+  void onFrameLocationChange(in nsIWebProgress aWebProgress,
+                             in nsIRequest aRequest,
+                             in nsIURI aLocation,
+                             [optional] in unsigned long aFlags);
 };

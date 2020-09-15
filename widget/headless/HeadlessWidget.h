@@ -153,6 +153,9 @@ class HeadlessWidget : public nsBaseWidget {
                                               uint32_t aPointerOrientation,
                                               nsIObserver* aObserver) override;
 
+  using SnapshotListener = std::function<void(RefPtr<gfx::DataSourceSurface>&&)>;
+  void SetSnapshotListener(SnapshotListener&& listener);
+
  private:
   ~HeadlessWidget();
   bool mEnabled;

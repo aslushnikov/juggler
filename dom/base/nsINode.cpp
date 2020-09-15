@@ -1258,6 +1258,48 @@ void nsINode::GetBoxQuadsFromWindowOrigin(const BoxQuadOptions& aOptions,
   mozilla::GetBoxQuadsFromWindowOrigin(this, aOptions, aResult, aRv);
 }
 
+void nsINode::ScrollRectIntoViewIfNeeded(int32_t x, int32_t y,
+                                         int32_t w, int32_t h,
+                                         ErrorResult& aRv) {
+  aRv = NS_ERROR_UNEXPECTED;
+  nsCOMPtr<Document> document = OwnerDoc();
+  if (!document) {
+    return aRv.ThrowNotFoundError("Node is detached from document");
+  }
+  PresShell* presShell = document->GetPresShell();
+  if (!presShell) {
+    return aRv.ThrowNotFoundError("Node is detached from document");
+  }
+  if (!IsContent()) {
+    return aRv.ThrowNotFoundError("Node does not have a layout object");
+  }
+  aRv = NS_OK;
+  nsIFrame* primaryFrame = AsContent()->GetPrimaryFrame(FlushType::Frames);
+  if (!primaryFrame) {
+    return aRv.ThrowNotFoundError("Node does not have a layout object");
+  }
+  nsRect rect;
+  if (x == -1 && y == -1 && w == -1 && h == -1) {
+    rect = primaryFrame->GetRectRelativeToSelf();
+  } else {
+    rect = nsRect(nsPresContext::CSSPixelsToAppUnits(x),
+                  nsPresContext::CSSPixelsToAppUnits(y),
+                  nsPresContext::CSSPixelsToAppUnits(w),
+                  nsPresContext::CSSPixelsToAppUnits(h));
+  }
+  presShell->ScrollFrameRectIntoView(
+      primaryFrame, rect,
+      ScrollAxis(kScrollToCenter, WhenToScroll::Always),
+      ScrollAxis(kScrollToCenter, WhenToScroll::Always),
+      ScrollFlags::ScrollOverflowHidden);
+  // If a _visual_ scroll update is pending, cancel it; otherwise, it will
+  // clobber next scroll (e.g. subsequent window.scrollTo(0, 0) wlll break).
+  if (presShell->GetPendingVisualScrollUpdate()) {
+    presShell->AcknowledgePendingVisualScrollUpdate();
+    presShell->ClearPendingVisualScrollUpdate();
+  }
+}
+
 already_AddRefed<DOMQuad> nsINode::ConvertQuadFromNode(
     DOMQuad& aQuad, const GeometryNode& aFrom,
     const ConvertCoordinateOptions& aOptions, CallerType aCallerType,

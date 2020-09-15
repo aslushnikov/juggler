@@ -64,6 +64,12 @@ browser/defaults/settings/pinning/pins.json
 browser/defaults/settings/main/example.json
 browser/defaults/settings/main/search-default-override-allowlist.json
 
+# Juggler/marionette files
+chrome/juggler/content/content/floating-scrollbars.css
+browser/chrome/devtools/skin/floating-scrollbars-responsive-design.css
+chrome/juggler/content/server/stream-utils.js
+chrome/marionette/content/stream-utils.js
+
 #ifdef MOZ_EME_WIN32_ARTIFACT
 gmp-clearkey/0.1/manifest.json
 i686/gmp-clearkey/0.1/manifest.json

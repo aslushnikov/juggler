@@ -142,6 +142,30 @@ ScriptSettingsStackEntry::~ScriptSettingsStackEntry() {
   MOZ_ASSERT_IF(mGlobalObject, mGlobalObject->HasJSGlobal());
 }
 
+static nsIGlobalObject* UnwrapSandboxGlobal(nsIGlobalObject* global) {
+  if (!global)
+    return global;
+  JSObject* globalObject = global->GetGlobalJSObject();
+  if (!globalObject)
+    return global;
+  JSContext* cx = nsContentUtils::GetCurrentJSContext();
+  if (!cx)
+    return global;
+  JS::Rooted<JSObject*> proto(cx);
+  JS::RootedObject rootedGlobal(cx, globalObject);
+  if (!JS_GetPrototype(cx, rootedGlobal, &proto))
+    return global;
+  if (!proto || !xpc::IsSandboxPrototypeProxy(proto))
+    return global;
+  // If this is a sandbox associated with a DOMWindow via a
+  // sandboxPrototype, use that DOMWindow. This supports GreaseMonkey
+  // and JetPack content scripts.
+  proto = js::CheckedUnwrapDynamic(proto, cx, /* stopAtWindowProxy = */ false);
+  if (!proto)
+    return global;
+  return xpc::WindowGlobalOrNull(proto);
+}
+
 // If the entry or incumbent global ends up being something that the subject
 // principal doesn't subsume, we don't want to use it. This never happens on
 // the web, but can happen with asymmetric privilege relationships (i.e.
@@ -169,7 +193,7 @@ static nsIGlobalObject* ClampToSubject(nsIGlobalObject* aGlobalOrNull) {
   NS_ENSURE_TRUE(globalPrin, GetCurrentGlobal());
   if (!nsContentUtils::SubjectPrincipalOrSystemIfNativeCaller()
            ->SubsumesConsideringDomain(globalPrin)) {
-    return GetCurrentGlobal();
+    return UnwrapSandboxGlobal(GetCurrentGlobal());
   }
 
   return aGlobalOrNull;
