@@ -3291,6 +3291,7 @@ bool nsDocShell::ShouldOverrideHasFocus() const {
 
 NS_IMETHODIMP
 nsDocShell::GetLanguageOverride(nsAString& aLanguageOverride) {
+  MOZ_ASSERT(aEnabled);
   aLanguageOverride = GetRootDocShell()->mLanguageOverride;
   return NS_OK;
 }

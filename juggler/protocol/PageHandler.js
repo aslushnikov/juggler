@@ -4,9 +4,7 @@
 
 "use strict";
 
-const {NetUtil} = ChromeUtils.import('resource://gre/modules/NetUtil.jsm');
 const {Helper} = ChromeUtils.import('chrome://juggler/content/Helper.js');
-const {clearTimeout, setTimeout} = ChromeUtils.import('resource://gre/modules/Timer.jsm');
 const {Services} = ChromeUtils.import("resource://gre/modules/Services.jsm");
 const {OS} = ChromeUtils.import("resource://gre/modules/osfile.jsm");
 
@@ -223,58 +221,8 @@ class PageHandler {
   /**
    * @param {{frameId: string, url: string}} options
    */
-  async navigate({frameId, url, referer}) {
-    try {
-      dump(`
-
-      =>>> navigating to: ${url}
-
-      `);
-      const uri = NetUtil.newURI(url);
-    } catch (e) {
-      dump(`
-
-      AND IT IS BAD!! O_O
-
-      error: ${e.message}
-
-      `);
-      throw new Error(`Invalid url: "${url}"`);
-    }
-    let referrerURI = null;
-    let referrerInfo = null;
-    if (referer) {
-      try {
-        referrerURI = NetUtil.newURI(referer);
-        const ReferrerInfo = Components.Constructor(
-          '@mozilla.org/referrer-info;1',
-          'nsIReferrerInfo',
-          'init'
-        );
-        referrerInfo = new ReferrerInfo(Ci.nsIHttpChannel.REFERRER_POLICY_UNSET, true, referrerURI);
-      } catch (e) {
-        throw new Error(`Invalid referer: "${referer}"`);
-      }
-    }
-    const contexts = new Map();
-
-    const traverse = browsingContext => {
-      contexts.set('frame-' + browsingContext.id, browsingContext);
-      for (const child of browsingContext.children)
-        traverse(child);
-    };
-    traverse(this._browser.browsingContext);
-    const browsingContext = contexts.get(frameId);
-    if (!browsingContext)
-      throw new Error('ERROR: cannot find context with given frameId');
-    browsingContext.loadURI(url, {
-      triggeringPrincipal: Services.scriptSecurityManager.getSystemPrincipal(),
-      flags: Ci.nsIWebNavigation.LOAD_FLAGS_NONE,
-      referrerInfo,
-      postData: null,
-      headers: null,
-    });
-    return await this._contentPage.send('navigationInfo', {frameId});
+  async navigate(options) {
+    return await this._contentPage.send('navigate', options);
   }
 
   /**
