@@ -140,10 +140,10 @@ class PageAgent {
         getBoundingBox: this._getBoundingBox.bind(this),
         getContentQuads: this._getContentQuads.bind(this),
         getFullAXTree: this._getFullAXTree.bind(this),
+        insertText: this._insertText.bind(this),
         goBack: this._goBack.bind(this),
         goForward: this._goForward.bind(this),
-        insertText: this._insertText.bind(this),
-        navigate: this._navigate.bind(this),
+        navigationInfo: this._navigationInfo.bind(this),
         reload: this._reload.bind(this),
         removeScriptToEvaluateOnNewDocument: this._removeScriptToEvaluateOnNewDocument.bind(this),
         requestDetails: this._requestDetails.bind(this),
@@ -494,36 +494,8 @@ class PageAgent {
     helper.removeListeners(this._eventListeners);
   }
 
-  async _navigate({frameId, url, referer}) {
-    try {
-      const uri = NetUtil.newURI(url);
-    } catch (e) {
-      throw new Error(`Invalid url: "${url}"`);
-    }
-    let referrerURI = null;
-    let referrerInfo = null;
-    if (referer) {
-      try {
-        referrerURI = NetUtil.newURI(referer);
-        const ReferrerInfo = Components.Constructor(
-          '@mozilla.org/referrer-info;1',
-          'nsIReferrerInfo',
-          'init'
-        );
-        referrerInfo = new ReferrerInfo(Ci.nsIHttpChannel.REFERRER_POLICY_UNSET, true, referrerURI);
-      } catch (e) {
-        throw new Error(`Invalid referer: "${referer}"`);
-      }
-    }
+  async _navigationInfo({frameId}) {
     const frame = this._frameTree.frame(frameId);
-    const docShell = frame.docShell().QueryInterface(Ci.nsIWebNavigation);
-    docShell.loadURI(url, {
-      triggeringPrincipal: Services.scriptSecurityManager.getSystemPrincipal(),
-      flags: Ci.nsIWebNavigation.LOAD_FLAGS_NONE,
-      referrerInfo,
-      postData: null,
-      headers: null,
-    });
     return {navigationId: frame.pendingNavigationId(), navigationURL: frame.pendingNavigationURL()};
   }
 

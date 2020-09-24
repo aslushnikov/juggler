@@ -48,9 +48,15 @@ class FrameTree {
     this._wdm.addListener(this._wdmListener);
     for (const workerDebugger of this._wdm.getWorkerDebuggerEnumerator())
       this._onWorkerCreated(workerDebugger);
+    dump(`
+    -- yoyo2 --
+    `);
 
     const flags = Ci.nsIWebProgress.NOTIFY_STATE_DOCUMENT |
                   Ci.nsIWebProgress.NOTIFY_FRAME_LOCATION;
+    dump(`
+    -- yoyo - 9 --
+    `);
     this._eventListeners = [
       helper.addObserver(this._onDOMWindowCreated.bind(this), 'content-document-global-created'),
       helper.addObserver(this._onDOMWindowCreated.bind(this), 'juggler-dom-window-reused'),
@@ -199,7 +205,7 @@ class FrameTree {
 
     let isDownload = false;
     try {
-      isDownload = (channel.contentDisposition === Ci.nsIChannel.DISPOSITION_ATTACHMENT);
+      // isDownload = !channel.isMainDocumentChannel && (channel.contentDisposition === Ci.nsIChannel.DISPOSITION_ATTACHMENT);
     } catch(e) {
       // The method is expected to throw if it's not an attachment.
     }
@@ -318,7 +324,8 @@ class Frame {
     this._runtime = runtime;
     this._docShell = docShell;
     this._children = new Set();
-    this._frameId = helper.generateId();
+    // Note: keep in sync with PageHandler
+    this._frameId = 'frame-' + docShell.browsingContext.id;
     this._parentFrame = null;
     this._url = '';
     if (docShell.domWindow && docShell.domWindow.location)
@@ -327,6 +334,14 @@ class Frame {
       this._parentFrame = parentFrame;
       parentFrame._children.add(this);
     }
+
+    dump(`
+
+      <content process>
+      url: ${this._url}
+      docShell.browsingContext.id = ${docShell.browsingContext.id}
+
+    `);
 
     this._lastCommittedNavigationId = null;
     this._pendingNavigationId = null;

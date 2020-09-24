@@ -361,6 +361,22 @@ class PageTarget {
     this._url = 'about:blank';
     this._openerId = opener ? opener.id() : undefined;
     this._channel = SimpleChannel.createForMessageManager(`browser::page[${this._targetId}]`, this._linkedBrowser.messageManager);
+    /*
+    const observer = (subject, topic, data) => {
+      switch (topic) {
+        case "message-manager-close":
+        case "message-manager-disconnect":
+          dump(`
+
+            MESSAGE MANAGER CLOSED OR DISCONNECTED  !
+
+          `);
+          break;
+      }
+    };
+    Services.obs.addObserver(observer, "message-manager-close");
+    Services.obs.addObserver(observer, "message-manager-disconnect");
+    */
     this._channelIds = new Set();
 
     const navigationListener = {
