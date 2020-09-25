@@ -491,8 +491,10 @@ class NetworkRequest {
       return;
     const causeType = this.httpChannel.loadInfo ? this.httpChannel.loadInfo.externalContentPolicyType : Ci.nsIContentPolicy.TYPE_OTHER;
     const internalCauseType = this.httpChannel.loadInfo ? this.httpChannel.loadInfo.internalContentPolicyType : Ci.nsIContentPolicy.TYPE_OTHER;
+    const frameId = this.httpChannel.loadInfo && this.httpChannel.loadInfo.targetBrowsingContext ? 'frame-' + this.httpChannel.loadInfo.targetBrowsingContext.id : undefined;
     pageNetwork.emit(PageNetwork.Events.Request, {
       url: this.httpChannel.URI.spec,
+      frameId,
       isIntercepted,
       requestId: this.requestId,
       redirectedFrom: this.redirectedFromId,

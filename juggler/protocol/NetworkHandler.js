@@ -117,6 +117,7 @@ class NetworkHandler {
     let pendingRequestCallback;
     let pendingRequestPromise = new Promise(x => pendingRequestCallback = x);
     this._pendingRequstWillBeSentEvents.add(pendingRequestPromise);
+    /*
     let details = null;
     try {
       details = await this._contentPage.send('requestDetails', {channelKey});
@@ -125,10 +126,11 @@ class NetworkHandler {
       this._pendingRequstWillBeSentEvents.delete(pendingRequestPromise);
       return;
     }
-    const frameId = details ? details.frameId : undefined;
+    */
+    // const frameId = details ? details.frameId : undefined;
     const activity = this._ensureHTTPActivity(eventDetails.requestId);
     activity.request = {
-      frameId,
+      // frameId,
       ...eventDetails,
     };
     this._reportHTTPAcitivityEvents(activity);

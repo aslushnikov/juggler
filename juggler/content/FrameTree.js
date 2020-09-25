@@ -245,9 +245,9 @@ class FrameTree {
   }
 
   _channelId(channel) {
-    if (channel instanceof Ci.nsIHttpChannel) {
-      const httpChannel = channel.QueryInterface(Ci.nsIHttpChannel);
-      return String(httpChannel.channelId);
+    if (channel instanceof Ci.nsIIdentChannel) {
+      const identChannel = channel.QueryInterface(Ci.nsIIdentChannel);
+      return String(identChannel.channelId);
     }
     return helper.generateId();
   }
@@ -318,7 +318,7 @@ class Frame {
     this._runtime = runtime;
     this._docShell = docShell;
     this._children = new Set();
-    this._frameId = helper.generateId();
+    this._frameId = 'frame-' + this._docShell.browsingContext.id;// helper.generateId();
     this._parentFrame = null;
     this._url = '';
     if (docShell.domWindow && docShell.domWindow.location)
