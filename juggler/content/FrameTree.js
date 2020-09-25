@@ -199,7 +199,7 @@ class FrameTree {
 
     let isDownload = false;
     try {
-      isDownload = (channel.contentDisposition === Ci.nsIChannel.DISPOSITION_ATTACHMENT);
+      // isDownload = (channel.contentDisposition === Ci.nsIChannel.DISPOSITION_ATTACHMENT);
     } catch(e) {
       // The method is expected to throw if it's not an attachment.
     }
