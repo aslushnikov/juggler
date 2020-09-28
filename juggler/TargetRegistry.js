@@ -208,38 +208,45 @@ class TargetRegistry {
           target.dispose();
     };
 
-    Services.wm.addListener({
-      onOpenWindow: async window => {
-        const domWindow = window.QueryInterface(Ci.nsIInterfaceRequestor).getInterface(Ci.nsIDOMWindowInternal || Ci.nsIDOMWindow);
-        if (!(domWindow instanceof Ci.nsIDOMChromeWindow))
-          return;
-        if (domWindow.document.readyState !== 'uninitialized')
-          throw new Error('DOMWindow should not be loaded yet');
-        await new Promise(fulfill => {
-          domWindow.addEventListener('DOMContentLoaded', function listener() {
-            domWindow.removeEventListener('DOMContentLoaded', listener);
-            fulfill();
-          });
+    const onOpenWindow = async window => {
+      const domWindow = window.QueryInterface(Ci.nsIInterfaceRequestor).getInterface(Ci.nsIDOMWindowInternal || Ci.nsIDOMWindow);
+      if (!(domWindow instanceof Ci.nsIDOMChromeWindow))
+        return;
+      if (domWindow.document.readyState !== 'uninitialized')
+        throw new Error('DOMWindow should not be loaded yet');
+      await new Promise(fulfill => {
+        domWindow.addEventListener('DOMContentLoaded', function listener() {
+          domWindow.removeEventListener('DOMContentLoaded', listener);
+          fulfill();
         });
-        if (!domWindow.gBrowser)
-          return;
-        domWindow.gBrowser.tabContainer.addEventListener('TabOpen', event => onTabOpenListener(domWindow, event));
-        domWindow.gBrowser.tabContainer.addEventListener('TabClose', onTabCloseListener);
-        for (const tab of domWindow.gBrowser.tabs)
-          onTabOpenListener(domWindow, {target: tab});
-      },
-      onCloseWindow: window => {
-        const domWindow = window.QueryInterface(Ci.nsIInterfaceRequestor).getInterface(Ci.nsIDOMWindowInternal || Ci.nsIDOMWindow);
-        if (!(domWindow instanceof Ci.nsIDOMChromeWindow))
-          return;
-        if (!domWindow.gBrowser)
-          return;
-        domWindow.gBrowser.tabContainer.removeEventListener('TabOpen', onTabOpenListener);
-        domWindow.gBrowser.tabContainer.removeEventListener('TabClose', onTabCloseListener);
-        for (const tab of domWindow.gBrowser.tabs)
-          onTabCloseListener({ target: tab });
-      },
+      });
+      if (!domWindow.gBrowser)
+        return;
+      domWindow.gBrowser.tabContainer.addEventListener('TabOpen', event => onTabOpenListener(domWindow, event));
+      domWindow.gBrowser.tabContainer.addEventListener('TabClose', onTabCloseListener);
+      for (const tab of domWindow.gBrowser.tabs)
+        onTabOpenListener(domWindow, {target: tab});
+    };
+
+    const onCloseWindow = window => {
+      const domWindow = window.QueryInterface(Ci.nsIInterfaceRequestor).getInterface(Ci.nsIDOMWindowInternal || Ci.nsIDOMWindow);
+      if (!(domWindow instanceof Ci.nsIDOMChromeWindow))
+        return;
+      if (!domWindow.gBrowser)
+        return;
+      domWindow.gBrowser.tabContainer.removeEventListener('TabOpen', onTabOpenListener);
+      domWindow.gBrowser.tabContainer.removeEventListener('TabClose', onTabCloseListener);
+      for (const tab of domWindow.gBrowser.tabs)
+        onTabCloseListener({ target: tab });
+    };
+
+    Services.wm.addListener({
+      onOpenWindow,
+      onCloseWindow,
     });
+
+    for (const win of Services.wm.getEnumerator(null))
+      onOpenWindow(win);
 
     const extHelperAppSvc = Cc["@mozilla.org/uriloader/external-helper-app-service;1"].getService(Ci.nsIExternalHelperAppService);
     extHelperAppSvc.setDownloadInterceptor(new DownloadInterceptor(this));
@@ -518,8 +525,19 @@ class BrowserContext {
 
   setCustomUserAgent(userAgent) {
     this._customUserAgent = userAgent;
-    for (const page of this.pages)
-      page._linkedBrowser.browsingContext.customUserAgent = userAgent;
+    // We cannot just iterate over pages since these are created *after*
+    // content is initialized.
+    //
+    // Instead, we should get all relevant tabs that belong to this browser context.
+    for (const win of Services.wm.getEnumerator(null)) {
+      if (!win.gBrowser)
+        continue;
+      for (const tab of win.gBrowser.tabs) {
+        if (tab.linkedBrowser.browsingContext.originAttributes.userContextId !== this.userContextId)
+          continue;
+        tab.linkedBrowser.browsingContext.customUserAgent = userAgent;
+      }
+    }
   }
 
   customUserAgent() {
