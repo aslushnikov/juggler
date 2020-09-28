@@ -225,6 +225,8 @@ class TargetRegistry {
           return;
         domWindow.gBrowser.tabContainer.addEventListener('TabOpen', event => onTabOpenListener(domWindow, event));
         domWindow.gBrowser.tabContainer.addEventListener('TabClose', onTabCloseListener);
+        for (const tab of domWindow.gBrowser.tabs)
+          onTabOpenListener(domWindow, {target: tab});
       },
       onCloseWindow: window => {
         const domWindow = window.QueryInterface(Ci.nsIInterfaceRequestor).getInterface(Ci.nsIDOMWindowInternal || Ci.nsIDOMWindow);
