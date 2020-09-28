@@ -163,6 +163,15 @@ class NetworkRequest {
       appendExtraHTTPHeaders(httpChannel, pageNetwork._extraHTTPHeaders);
     }
 
+  /*
+    {
+      const browserContext = this._networkObserver._targetRegistry.browserContextForBrowsingContext(httpChannel?.loadInfo?.browsingContext);
+      if (browserContext && browserContext.customUserAgent()) {
+        httpChannel.setRequestHeader('user-agent', browserContext.customUserAgent(), true);
+      }
+    }
+    */
+
     this._responseBodyChunks = [];
 
     httpChannel.QueryInterface(Ci.nsITraceableChannel);

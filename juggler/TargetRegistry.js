@@ -196,6 +196,8 @@ class TargetRegistry {
       const browserContext = this._userContextIdToBrowserContext.get(userContextId);
       if (browserContext && browserContext.defaultViewportSize)
         setViewportSizeForBrowser(browserContext.defaultViewportSize, tab.linkedBrowser, window);
+      if (browserContext && browserContext._customUserAgent)
+        tab.linkedBrowser.browsingContext.customUserAgent = browserContext._customUserAgent;
     };
 
     const onTabCloseListener = event => {
@@ -271,6 +273,12 @@ class TargetRegistry {
     return this._userContextIdToBrowserContext.get(userContextId);
   }
 
+  browserContextForBrowsingContext(browsingContext) {
+    if (!browsingContext)
+      return null;
+    return this._userContextIdToBrowserContext.get(browsingContext.originAttributes.userContextId);
+  }
+
   async newPage({browserContextId}) {
     const browserContext = this.browserContextForId(browserContextId);
     const features = "chrome,dialog=no,all";
@@ -344,6 +352,7 @@ class TargetRegistry {
     }
     return null;
   }
+
 }
 
 class PageTarget {
@@ -501,7 +510,18 @@ class BrowserContext {
     this.bindings = [];
     this.settings = {};
     this.pages = new Set();
+    this._customUserAgent = null;
     this._firstPagePromise = new Promise(f => this._firstPageCallback = f);
+  }
+
+  setCustomUserAgent(userAgent) {
+    this._customUserAgent = userAgent;
+    for (const page of this.pages)
+      page._linkedBrowser.browsingContext.customUserAgent = userAgent;
+  }
+
+  customUserAgent() {
+    return this._customUserAgent;
   }
 
   async destroy() {

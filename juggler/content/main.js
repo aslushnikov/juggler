@@ -61,10 +61,6 @@ const applySetting = {
         Ci.nsIDocShell.ONLINE_OVERRIDE_ONLINE : Ci.nsIDocShell.ONLINE_OVERRIDE_OFFLINE;
   },
 
-  userAgent: (userAgent) => {
-    docShell.browsingContext.customUserAgent = userAgent;
-  },
-
   bypassCSP: (bypassCSP) => {
     docShell.bypassCSPEnabled = bypassCSP;
   },
@@ -114,6 +110,7 @@ function initialize() {
     if (value !== undefined)
       applySetting[name](value);
   }
+
   for (const script of scriptsToEvaluateOnNewDocument)
     frameTree.addScriptToEvaluateOnNewDocument(script);
   for (const { name, script } of bindings)
