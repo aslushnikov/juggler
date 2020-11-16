@@ -135,13 +135,7 @@ class nsCertOverrideService final : public nsICertOverrideService,
  private:
   ~nsCertOverrideService();
 
-<<<<<<< HEAD
-||||||| parent of 77a9d926766f... chore: bootstrap build #1209
-  bool mDisableAllSecurityCheck;
-=======
-  bool mDisableAllSecurityCheck;
   mozilla::HashSet<uint32_t> mUserContextIdsWithDisabledSecurityChecks;
->>>>>>> 77a9d926766f... chore: bootstrap build #1209
   mozilla::Mutex mMutex;
   bool mDisableAllSecurityCheck;
   nsCOMPtr<nsIFile> mSettingsFile;

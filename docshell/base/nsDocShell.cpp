@@ -3391,7 +3391,8 @@ nsDocShell::SetColorSchemeOverride(ColorSchemeOverride aColorSchemeOverride) {
   RefPtr<nsPresContext> presContext = GetPresContext();
   if (presContext) {
     presContext->MediaFeatureValuesChanged(
-        {MediaFeatureChangeReason::SystemMetricsChange});
+        {MediaFeatureChangeReason::SystemMetricsChange},
+        MediaFeatureChangePropagation::JustThisDocument);
   }
   return NS_OK;
 }
