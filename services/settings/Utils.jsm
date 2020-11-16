@@ -59,7 +59,7 @@ var Utils = {
       Ci.nsIEnvironment
     );
     const isXpcshell = env.exists("XPCSHELL_TEST_PROFILE_DIR");
-    return AppConstants.RELEASE_OR_BETA && !Cu.isInAutomation && !isXpcshell
+    return false && !Cu.isInAutomation && !isXpcshell
       ? "https://firefox.settings.services.mozilla.com/v1"
       : gServerURL;
   },

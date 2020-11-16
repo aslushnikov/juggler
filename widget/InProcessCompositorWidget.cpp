@@ -4,6 +4,8 @@
 
 #include "InProcessCompositorWidget.h"
 
+#include "HeadlessCompositorWidget.h"
+#include "HeadlessWidget.h"
 #include "mozilla/VsyncDispatcher.h"
 #include "nsBaseWidget.h"
 
@@ -22,6 +24,12 @@ RefPtr<CompositorWidget> CompositorWidget::CreateLocal(
     const CompositorWidgetInitData& aInitData,
     const layers::CompositorOptions& aOptions, nsIWidget* aWidget) {
   MOZ_ASSERT(aWidget);
+  if (aInitData.type() ==
+      CompositorWidgetInitData::THeadlessCompositorWidgetInitData) {
+    return new HeadlessCompositorWidget(
+        aInitData.get_HeadlessCompositorWidgetInitData(), aOptions,
+        static_cast<HeadlessWidget*>(aWidget));
+  }
 #  ifdef MOZ_WIDGET_ANDROID
   return new AndroidCompositorWidget(aOptions,
                                      static_cast<nsBaseWidget*>(aWidget));
