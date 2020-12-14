@@ -3228,8 +3228,7 @@ nsDocShell::GetForceActiveState(bool* aEnabled) {
 NS_IMETHODIMP
 nsDocShell::SetForceActiveState(bool aEnabled) {
   mForceActiveState = aEnabled;
-  if (aEnabled)
-    SetIsActive(true);
+  ActivenessMaybeChanged();
   return NS_OK;
 }
 
@@ -4989,29 +4988,8 @@ nsDocShell::GetIsOffScreenBrowser(bool* aIsOffScreen) {
   return NS_OK;
 }
 
-<<<<<<< HEAD
 void nsDocShell::ActivenessMaybeChanged() {
-  bool isActive = mBrowsingContext->IsActive();
-||||||| parent of b4a3fbbf1034... chore: bootstrap build #1221
-NS_IMETHODIMP
-nsDocShell::SetIsActive(bool aIsActive) {
-  // Keep track ourselves.
-  // Changing the activeness on a discarded browsing context has no effect.
-  Unused << mBrowsingContext->SetIsActive(aIsActive);
-
-  // Tell the PresShell about it.
-=======
-NS_IMETHODIMP
-nsDocShell::SetIsActive(bool aIsActive) {
-  if (mForceActiveState && !aIsActive)
-    return NS_OK;
-
-  // Keep track ourselves.
-  // Changing the activeness on a discarded browsing context has no effect.
-  Unused << mBrowsingContext->SetIsActive(aIsActive);
-
-  // Tell the PresShell about it.
->>>>>>> b4a3fbbf1034... chore: bootstrap build #1221
+  bool isActive = mForceActiveState || mBrowsingContext->IsActive();
   if (RefPtr<PresShell> presShell = GetPresShell()) {
     presShell->SetIsActive(isActive);
   }

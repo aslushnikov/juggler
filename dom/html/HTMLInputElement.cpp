@@ -739,19 +739,13 @@ nsresult HTMLInputElement::InitFilePicker(FilePickerType aType) {
     return NS_ERROR_FAILURE;
   }
 
-<<<<<<< HEAD
-  if (IsPopupBlocked(doc)) {
-||||||| parent of b4a3fbbf1034... chore: bootstrap build #1221
-  if (IsPopupBlocked()) {
-=======
   nsDocShell* docShell = static_cast<nsDocShell*>(win->GetDocShell());
   if (docShell && docShell->IsFileInputInterceptionEnabled()) {
     docShell->FilePickerShown(this);
     return NS_OK;
   }
 
-  if (IsPopupBlocked()) {
->>>>>>> b4a3fbbf1034... chore: bootstrap build #1221
+  if (IsPopupBlocked(doc)) {
     return NS_OK;
   }
 
