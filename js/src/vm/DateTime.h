@@ -67,6 +67,8 @@ enum class ResetTimeZoneMode : bool {
  */
 extern void ResetTimeZoneInternal(ResetTimeZoneMode mode);
 
+extern void SetTimeZoneOverrideInternal(mozilla::UniquePtr<icu::TimeZone> timeZone);
+
 /**
  * ICU's default time zone, used for various date/time formatting operations
  * that include the local time in the representation, is allowed to go stale
@@ -206,6 +208,7 @@ class DateTimeInfo {
   // and js::ResyncICUDefaultTimeZone().
   friend void js::ResetTimeZoneInternal(ResetTimeZoneMode);
   friend void js::ResyncICUDefaultTimeZone();
+  friend void js::SetTimeZoneOverrideInternal(mozilla::UniquePtr<icu::TimeZone>);
 
   static void resetTimeZone(ResetTimeZoneMode mode) {
     auto guard = instance->lock();
@@ -302,6 +305,8 @@ class DateTimeInfo {
   JS::UniqueChars locale_;
   JS::UniqueTwoByteChars standardName_;
   JS::UniqueTwoByteChars daylightSavingsName_;
+
+  mozilla::UniquePtr<icu::TimeZone> timeZoneOverride_;
 #else
   // Restrict the data-time range to the minimum required time_t range as
   // specified in POSIX. Most operating systems support 64-bit time_t
@@ -316,6 +321,8 @@ class DateTimeInfo {
   static constexpr int64_t RangeExpansionAmount = 30 * SecondsPerDay;
 
   void internalResetTimeZone(ResetTimeZoneMode mode);
+
+  void internalSetTimeZoneOverride(mozilla::UniquePtr<icu::TimeZone> timeZone);
 
   void updateTimeZone();
 

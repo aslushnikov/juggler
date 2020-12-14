@@ -8,12 +8,34 @@
 #define nsDocShell_h__
 
 #include "Units.h"
+<<<<<<< HEAD
+||||||| parent of b4a3fbbf1034... chore: bootstrap build #1221
+#include "jsapi.h"
+#include "mozilla/BasePrincipal.h"
+#include "mozilla/HalScreenConfiguration.h"
+#include "mozilla/LinkedList.h"
+=======
+#include "jsapi.h"
+#include "mozilla/BasePrincipal.h"
+#include "mozilla/dom/Geolocation.h"
+#include "mozilla/HalScreenConfiguration.h"
+#include "mozilla/LinkedList.h"
+>>>>>>> b4a3fbbf1034... chore: bootstrap build #1221
 #include "mozilla/Maybe.h"
 #include "mozilla/ScrollbarPreferences.h"
 #include "mozilla/TimelineConsumers.h"
 #include "mozilla/UniquePtr.h"
 #include "mozilla/WeakPtr.h"
 #include "mozilla/dom/BrowsingContext.h"
+<<<<<<< HEAD
+||||||| parent of b4a3fbbf1034... chore: bootstrap build #1221
+#include "mozilla/dom/ChildSHistory.h"
+#include "mozilla/dom/ProfileTimelineMarkerBinding.h"
+=======
+#include "mozilla/dom/Element.h"
+#include "mozilla/dom/ChildSHistory.h"
+#include "mozilla/dom/ProfileTimelineMarkerBinding.h"
+>>>>>>> b4a3fbbf1034... chore: bootstrap build #1221
 #include "mozilla/dom/WindowProxyHolder.h"
 #include "nsCOMPtr.h"
 #include "nsCharsetSource.h"
@@ -398,6 +420,15 @@ class nsDocShell final : public nsDocLoader,
 
   void SetWillChangeProcess() { mWillChangeProcess = true; }
   bool WillChangeProcess() { return mWillChangeProcess; }
+
+  bool IsFileInputInterceptionEnabled();
+  void FilePickerShown(mozilla::dom::Element* element);
+
+  bool ShouldOverrideHasFocus() const;
+
+  bool IsBypassCSPEnabled();
+
+  RefPtr<nsGeolocationService> GetGeolocationServiceOverride();
 
   // Create a content viewer within this nsDocShell for the given
   // `WindowGlobalChild` actor.
@@ -982,6 +1013,8 @@ class nsDocShell final : public nsDocLoader,
 
   bool CSSErrorReportingEnabled() const { return mCSSErrorReportingEnabled; }
 
+  nsDocShell* GetRootDocShell();
+
   // Handles retrieval of subframe session history for nsDocShell::LoadURI. If a
   // load is requested in a subframe of the current DocShell, the subframe
   // loadType may need to reflect the loadType of the parent document, or in
@@ -1209,6 +1242,15 @@ class nsDocShell final : public nsDocLoader,
   bool mAllowDNSPrefetch : 1;
   bool mAllowWindowControl : 1;
   bool mCSSErrorReportingEnabled : 1;
+  bool mFileInputInterceptionEnabled: 1;
+  bool mOverrideHasFocus : 1;
+  bool mBypassCSPEnabled : 1;
+  bool mForceActiveState : 1;
+  nsString mLanguageOverride;
+  RefPtr<nsGeolocationService> mGeolocationServiceOverride;
+  OnlineOverride mOnlineOverride;
+  ColorSchemeOverride mColorSchemeOverride;
+
   bool mAllowAuth : 1;
   bool mAllowKeywordFixup : 1;
   bool mIsOffScreenBrowser : 1;

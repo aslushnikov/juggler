@@ -206,6 +206,8 @@ class nsExternalHelperAppService : public nsIExternalHelperAppService,
       mozilla::dom::BrowsingContext* aContentContext, bool aForceSave,
       nsIInterfaceRequestor* aWindowContext,
       nsIStreamListener** aStreamListener);
+
+  nsCOMPtr<nsIDownloadInterceptor> mInterceptor;
 };
 
 /**
@@ -397,6 +399,9 @@ class nsExternalAppHandler final : public nsIStreamListener,
    * Upon successful return, both mTempFile and mSaver will be valid.
    */
   nsresult SetUpTempFile(nsIChannel* aChannel);
+
+  nsresult CreateSaverForTempFile();
+
   /**
    * When we download a helper app, we are going to retarget all load
    * notifications into our own docloader and load group instead of
