@@ -24,22 +24,16 @@ namespace widget {
 RefPtr<CompositorWidget> CompositorWidget::CreateLocal(
     const CompositorWidgetInitData& aInitData,
     const layers::CompositorOptions& aOptions, nsIWidget* aWidget) {
-<<<<<<< HEAD
   // We're getting crashes from storing a NULL mWidget, and this is the
   // only remaining explanation that doesn't involve memory corruption,
   // so placing a release assert here.
   MOZ_RELEASE_ASSERT(aWidget);
-||||||| parent of deb9f97faa... chore: bootstrap build #1235
-  MOZ_ASSERT(aWidget);
-=======
-  MOZ_ASSERT(aWidget);
   if (aInitData.type() ==
       CompositorWidgetInitData::THeadlessCompositorWidgetInitData) {
     return new HeadlessCompositorWidget(
         aInitData.get_HeadlessCompositorWidgetInitData(), aOptions,
         static_cast<HeadlessWidget*>(aWidget));
   }
->>>>>>> deb9f97faa... chore: bootstrap build #1235
 #  ifdef MOZ_WIDGET_ANDROID
   return new AndroidCompositorWidget(aOptions,
                                      static_cast<nsBaseWidget*>(aWidget));

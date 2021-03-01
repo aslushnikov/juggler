@@ -153,17 +153,13 @@ class HeadlessWidget : public nsBaseWidget {
                                               uint32_t aPointerOrientation,
                                               nsIObserver* aObserver) override;
 
-<<<<<<< HEAD
   virtual nsresult SynthesizeNativeTouchPadPinch(
       TouchpadPinchPhase aEventPhase, float aScale, LayoutDeviceIntPoint aPoint,
       int32_t aModifierFlags) override;
 
-||||||| parent of deb9f97faa... chore: bootstrap build #1235
-=======
   using SnapshotListener = std::function<void(RefPtr<gfx::DataSourceSurface>&&)>;
   void SetSnapshotListener(SnapshotListener&& listener);
 
->>>>>>> deb9f97faa... chore: bootstrap build #1235
  private:
   ~HeadlessWidget();
   bool mEnabled;
