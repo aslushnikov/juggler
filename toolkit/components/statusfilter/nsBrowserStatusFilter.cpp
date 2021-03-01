@@ -162,8 +162,16 @@ nsBrowserStatusFilter::OnStateChange(nsIWebProgress* aWebProgress,
 }
 
 NS_IMETHODIMP
-nsBrowserStatusFilter::OnProgressChange(nsIWebProgress* aWebProgress,
-                                        nsIRequest* aRequest,
+nsBrowserStatusFilter::OnFrameLocationChange(nsIWebProgress *aWebProgress,
+                                             nsIRequest *aRequest,
+                                             nsIURI *aLocation,
+                                             uint32_t aFlags) {
+  return NS_OK;
+}
+
+NS_IMETHODIMP
+nsBrowserStatusFilter::OnProgressChange(nsIWebProgress *aWebProgress,
+                                        nsIRequest *aRequest,
                                         int32_t aCurSelfProgress,
                                         int32_t aMaxSelfProgress,
                                         int32_t aCurTotalProgress,

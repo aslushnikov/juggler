@@ -107,6 +107,8 @@ void HeadlessWidget::Destroy() {
     }
   }
 
+  SetSnapshotListener(nullptr);
+
   nsBaseWidget::OnDestroy();
 
   nsBaseWidget::Destroy();
@@ -509,6 +511,7 @@ nsresult HeadlessWidget::SynthesizeNativeTouchPoint(
   return NS_OK;
 }
 
+<<<<<<< HEAD
 nsresult HeadlessWidget::SynthesizeNativeTouchPadPinch(
     TouchpadPinchPhase aEventPhase, float aScale, LayoutDeviceIntPoint aPoint,
     int32_t aModifierFlags) {
@@ -556,5 +559,17 @@ nsresult HeadlessWidget::SynthesizeNativeTouchPadPinch(
   DispatchPinchGestureInput(inputToDispatch);
   return NS_OK;
 }
+||||||| parent of deb9f97faa... chore: bootstrap build #1235
+=======
+void HeadlessWidget::SetSnapshotListener(SnapshotListener&& listener) {
+  if (!mCompositorWidget) {
+    if (listener)
+      fprintf(stderr, "Trying to set SnapshotListener without compositor widget\n");
+    return;
+  }
+  mCompositorWidget->SetSnapshotListener(std::move(listener));
+}
+
+>>>>>>> deb9f97faa... chore: bootstrap build #1235
 }  // namespace widget
 }  // namespace mozilla
