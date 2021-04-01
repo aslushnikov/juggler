@@ -1357,24 +1357,6 @@ void nsDocLoader::FireOnLocationChange(nsIWebProgress* aWebProgress,
   }
 }
 
-void nsDocLoader::FireOnFrameLocationChange(nsIWebProgress* aWebProgress,
-                                       nsIRequest* aRequest,
-                                       nsIURI *aUri,
-                                       uint32_t aFlags) {
-  NOTIFY_LISTENERS(nsIWebProgress::NOTIFY_FRAME_LOCATION,
-    nsCOMPtr<nsIWebProgressListener2> listener2 =
-      do_QueryReferent(info.mWeakListener);
-    if (!listener2)
-      continue;
-    listener2->OnFrameLocationChange(aWebProgress, aRequest, aUri, aFlags);
-  );
-
-  // Pass the notification up to the parent...
-  if (mParent) {
-    mParent->FireOnFrameLocationChange(aWebProgress, aRequest, aUri, aFlags);
-  }
-}
-
 void nsDocLoader::FireOnStatusChange(nsIWebProgress* aWebProgress,
                                      nsIRequest* aRequest, nsresult aStatus,
                                      const char16_t* aMessage) {

@@ -44,13 +44,7 @@ interface nsIURI;
 interface nsIChannel;
 interface nsIContentViewer;
 interface nsIContentSecurityPolicy;
-<<<<<<< HEAD
-||||||| parent of 60075ec24609... chore: bootstrap build #1241
-interface nsIDocShellLoadInfo;
-=======
 interface nsIDOMGeoPosition;
-interface nsIDocShellLoadInfo;
->>>>>>> 60075ec24609... chore: bootstrap build #1241
 interface nsIEditor;
 interface nsIEditingSession;
 interface nsIInputStream;

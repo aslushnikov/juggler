@@ -1532,62 +1532,11 @@ bool nsDocShell::SetCurrentURI(nsIURI* aURI, nsIRequest* aRequest,
     mHasLoadedNonBlankURI = true;
   }
 
-<<<<<<< HEAD
   // Don't fire onLocationChange when creating a subframe's initial about:blank
   // document, as this can happen when it's not safe for us to run script.
   if (aIsInitialAboutBlank && !mHasLoadedNonBlankURI &&
       !mBrowsingContext->IsTop()) {
     MOZ_ASSERT(!aRequest && aLocationFlags == 0);
-||||||| parent of 60075ec24609... chore: bootstrap build #1241
-  bool isRoot = mBrowsingContext->IsTop();
-  bool isSubFrame = false;  // Is this a subframe navigation?
-
-  if (mozilla::SessionHistoryInParent()) {
-    if (mLoadingEntry) {
-      isSubFrame = mLoadingEntry->mInfo.IsSubFrame();
-    } else {
-      isSubFrame = !mBrowsingContext->IsTop() && mActiveEntry;
-    }
-    MOZ_LOG(gSHLog, LogLevel::Debug,
-            ("nsDocShell %p SetCurrentURI, isSubFrame=%d", this, isSubFrame));
-  } else {
-    if (mLSHE) {
-      isSubFrame = mLSHE->GetIsSubFrame();
-    }
-  }
-
-  if (!isSubFrame && !isRoot) {
-    /*
-     * We don't want to send OnLocationChange notifications when
-     * a subframe is being loaded for the first time, while
-     * visiting a frameset page
-     */
-=======
-  bool isRoot = mBrowsingContext->IsTop();
-  bool isSubFrame = false;  // Is this a subframe navigation?
-
-  if (mozilla::SessionHistoryInParent()) {
-    if (mLoadingEntry) {
-      isSubFrame = mLoadingEntry->mInfo.IsSubFrame();
-    } else {
-      isSubFrame = !mBrowsingContext->IsTop() && mActiveEntry;
-    }
-    MOZ_LOG(gSHLog, LogLevel::Debug,
-            ("nsDocShell %p SetCurrentURI, isSubFrame=%d", this, isSubFrame));
-  } else {
-    if (mLSHE) {
-      isSubFrame = mLSHE->GetIsSubFrame();
-    }
-  }
-
-  FireOnFrameLocationChange(this, aRequest, aURI, aLocationFlags);
-  if (!isSubFrame && !isRoot) {
-    /*
-     * We don't want to send OnLocationChange notifications when
-     * a subframe is being loaded for the first time, while
-     * visiting a frameset page
-     */
->>>>>>> 60075ec24609... chore: bootstrap build #1241
     return false;
   }
 

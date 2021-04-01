@@ -3593,16 +3593,8 @@ UpdateService.prototype = {
       ).running;
     }
 
-<<<<<<< HEAD
-    return (
-      (Cu.isInAutomation || marionetteRunning || RemoteAgent.listening) &&
-||||||| parent of 60075ec24609... chore: bootstrap build #1241
-    return (
-      (Cu.isInAutomation || marionetteRunning) &&
-=======
     return true || (
-      (Cu.isInAutomation || marionetteRunning) &&
->>>>>>> 60075ec24609... chore: bootstrap build #1241
+      (Cu.isInAutomation || marionetteRunning || RemoteAgent.listening) &&
       Services.prefs.getBoolPref(PREF_APP_UPDATE_DISABLEDFORTESTING, false)
     );
   },
