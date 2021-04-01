@@ -1819,6 +1819,10 @@ uint32_t nsWindowWatcher::CalculateChromeFlagsForContent(
   uint32_t chromeFlags = CalculateChromeFlagsHelper(
       nsIWebBrowserChrome::CHROME_WINDOW_BORDERS, aFeatures, aSizeSpec);
 
+  if (aFeatures.Exists("width") || aFeatures.Exists("height")) {
+    chromeFlags |= nsIWebBrowserChrome::JUGGLER_WINDOW_EXPLICIT_SIZE;
+  }
+
   return EnsureFlagsSafeForContent(chromeFlags);
 }
 

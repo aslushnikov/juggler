@@ -4,7 +4,10 @@
 
 #include "InProcessCompositorWidget.h"
 
+#include "HeadlessCompositorWidget.h"
+#include "HeadlessWidget.h"
 #include "mozilla/VsyncDispatcher.h"
+#include "mozilla/widget/PlatformWidgetTypes.h"
 #include "nsBaseWidget.h"
 
 #if defined(MOZ_WIDGET_ANDROID) && !defined(MOZ_WIDGET_SUPPORTS_OOP_COMPOSITING)
@@ -23,10 +26,24 @@ RefPtr<CompositorWidget> CompositorWidget::CreateLocal(
     const layers::CompositorOptions& aOptions, nsIWidget* aWidget) {
   // We're getting crashes from storing a NULL mWidget, and this is the
   // only remaining explanation that doesn't involve memory corruption,
+<<<<<<< HEAD
   // so placing a release assert here. For even more sanity-checking, we
   // do it after the static_cast.
   nsBaseWidget* widget = static_cast<nsBaseWidget*>(aWidget);
   MOZ_RELEASE_ASSERT(widget);
+||||||| parent of 60075ec24609... chore: bootstrap build #1241
+  // so placing a release assert here.
+  MOZ_RELEASE_ASSERT(aWidget);
+=======
+  // so placing a release assert here.
+  MOZ_RELEASE_ASSERT(aWidget);
+  if (aInitData.type() ==
+      CompositorWidgetInitData::THeadlessCompositorWidgetInitData) {
+    return new HeadlessCompositorWidget(
+        aInitData.get_HeadlessCompositorWidgetInitData(), aOptions,
+        static_cast<HeadlessWidget*>(aWidget));
+  }
+>>>>>>> 60075ec24609... chore: bootstrap build #1241
 #  ifdef MOZ_WIDGET_ANDROID
   return new AndroidCompositorWidget(aOptions, widget);
 #  else

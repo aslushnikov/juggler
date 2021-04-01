@@ -604,6 +604,14 @@ void InterceptedHttpChannel::DoAsyncAbort(nsresult aStatus) {
 }
 
 NS_IMETHODIMP
+InterceptedHttpChannel::ResetInterceptionWithURI(nsIURI* aURI) {
+  if (aURI) {
+    mURI = aURI;
+  }
+  return ResetInterception();
+}
+
+NS_IMETHODIMP
 InterceptedHttpChannel::ResetInterception(void) {
   if (mCanceled) {
     return mStatus;
