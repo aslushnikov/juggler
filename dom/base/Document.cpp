@@ -17105,7 +17105,7 @@ StylePrefersColorScheme Document::PrefersColorScheme(
       case nsIDocShell::COLOR_SCHEME_OVERRIDE_DARK:
         return StylePrefersColorScheme::Dark;
       case nsIDocShell::COLOR_SCHEME_OVERRIDE_NO_PREFERENCE:
-        return StylePrefersColorScheme::NoPreference;
+        break;
     };
   }
   if (aIgnoreRFP == IgnoreRFP::No &&
