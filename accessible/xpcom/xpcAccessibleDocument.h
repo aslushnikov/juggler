@@ -48,6 +48,8 @@ class xpcAccessibleDocument : public xpcAccessibleHyperText,
                                 nsIAccessibleDocument** aDocument) final;
   NS_IMETHOD GetVirtualCursor(nsIAccessiblePivot** aVirtualCursor) final;
 
+  NS_IMETHOD GetIsUpdatePendingForJugglerAccessibility(bool* aUpdating) final;
+
   /**
    * Return XPCOM wrapper for the internal accessible.
    */

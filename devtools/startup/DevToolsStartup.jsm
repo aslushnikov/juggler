@@ -375,7 +375,7 @@ DevToolsStartup.prototype = {
 
       // Store devtoolsFlag to check it later in onWindowReady.
       this.devtoolsFlag = flags.devtools;
-
+      this.autoOpenDevtoolsForTabs = flags.autoOpenDevtoolsForTabs;
       /* eslint-disable mozilla/balanced-observers */
       // We are not expecting to remove those listeners until Firefox closes.
 
@@ -438,6 +438,7 @@ DevToolsStartup.prototype = {
 
     const console = cmdLine.handleFlag("jsconsole", false);
     const devtools = cmdLine.handleFlag("devtools", false);
+    const autoOpenDevtoolsForTabs = cmdLine.handleFlag("auto-open-devtools-for-tabs", false);
 
     let devToolsServer;
     try {
@@ -460,7 +461,7 @@ DevToolsStartup.prototype = {
       debuggerFlag = cmdLine.handleFlag("jsdebugger", false);
     }
 
-    return { console, debugger: debuggerFlag, devtools, devToolsServer };
+    return { console, debugger: debuggerFlag, devtools, autoOpenDevtoolsForTabs, devToolsServer };
   },
 
   /**
@@ -482,7 +483,20 @@ DevToolsStartup.prototype = {
       this._firstWindowReadyReceived = true;
     }
 
+    if (this.autoOpenDevtoolsForTabs) {
+      this.handleDevToolsOpenForEveryTab(window);
+    }
+
     JsonView.initialize();
+  },
+
+  handleDevToolsOpenForEveryTab(window) {
+    const require = this.initDevTools("CommandLine");
+    const { gDevTools } = require("devtools/client/framework/devtools");
+    window.gBrowser.tabContainer.addEventListener('TabOpen', async (event) => {
+      await gDevTools.showToolboxForTab(event.target);
+    });
+    gDevTools.showToolboxForTab(window.gBrowser.selectedTab).catch(() => {});
   },
 
   removeDevToolsMenus(window) {
@@ -1243,6 +1257,7 @@ DevToolsStartup.prototype = {
     "                     Enables debugging (some) application startup code paths.\n" +
     "                     Only has an effect when `--jsdebugger` is also supplied.\n" +
     "  --devtools         Open DevTools on initial load.\n" +
+    "  --auto-open-devtools-for-tabs Open DevTools on new Tabs.\n" +
     "  --start-debugger-server [ws:][ <port> | <path> ] Start the devtools server on\n" +
     "                     a TCP port or Unix domain socket path. Defaults to TCP port\n" +
     "                     6000. Use WebSocket protocol if ws: prefix is specified.\n",

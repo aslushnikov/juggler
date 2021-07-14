@@ -31,6 +31,7 @@
 
 #include "nsIGeolocationProvider.h"
 #include "mozilla/Attributes.h"
+#include "nsDocShell.h"
 
 class nsGeolocationService;
 class nsGeolocationRequest;
@@ -38,6 +39,7 @@ class nsGeolocationRequest;
 namespace mozilla {
 namespace dom {
 class Geolocation;
+
 typedef CallbackObjectHolder<PositionCallback, nsIDOMGeoPositionCallback>
     GeoPositionCallback;
 typedef CallbackObjectHolder<PositionErrorCallback,
@@ -51,13 +53,14 @@ struct CachedPositionAndAccuracy {
   bool isHighAccuracy;
 };
 
+
 /**
  * Singleton that manages the geolocation provider
  */
 class nsGeolocationService final : public nsIGeolocationUpdate,
                                    public nsIObserver {
  public:
-  static already_AddRefed<nsGeolocationService> GetGeolocationService();
+  static already_AddRefed<nsGeolocationService> GetGeolocationService(nsDocShell* docShell = nullptr);
   static mozilla::StaticRefPtr<nsGeolocationService> sService;
 
   NS_DECL_THREADSAFE_ISUPPORTS
@@ -181,6 +184,8 @@ class Geolocation final : public nsIGeolocationUpdate, public nsWrapperCache {
   // Get the singleton non-window Geolocation instance.  This never returns
   // null.
   static already_AddRefed<Geolocation> NonWindowSingleton();
+
+  nsGeolocationService* GetGeolocationService() { return mService; };
 
  private:
   ~Geolocation();
