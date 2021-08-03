@@ -165,7 +165,12 @@ interface nsICertOverrideService : nsISupports {
   [binaryname(HasMatchingOverrideScriptable), implicit_jscontext, must_use]
   boolean hasMatchingOverride(in AUTF8String aHostName,
                               in int32_t aPort,
+<<<<<<< HEAD
                               in jsval aOriginAttributes,
+||||||| parent of 98536ed2fa3c... chore(ff-beta): bootstrap build #1271
+=======
+                              in uint32_t aUserContextId,
+>>>>>>> 98536ed2fa3c... chore(ff-beta): bootstrap build #1271
                               in nsIX509Cert aCert,
                               out uint32_t aOverrideBits,
                               out boolean aIsTemporary);
@@ -213,7 +218,15 @@ interface nsICertOverrideService : nsISupports {
    *  @param aDisable If true, disable all security check and make
    *                  hasMatchingOverride always return true.
    */
+<<<<<<< HEAD
   void setDisableAllSecurityChecksAndLetAttackersInterceptMyData(in boolean aDisable);
 
   readonly attribute boolean securityCheckDisabled;
+||||||| parent of 98536ed2fa3c... chore(ff-beta): bootstrap build #1271
+  void setDisableAllSecurityChecksAndLetAttackersInterceptMyData(in boolean aDisable);
+=======
+  void setDisableAllSecurityChecksAndLetAttackersInterceptMyData(
+      in boolean aDisable,
+      [optional] in uint32_t aUserContextId);
+>>>>>>> 98536ed2fa3c... chore(ff-beta): bootstrap build #1271
 };

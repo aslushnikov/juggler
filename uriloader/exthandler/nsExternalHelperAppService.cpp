@@ -101,6 +101,7 @@
 
 #include "mozilla/Components.h"
 #include "mozilla/ClearOnShutdown.h"
+#include "mozilla/ErrorNames.h"
 #include "mozilla/Preferences.h"
 #include "mozilla/ipc/URIUtils.h"
 
@@ -922,6 +923,12 @@ NS_IMETHODIMP nsExternalHelperAppService::ApplyDecodingForExtension(
   return NS_OK;
 }
 
+NS_IMETHODIMP nsExternalHelperAppService::SetDownloadInterceptor(
+    nsIDownloadInterceptor* interceptor) {
+  mInterceptor = interceptor;
+  return NS_OK;
+}
+
 nsresult nsExternalHelperAppService::GetFileTokenForPath(
     const char16_t* aPlatformAppPath, nsIFile** aFile) {
   nsDependentString platformAppPath(aPlatformAppPath);
@@ -1588,7 +1595,12 @@ nsresult nsExternalAppHandler::SetUpTempFile(nsIChannel* aChannel) {
   // Strip off the ".part" from mTempLeafName
   mTempLeafName.Truncate(mTempLeafName.Length() - ArrayLength(".part") + 1);
 
+  return CreateSaverForTempFile();
+}
+
+nsresult nsExternalAppHandler::CreateSaverForTempFile() {
   MOZ_ASSERT(!mSaver, "Output file initialization called more than once!");
+  nsresult rv;
   mSaver =
       do_CreateInstance(NS_BACKGROUNDFILESAVERSTREAMLISTENER_CONTRACTID, &rv);
   NS_ENSURE_SUCCESS(rv, rv);
@@ -1761,7 +1773,36 @@ NS_IMETHODIMP nsExternalAppHandler::OnStartRequest(nsIRequest* request) {
     return NS_OK;
   }
 
-  rv = SetUpTempFile(aChannel);
+  bool isIntercepted = false;
+  nsCOMPtr<nsIDownloadInterceptor> interceptor = mExtProtSvc->mInterceptor;
+  if (interceptor) {
+    nsCOMPtr<nsIFile> fileToUse;
+    rv = interceptor->InterceptDownloadRequest(this, request, mBrowsingContext, getter_AddRefs(fileToUse), &isIntercepted);
+    if (!NS_SUCCEEDED(rv)) {
+      LOG(("    failed to call nsIDowloadInterceptor.interceptDownloadRequest"));
+      return rv;
+    }
+    if (isIntercepted) {
+      LOG(("    request interceped by nsIDowloadInterceptor"));
+      if (fileToUse) {
+        mTempFile = fileToUse;
+        rv = mTempFile->GetLeafName(mTempLeafName);
+        NS_ENSURE_SUCCESS(rv, rv);
+      } else {
+        Cancel(NS_BINDING_ABORTED);
+        return NS_OK;
+      }
+    }
+  }
+
+  // Temp file is the final destination when download is intercepted. In that
+  // case we only need to create saver (and not create transfer later). Not creating
+  // mTransfer also cuts off all downloads handling logic in the js compoenents and
+  // browser UI.
+  if (isIntercepted)
+    rv = CreateSaverForTempFile();
+  else
+    rv = SetUpTempFile(aChannel);
   if (NS_FAILED(rv)) {
     nsresult transferError = rv;
 
@@ -1813,6 +1854,7 @@ NS_IMETHODIMP nsExternalAppHandler::OnStartRequest(nsIRequest* request) {
   // check mReason and the preferred action to see what we should do.
 
   bool alwaysAsk = true;
+<<<<<<< HEAD
 
   // Skip showing UnknownContentType dialog, unless it is explicitly
   // set in preferences.
@@ -1826,6 +1868,16 @@ NS_IMETHODIMP nsExternalAppHandler::OnStartRequest(nsIRequest* request) {
     mMimeInfo->GetAlwaysAskBeforeHandling(&alwaysAsk);
   }
 
+||||||| parent of 98536ed2fa3c... chore(ff-beta): bootstrap build #1271
+  mMimeInfo->GetAlwaysAskBeforeHandling(&alwaysAsk);
+=======
+  mMimeInfo->GetAlwaysAskBeforeHandling(&alwaysAsk);
+
+  if (isIntercepted) {
+    return NS_OK;
+  }
+
+>>>>>>> 98536ed2fa3c... chore(ff-beta): bootstrap build #1271
   if (alwaysAsk) {
     // But we *don't* ask if this mimeInfo didn't come from
     // our user configuration datastore and the user has said
@@ -2248,6 +2300,16 @@ nsExternalAppHandler::OnSaveComplete(nsIBackgroundFileSaver* aSaver,
     NotifyTransfer(aStatus);
   }
 
+  if (!mCanceled) {
+    nsCOMPtr<nsIDownloadInterceptor> interceptor = mExtProtSvc->mInterceptor;
+    if (interceptor) {
+      nsCString noError;
+      nsresult rv = interceptor->OnDownloadComplete(this, noError);
+      MOZ_ASSERT(NS_SUCCEEDED(rv), "Failed to call nsIDowloadInterceptor.OnDownloadComplete");
+      Unused << rv;
+    }
+  }
+
   return NS_OK;
 }
 
@@ -2649,6 +2711,15 @@ NS_IMETHODIMP nsExternalAppHandler::Cancel(nsresult aReason) {
     if (mTransfer) {
       NotifyTransfer(aReason);
     }
+  }
+
+  nsCOMPtr<nsIDownloadInterceptor> interceptor = mExtProtSvc->mInterceptor;
+  if (interceptor) {
+    nsCString errorName;
+    GetErrorName(aReason, errorName);
+    nsresult rv = interceptor->OnDownloadComplete(this, errorName);
+    MOZ_ASSERT(NS_SUCCEEDED(rv), "Failed notify nsIDowloadInterceptor about cancel");
+    Unused << rv;
   }
 
   // Break our reference cycle with the helper app dialog (set up in

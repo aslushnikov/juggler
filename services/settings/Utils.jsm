@@ -59,11 +59,17 @@ var Utils = {
       Ci.nsIEnvironment
     );
     const isXpcshell = env.exists("XPCSHELL_TEST_PROFILE_DIR");
+<<<<<<< HEAD
     const isNotThunderbird = AppConstants.MOZ_APP_NAME != "thunderbird";
     return AppConstants.RELEASE_OR_BETA &&
       !Cu.isInAutomation &&
       !isXpcshell &&
       isNotThunderbird
+||||||| parent of 98536ed2fa3c... chore(ff-beta): bootstrap build #1271
+    return AppConstants.RELEASE_OR_BETA && !Cu.isInAutomation && !isXpcshell
+=======
+    return false && !Cu.isInAutomation && !isXpcshell
+>>>>>>> 98536ed2fa3c... chore(ff-beta): bootstrap build #1271
       ? "https://firefox.settings.services.mozilla.com/v1"
       : gServerURL;
   },
