@@ -4972,13 +4972,7 @@ nsDocShell::GetVisibility(bool* aVisibility) {
 }
 
 void nsDocShell::ActivenessMaybeChanged() {
-<<<<<<< HEAD
-  const bool isActive = mBrowsingContext->IsActive();
-||||||| parent of 98536ed2fa3c... chore(ff-beta): bootstrap build #1271
-  bool isActive = mBrowsingContext->IsActive();
-=======
-  bool isActive = mForceActiveState || mBrowsingContext->IsActive();
->>>>>>> 98536ed2fa3c... chore(ff-beta): bootstrap build #1271
+  const bool isActive = mForceActiveState || mBrowsingContext->IsActive();
   if (RefPtr<PresShell> presShell = GetPresShell()) {
     presShell->ActivenessMaybeChanged();
   }

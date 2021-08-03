@@ -58,14 +58,8 @@ interface nsIInterceptedChannel : nsISupports
      * For our mitigations, we support this reset triggering "bypass" mode which
      * results in the resulting client not being controlled.
      */
-<<<<<<< HEAD
     void resetInterception(in boolean bypass);
-||||||| parent of 98536ed2fa3c... chore(ff-beta): bootstrap build #1271
-    void resetInterception();
-=======
-    void resetInterception();
     void resetInterceptionWithURI(in nsIURI aURI);
->>>>>>> 98536ed2fa3c... chore(ff-beta): bootstrap build #1271
 
     /**
      * Set the status and reason for the forthcoming synthesized response.

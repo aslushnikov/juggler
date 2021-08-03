@@ -597,21 +597,15 @@ void InterceptedHttpChannel::DoAsyncAbort(nsresult aStatus) {
 }
 
 NS_IMETHODIMP
-<<<<<<< HEAD
-InterceptedHttpChannel::ResetInterception(bool aBypass) {
-||||||| parent of 98536ed2fa3c... chore(ff-beta): bootstrap build #1271
-InterceptedHttpChannel::ResetInterception(void) {
-=======
 InterceptedHttpChannel::ResetInterceptionWithURI(nsIURI* aURI) {
   if (aURI) {
     mURI = aURI;
   }
-  return ResetInterception();
+  return ResetInterception(true);
 }
 
 NS_IMETHODIMP
-InterceptedHttpChannel::ResetInterception(void) {
->>>>>>> 98536ed2fa3c... chore(ff-beta): bootstrap build #1271
+InterceptedHttpChannel::ResetInterception(bool aBypass) {
   if (mCanceled) {
     return mStatus;
   }

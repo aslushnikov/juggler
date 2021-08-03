@@ -4344,25 +4344,13 @@ bool Document::HasFocus(ErrorResult& rv) const {
     return false;
   }
 
-<<<<<<< HEAD
   BrowsingContext* bc = GetBrowsingContext();
   if (!bc) {
-||||||| parent of 98536ed2fa3c... chore(ff-beta): bootstrap build #1271
-  // Is there a focused DOMWindow?
-  nsCOMPtr<mozIDOMWindowProxy> focusedWindow;
-  fm->GetFocusedWindow(getter_AddRefs(focusedWindow));
-  if (!focusedWindow) {
-=======
-  if (IsActive() && mDocumentContainer->ShouldOverrideHasFocus()) {
-    return true;
+    return false;
   }
 
-  // Is there a focused DOMWindow?
-  nsCOMPtr<mozIDOMWindowProxy> focusedWindow;
-  fm->GetFocusedWindow(getter_AddRefs(focusedWindow));
-  if (!focusedWindow) {
->>>>>>> 98536ed2fa3c... chore(ff-beta): bootstrap build #1271
-    return false;
+  if (IsActive() && mDocumentContainer->ShouldOverrideHasFocus()) {
+    return true;
   }
 
   if (!fm->IsInActiveWindow(bc)) {

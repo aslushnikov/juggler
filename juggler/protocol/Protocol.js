@@ -336,7 +336,7 @@ const Browser = {
     'setJavaScriptDisabled': {
       params: {
         browserContextId: t.Optional(t.String),
-        javaScriptDisabled: t.Nullable(t.Boolean),
+        javaScriptDisabled: t.Boolean,
       }
     },
     'setLocaleOverride': {

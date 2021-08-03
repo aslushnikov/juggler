@@ -940,16 +940,8 @@ PRErrorCode AuthCertificateParseResults(
         return SEC_ERROR_NO_MEMORY;
       }
       nsresult rv = overrideService->HasMatchingOverride(
-<<<<<<< HEAD
           aHostName, aPort, aOriginAttributes, nssCert, &overrideBits,
           &isTemporaryOverride, &haveOverride);
-||||||| parent of 98536ed2fa3c... chore(ff-beta): bootstrap build #1271
-          aHostName, aPort, nssCert, &overrideBits, &isTemporaryOverride,
-          &haveOverride);
-=======
-          aHostName, aPort, aOriginAttributes.mUserContextId, nssCert,
-          &overrideBits, &isTemporaryOverride, &haveOverride);
->>>>>>> 98536ed2fa3c... chore(ff-beta): bootstrap build #1271
       if (NS_SUCCEEDED(rv) && haveOverride) {
         // remove the errors that are already overriden
         remainingDisplayErrors &= ~overrideBits;

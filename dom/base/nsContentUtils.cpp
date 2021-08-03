@@ -8197,17 +8197,9 @@ nsresult nsContentUtils::SendMouseEvent(
     int32_t aButton, int32_t aButtons, int32_t aClickCount, int32_t aModifiers,
     bool aIgnoreRootScrollFrame, float aPressure,
     unsigned short aInputSourceArg, uint32_t aIdentifier, bool aToWindow,
-<<<<<<< HEAD
     PreventDefaultResult* aPreventDefault, bool aIsDOMEventSynthesized,
-    bool aIsWidgetEventSynthesized) {
-||||||| parent of 98536ed2fa3c... chore(ff-beta): bootstrap build #1271
-    bool* aPreventDefault, bool aIsDOMEventSynthesized,
-    bool aIsWidgetEventSynthesized) {
-=======
-    bool* aPreventDefault, bool aIsDOMEventSynthesized,
     bool aIsWidgetEventSynthesized,
     bool convertToPointer) {
->>>>>>> 98536ed2fa3c... chore(ff-beta): bootstrap build #1271
   nsPoint offset;
   nsCOMPtr<nsIWidget> widget = GetWidget(aPresShell, &offset);
   if (!widget) return NS_ERROR_FAILURE;
