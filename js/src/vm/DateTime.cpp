@@ -170,7 +170,7 @@ void js::DateTimeInfo::internalResetTimeZone(ResetTimeZoneMode mode) {
   }
 }
 
-void js::DateTimeInfo::internalSetTimeZoneOverride(mozilla::UniquePtr<icu::TimeZone> timeZone) {
+void js::DateTimeInfo::internalSetTimeZoneOverride(std::string timeZone) {
   timeZoneOverride_ = std::move(timeZone);
   internalResetTimeZone(ResetTimeZoneMode::ResetEvenIfOffsetUnchanged);
 }
@@ -499,38 +499,18 @@ void js::ResetTimeZoneInternal(ResetTimeZoneMode mode) {
   js::DateTimeInfo::resetTimeZone(mode);
 }
 
-void js::SetTimeZoneOverrideInternal(mozilla::UniquePtr<icu::TimeZone> timeZone) {
+void js::SetTimeZoneOverrideInternal(std::string timeZone) {
   auto guard = js::DateTimeInfo::instance->lock();
-  guard->internalSetTimeZoneOverride(std::move(timeZone));
+  guard->internalSetTimeZoneOverride(timeZone);
 }
 
 JS_PUBLIC_API void JS::ResetTimeZone() {
   js::ResetTimeZoneInternal(js::ResetTimeZoneMode::ResetEvenIfOffsetUnchanged);
 }
 
-<<<<<<< HEAD
 #if JS_HAS_INTL_API
 #  if defined(XP_WIN)
 static bool IsOlsonCompatibleWindowsTimeZoneId(std::string_view tz) {
-||||||| parent of f5a9507a0312... chore(ff-beta): bootstrap build #1293
-#if defined(XP_WIN)
-static bool IsOlsonCompatibleWindowsTimeZoneId(const char* tz) {
-=======
-JS_PUBLIC_API bool JS::SetTimeZoneOverride(const char* timeZoneId) {
-  // Validate timezone id.
-  mozilla::UniquePtr<icu::TimeZone> timeZone(icu::TimeZone::createTimeZone(
-      icu::UnicodeString(timeZoneId, -1, US_INV)));
-  if (!timeZone || *timeZone == icu::TimeZone::getUnknown()) {
-    fprintf(stderr, "Invalid timezone id: %s\n", timeZoneId);
-    return false;
-  }
-  js::SetTimeZoneOverrideInternal(std::move(timeZone));
-  return true;
-}
-
-#if defined(XP_WIN)
-static bool IsOlsonCompatibleWindowsTimeZoneId(const char* tz) {
->>>>>>> f5a9507a0312... chore(ff-beta): bootstrap build #1293
   // ICU ignores the TZ environment variable on Windows and instead directly
   // invokes Win API functions to retrieve the current time zone. But since
   // we're still using the POSIX-derived localtime_s() function on Windows
@@ -622,6 +602,15 @@ static bool IsTimeZoneId(std::string_view timeZone) {
     return false;
   }
 
+  return true;
+}
+
+JS_PUBLIC_API bool JS::SetTimeZoneOverride(const char* timeZoneId) {
+  if (!mozilla::intl::TimeZone::IsValidTimeZoneId(timeZoneId)) {
+    fprintf(stderr, "Invalid timezone id: %s\n", timeZoneId);
+    return false;
+  }
+  js::SetTimeZoneOverrideInternal(std::string(timeZoneId));
   return true;
 }
 
@@ -748,26 +737,16 @@ void js::ResyncICUDefaultTimeZone() {
 }
 
 void js::DateTimeInfo::internalResyncICUDefaultTimeZone() {
-<<<<<<< HEAD
 #if JS_HAS_INTL_API
-  if (const char* tzenv = std::getenv("TZ")) {
-    std::string_view tz(tzenv);
-
-    mozilla::Span<const char> tzid;
-||||||| parent of f5a9507a0312... chore(ff-beta): bootstrap build #1293
-#if JS_HAS_INTL_API && !MOZ_SYSTEM_ICU
-  if (const char* tz = std::getenv("TZ")) {
-    icu::UnicodeString tzid;
-=======
-#if JS_HAS_INTL_API && !MOZ_SYSTEM_ICU
-  if (timeZoneOverride_) {
-    icu::TimeZone::setDefault(*timeZoneOverride_);
-    return;
+  std::string_view tz;
+  if (!timeZoneOverride_.empty()) {
+    tz = timeZoneOverride_;
+  } else if (const char* tzenv = std::getenv("TZ")) {
+    tz = std::string_view(tzenv);
   }
 
-  if (const char* tz = std::getenv("TZ")) {
-    icu::UnicodeString tzid;
->>>>>>> f5a9507a0312... chore(ff-beta): bootstrap build #1293
+  if (!tz.empty()) {
+    mozilla::Span<const char> tzid;
 
 #  if defined(XP_WIN)
     // If TZ is set and its value is valid under Windows' and IANA's time zone
