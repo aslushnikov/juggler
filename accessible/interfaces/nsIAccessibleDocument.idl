@@ -72,4 +72,9 @@ interface nsIAccessibleDocument : nsISupports
    * Return the child document accessible at the given index.
    */
   nsIAccessibleDocument getChildDocumentAt(in unsigned long index);
+
+  /**
+   * Return whether it is updating.
+   */
+  readonly attribute boolean isUpdatePendingForJugglerAccessibility;
 };
