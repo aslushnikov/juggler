@@ -508,6 +508,15 @@ JS_PUBLIC_API void JS::ResetTimeZone() {
   js::ResetTimeZoneInternal(js::ResetTimeZoneMode::ResetEvenIfOffsetUnchanged);
 }
 
+JS_PUBLIC_API bool JS::SetTimeZoneOverride(const char* timeZoneId) {
+  if (!mozilla::intl::TimeZone::IsValidTimeZoneId(timeZoneId)) {
+    fprintf(stderr, "Invalid timezone id: %s\n", timeZoneId);
+    return false;
+  }
+  js::SetTimeZoneOverrideInternal(std::string(timeZoneId));
+  return true;
+}
+
 #if JS_HAS_INTL_API
 #  if defined(XP_WIN)
 static bool IsOlsonCompatibleWindowsTimeZoneId(std::string_view tz) {
@@ -602,15 +611,6 @@ static bool IsTimeZoneId(std::string_view timeZone) {
     return false;
   }
 
-  return true;
-}
-
-JS_PUBLIC_API bool JS::SetTimeZoneOverride(const char* timeZoneId) {
-  if (!mozilla::intl::TimeZone::IsValidTimeZoneId(timeZoneId)) {
-    fprintf(stderr, "Invalid timezone id: %s\n", timeZoneId);
-    return false;
-  }
-  js::SetTimeZoneOverrideInternal(std::string(timeZoneId));
   return true;
 }
 
