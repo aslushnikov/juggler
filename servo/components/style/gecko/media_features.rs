@@ -336,10 +336,15 @@ pub enum ForcedColors {
 
 /// https://drafts.csswg.org/mediaqueries-5/#forced-colors
 fn eval_forced_colors(device: &Device, query_value: Option<ForcedColors>) -> bool {
-    let forced = !device.use_document_colors();
+    let prefers_forced_colors =
+        unsafe { bindings::Gecko_MediaFeatures_ForcedColors(device.document()) };
+    let query_value = match query_value {
+        Some(v) => v,
+        None => return prefers_forced_colors,
+    };
     match query_value {
-        Some(query_value) => forced == (query_value == ForcedColors::Active),
-        None => forced,
+        ForcedColors::Active => prefers_forced_colors,
+        ForcedColors::None => !prefers_forced_colors,
     }
 }
 

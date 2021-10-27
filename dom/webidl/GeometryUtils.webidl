@@ -27,6 +27,9 @@ interface mixin GeometryUtils {
   [Throws, Func="nsINode::HasBoxQuadsSupport", NeedsCallerType]
   sequence<DOMQuad> getBoxQuads(optional BoxQuadOptions options = {});
 
+  [ChromeOnly, Throws, Func="nsINode::HasBoxQuadsSupport"]
+  void scrollRectIntoViewIfNeeded(long x, long y, long w, long h);
+
   /* getBoxQuadsFromWindowOrigin is similar to getBoxQuads, but the
    * returned quads are further translated relative to the window
    * origin -- which is not the layout origin. Further translation

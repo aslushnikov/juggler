@@ -170,6 +170,11 @@ void js::DateTimeInfo::internalResetTimeZone(ResetTimeZoneMode mode) {
   }
 }
 
+void js::DateTimeInfo::internalSetTimeZoneOverride(std::string timeZone) {
+  timeZoneOverride_ = std::move(timeZone);
+  internalResetTimeZone(ResetTimeZoneMode::ResetEvenIfOffsetUnchanged);
+}
+
 void js::DateTimeInfo::updateTimeZone() {
   MOZ_ASSERT(timeZoneStatus_ != TimeZoneStatus::Valid);
 
@@ -494,8 +499,22 @@ void js::ResetTimeZoneInternal(ResetTimeZoneMode mode) {
   js::DateTimeInfo::resetTimeZone(mode);
 }
 
+void js::SetTimeZoneOverrideInternal(std::string timeZone) {
+  auto guard = js::DateTimeInfo::instance->lock();
+  guard->internalSetTimeZoneOverride(timeZone);
+}
+
 JS_PUBLIC_API void JS::ResetTimeZone() {
   js::ResetTimeZoneInternal(js::ResetTimeZoneMode::ResetEvenIfOffsetUnchanged);
+}
+
+JS_PUBLIC_API bool JS::SetTimeZoneOverride(const char* timeZoneId) {
+  if (!mozilla::intl::TimeZone::IsValidTimeZoneId(timeZoneId)) {
+    fprintf(stderr, "Invalid timezone id: %s\n", timeZoneId);
+    return false;
+  }
+  js::SetTimeZoneOverrideInternal(std::string(timeZoneId));
+  return true;
 }
 
 #if JS_HAS_INTL_API
@@ -719,9 +738,14 @@ void js::ResyncICUDefaultTimeZone() {
 
 void js::DateTimeInfo::internalResyncICUDefaultTimeZone() {
 #if JS_HAS_INTL_API
-  if (const char* tzenv = std::getenv("TZ")) {
-    std::string_view tz(tzenv);
+  std::string_view tz;
+  if (!timeZoneOverride_.empty()) {
+    tz = timeZoneOverride_;
+  } else if (const char* tzenv = std::getenv("TZ")) {
+    tz = std::string_view(tzenv);
+  }
 
+  if (!tz.empty()) {
     mozilla::Span<const char> tzid;
 
 #  if defined(XP_WIN)

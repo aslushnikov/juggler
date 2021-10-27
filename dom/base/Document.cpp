@@ -3514,6 +3514,9 @@ void Document::SendToConsole(nsCOMArray<nsISecurityConsoleMessage>& aMessages) {
 }
 
 void Document::ApplySettingsFromCSP(bool aSpeculative) {
+  if (mDocumentContainer && mDocumentContainer->IsBypassCSPEnabled())
+    return;
+
   nsresult rv = NS_OK;
   if (!aSpeculative) {
     // 1) apply settings from regular CSP
@@ -3573,6 +3576,11 @@ nsresult Document::InitCSP(nsIChannel* aChannel) {
   if (!StaticPrefs::security_csp_enable()) {
     MOZ_LOG(gCspPRLog, LogLevel::Debug,
             ("CSP is disabled, skipping CSP init for document %p", this));
+    return NS_OK;
+  }
+
+  nsCOMPtr<nsIDocShell> shell(mDocumentContainer);
+  if (shell && nsDocShell::Cast(shell)->IsBypassCSPEnabled()) {
     return NS_OK;
   }
 
@@ -4356,6 +4364,10 @@ bool Document::HasFocus(ErrorResult& rv) const {
   BrowsingContext* bc = GetBrowsingContext();
   if (!bc) {
     return false;
+  }
+
+  if (IsActive() && mDocumentContainer->ShouldOverrideHasFocus()) {
+    return true;
   }
 
   if (!fm->IsInActiveWindow(bc)) {
@@ -17240,6 +17252,20 @@ void Document::RemoveToplevelLoadingDocument(Document* aDoc) {
 
 StylePrefersColorScheme Document::PrefersColorScheme(
     IgnoreRFP aIgnoreRFP) const {
+  auto* docShell = static_cast<nsDocShell*>(GetDocShell());
+  nsIDocShell::ColorSchemeOverride colorScheme;
+  if (docShell && docShell->GetColorSchemeOverride(&colorScheme) == NS_OK &&
+      colorScheme != nsIDocShell::COLOR_SCHEME_OVERRIDE_NONE) {
+    switch (colorScheme) {
+      case nsIDocShell::COLOR_SCHEME_OVERRIDE_LIGHT:
+        return StylePrefersColorScheme::Light;
+      case nsIDocShell::COLOR_SCHEME_OVERRIDE_DARK:
+        return StylePrefersColorScheme::Dark;
+      case nsIDocShell::COLOR_SCHEME_OVERRIDE_NONE:
+      case nsIDocShell::COLOR_SCHEME_OVERRIDE_NO_PREFERENCE:
+        break;
+    };
+  }
   if (aIgnoreRFP == IgnoreRFP::No &&
       nsContentUtils::ShouldResistFingerprinting(this)) {
     return StylePrefersColorScheme::Light;
@@ -17277,6 +17303,71 @@ StylePrefersColorScheme Document::PrefersColorScheme(
   const bool dark =
       !!LookAndFeel::GetInt(LookAndFeel::IntID::SystemUsesDarkTheme, 0);
   return dark ? StylePrefersColorScheme::Dark : StylePrefersColorScheme::Light;
+}
+
+bool Document::PrefersReducedMotion() const {
+  auto* docShell = static_cast<nsDocShell*>(GetDocShell());
+  nsIDocShell::ReducedMotionOverride reducedMotion;
+  if (docShell && docShell->GetReducedMotionOverride(&reducedMotion) == NS_OK &&
+      reducedMotion != nsIDocShell::REDUCED_MOTION_OVERRIDE_NONE) {
+    switch (reducedMotion) {
+      case nsIDocShell::REDUCED_MOTION_OVERRIDE_REDUCE:
+        return true;
+      case nsIDocShell::REDUCED_MOTION_OVERRIDE_NO_PREFERENCE:
+        return false;
+      case nsIDocShell::REDUCED_MOTION_OVERRIDE_NONE:
+        break;
+    };
+  }
+
+  if (auto* bc = GetBrowsingContext()) {
+    switch (bc->Top()->PrefersReducedMotionOverride()) {
+      case dom::PrefersReducedMotionOverride::Reduce:
+        return true;
+      case dom::PrefersReducedMotionOverride::No_preference:
+        return false;
+      case dom::PrefersReducedMotionOverride::None:
+      case dom::PrefersReducedMotionOverride::EndGuard_:
+        break;
+    }
+  }
+
+  if (nsContentUtils::ShouldResistFingerprinting(this)) {
+    return false;
+  }
+  return LookAndFeel::GetInt(LookAndFeel::IntID::PrefersReducedMotion, 0) == 1;
+}
+
+bool Document::ForcedColors() const {
+  auto* docShell = static_cast<nsDocShell*>(GetDocShell());
+  nsIDocShell::ForcedColorsOverride forcedColors;
+  if (docShell && docShell->GetForcedColorsOverride(&forcedColors) == NS_OK) {
+    switch (forcedColors) {
+      case nsIDocShell::FORCED_COLORS_OVERRIDE_ACTIVE:
+        return true;
+      case nsIDocShell::FORCED_COLORS_OVERRIDE_NONE:
+        return false;
+      case nsIDocShell::FORCED_COLORS_OVERRIDE_NO_OVERRIDE:
+        break;
+    };
+  }
+
+  if (auto* bc = GetBrowsingContext()) {
+    switch (bc->Top()->ForcedColorsOverride()) {
+      case dom::ForcedColorsOverride::Active:
+        return true;
+      case dom::ForcedColorsOverride::None:
+        return false;
+      case dom::ForcedColorsOverride::No_override:
+      case dom::ForcedColorsOverride::EndGuard_:
+        break;
+    }
+  }
+
+  if (mIsBeingUsedAsImage) {
+    return false;
+  }
+  return !PreferenceSheet::PrefsFor(*this).mUseDocumentColors;
 }
 
 // static
