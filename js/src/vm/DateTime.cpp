@@ -738,14 +738,14 @@ void js::ResyncICUDefaultTimeZone() {
 
 void js::DateTimeInfo::internalResyncICUDefaultTimeZone() {
 #if JS_HAS_INTL_API
-  std::string_view tz;
   if (!timeZoneOverride_.empty()) {
-    tz = timeZoneOverride_;
-  } else if (const char* tzenv = std::getenv("TZ")) {
-    tz = std::string_view(tzenv);
+    mozilla::Span<const char> tzid = mozilla::Span(timeZoneOverride_.data(), timeZoneOverride_.length());
+    mozilla::intl::TimeZone::SetDefaultTimeZone(tzid);
+    return;
   }
 
-  if (!tz.empty()) {
+  if (const char* tzenv = std::getenv("TZ")) {
+    std::string_view tz(tzenv);
     mozilla::Span<const char> tzid;
 
 #  if defined(XP_WIN)
