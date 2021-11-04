@@ -1858,37 +1858,10 @@ NS_IMETHODIMP nsExternalAppHandler::OnStartRequest(nsIRequest* request) {
   // check mReason and the preferred action to see what we should do.
 
   bool alwaysAsk = true;
-<<<<<<< HEAD
   mMimeInfo->GetAlwaysAskBeforeHandling(&alwaysAsk);
-||||||| parent of 82ad5edf85b12 (chore(ff-beta): bootstrap build #1303)
-
-  // Skip showing UnknownContentType dialog by default if the pref is set.
-  bool skipShowingDialog =
-      StaticPrefs::browser_download_improvements_to_download_panel();
-
-  if (skipShowingDialog) {
-    alwaysAsk = false;
-  } else {
-    mMimeInfo->GetAlwaysAskBeforeHandling(&alwaysAsk);
-  }
-
-=======
-
-  // Skip showing UnknownContentType dialog by default if the pref is set.
-  bool skipShowingDialog =
-      StaticPrefs::browser_download_improvements_to_download_panel();
-
-  if (skipShowingDialog) {
-    alwaysAsk = false;
-  } else {
-    mMimeInfo->GetAlwaysAskBeforeHandling(&alwaysAsk);
-  }
-
   if (isIntercepted) {
     return NS_OK;
   }
-
->>>>>>> 82ad5edf85b12 (chore(ff-beta): bootstrap build #1303)
   if (alwaysAsk) {
     // But we *don't* ask if this mimeInfo didn't come from
     // our user configuration datastore and the user has said

@@ -17633,33 +17633,25 @@ void Document::RemoveToplevelLoadingDocument(Document* aDoc) {
   }
 }
 
-<<<<<<< HEAD
 ColorScheme Document::DefaultColorScheme() const {
   return LookAndFeel::ColorSchemeForStyle(*this, {GetColorSchemeBits()});
 }
 
 ColorScheme Document::PreferredColorScheme(IgnoreRFP aIgnoreRFP) const {
-||||||| parent of 82ad5edf85b12 (chore(ff-beta): bootstrap build #1303)
-StylePrefersColorScheme Document::PrefersColorScheme(
-    IgnoreRFP aIgnoreRFP) const {
-=======
-StylePrefersColorScheme Document::PrefersColorScheme(
-    IgnoreRFP aIgnoreRFP) const {
   auto* docShell = static_cast<nsDocShell*>(GetDocShell());
   nsIDocShell::ColorSchemeOverride colorScheme;
   if (docShell && docShell->GetColorSchemeOverride(&colorScheme) == NS_OK &&
       colorScheme != nsIDocShell::COLOR_SCHEME_OVERRIDE_NONE) {
     switch (colorScheme) {
       case nsIDocShell::COLOR_SCHEME_OVERRIDE_LIGHT:
-        return StylePrefersColorScheme::Light;
+        return ColorScheme::Light;
       case nsIDocShell::COLOR_SCHEME_OVERRIDE_DARK:
-        return StylePrefersColorScheme::Dark;
+        return ColorScheme::Dark;
       case nsIDocShell::COLOR_SCHEME_OVERRIDE_NONE:
       case nsIDocShell::COLOR_SCHEME_OVERRIDE_NO_PREFERENCE:
         break;
     };
   }
->>>>>>> 82ad5edf85b12 (chore(ff-beta): bootstrap build #1303)
   if (aIgnoreRFP == IgnoreRFP::No &&
       nsContentUtils::ShouldResistFingerprinting(this)) {
     return ColorScheme::Light;
@@ -17677,25 +17669,7 @@ StylePrefersColorScheme Document::PrefersColorScheme(
   if (IsInChromeDocShell()) {
     return LookAndFeel::ColorSchemeForChrome();
   }
-<<<<<<< HEAD
   return LookAndFeel::PreferredColorSchemeForContent();
-||||||| parent of 82ad5edf85b12 (chore(ff-beta): bootstrap build #1303)
-
-  const bool dark =
-      !!LookAndFeel::GetInt(LookAndFeel::IntID::SystemUsesDarkTheme, 0);
-  return dark ? StylePrefersColorScheme::Dark : StylePrefersColorScheme::Light;
-}
-
-// static
-bool Document::UseOverlayScrollbars(const Document* aDocument) {
-  BrowsingContext* bc = aDocument ? aDocument->GetBrowsingContext() : nullptr;
-  return LookAndFeel::GetInt(LookAndFeel::IntID::UseOverlayScrollbars) ||
-         (bc && bc->InRDMPane());
-=======
-
-  const bool dark =
-      !!LookAndFeel::GetInt(LookAndFeel::IntID::SystemUsesDarkTheme, 0);
-  return dark ? StylePrefersColorScheme::Dark : StylePrefersColorScheme::Light;
 }
 
 bool Document::PrefersReducedMotion() const {
@@ -17761,14 +17735,6 @@ bool Document::ForcedColors() const {
     return false;
   }
   return !PreferenceSheet::PrefsFor(*this).mUseDocumentColors;
-}
-
-// static
-bool Document::UseOverlayScrollbars(const Document* aDocument) {
-  BrowsingContext* bc = aDocument ? aDocument->GetBrowsingContext() : nullptr;
-  return LookAndFeel::GetInt(LookAndFeel::IntID::UseOverlayScrollbars) ||
-         (bc && bc->InRDMPane());
->>>>>>> 82ad5edf85b12 (chore(ff-beta): bootstrap build #1303)
 }
 
 bool Document::HasRecentlyStartedForegroundLoads() {
