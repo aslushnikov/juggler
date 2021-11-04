@@ -4021,10 +4021,27 @@ class Document : public nsINode,
 
   // CSS prefers-color-scheme media feature for this document.
   enum class IgnoreRFP { No, Yes };
+<<<<<<< HEAD
   ColorScheme PreferredColorScheme(IgnoreRFP = IgnoreRFP::No) const;
   // Returns the initial color-scheme used for this document based on the
   // color-scheme meta tag.
   ColorScheme DefaultColorScheme() const;
+||||||| parent of 82ad5edf85b12 (chore(ff-beta): bootstrap build #1303)
+  StylePrefersColorScheme PrefersColorScheme(IgnoreRFP = IgnoreRFP::No) const;
+
+  // Returns true if we use overlay scrollbars on the system wide or on the
+  // given document.
+  static bool UseOverlayScrollbars(const Document* aDocument);
+=======
+  StylePrefersColorScheme PrefersColorScheme(IgnoreRFP = IgnoreRFP::No) const;
+
+  bool PrefersReducedMotion() const;
+  bool ForcedColors() const;
+
+  // Returns true if we use overlay scrollbars on the system wide or on the
+  // given document.
+  static bool UseOverlayScrollbars(const Document* aDocument);
+>>>>>>> 82ad5edf85b12 (chore(ff-beta): bootstrap build #1303)
 
   static bool HasRecentlyStartedForegroundLoads();
 
