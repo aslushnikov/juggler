@@ -4,7 +4,10 @@
 
 #include "InProcessCompositorWidget.h"
 
+#include "HeadlessCompositorWidget.h"
+#include "HeadlessWidget.h"
 #include "mozilla/VsyncDispatcher.h"
+#include "mozilla/widget/PlatformWidgetTypes.h"
 #include "nsBaseWidget.h"
 
 #if defined(MOZ_WIDGET_ANDROID) && !defined(MOZ_WIDGET_SUPPORTS_OOP_COMPOSITING)
@@ -27,6 +30,12 @@ RefPtr<CompositorWidget> CompositorWidget::CreateLocal(
   // do it after the static_cast.
   nsBaseWidget* widget = static_cast<nsBaseWidget*>(aWidget);
   MOZ_RELEASE_ASSERT(widget);
+  if (aInitData.type() ==
+      CompositorWidgetInitData::THeadlessCompositorWidgetInitData) {
+    return new HeadlessCompositorWidget(
+        aInitData.get_HeadlessCompositorWidgetInitData(), aOptions,
+        static_cast<HeadlessWidget*>(aWidget));
+  }
 #  ifdef MOZ_WIDGET_ANDROID
   return new AndroidCompositorWidget(aOptions, widget);
 #  else

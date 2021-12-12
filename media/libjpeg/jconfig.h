@@ -17,6 +17,7 @@
 /* #undef D_ARITH_CODING_SUPPORTED */
 
 /* Support in-memory source/destination managers */
+#define MEM_SRCDST_SUPPORTED 1
 /* #undef MEM_SRCDST_SUPPORTED */
 
 /* Use accelerated SIMD routines. */
