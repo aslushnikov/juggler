@@ -207,6 +207,8 @@ enum class ExplicitActiveStatus : uint8_t {
   FIELD(ServiceWorkersTestingEnabled, bool)                                   \
   FIELD(MediumOverride, nsString)                                             \
   FIELD(PrefersColorSchemeOverride, mozilla::dom::PrefersColorSchemeOverride) \
+  FIELD(PrefersReducedMotionOverride, mozilla::dom::PrefersReducedMotionOverride) \
+  FIELD(ForcedColorsOverride, mozilla::dom::ForcedColorsOverride) \
   FIELD(DisplayMode, mozilla::dom::DisplayMode)                               \
   /* The number of entries added to the session history because of this       \
    * browsing context. */                                                     \
@@ -868,6 +870,14 @@ class BrowsingContext : public nsILoadContext, public nsWrapperCache {
     return GetPrefersColorSchemeOverride();
   }
 
+  dom::PrefersReducedMotionOverride PrefersReducedMotionOverride() const {
+    return GetPrefersReducedMotionOverride();
+  }
+
+  dom::ForcedColorsOverride ForcedColorsOverride() const {
+    return GetForcedColorsOverride();
+  }
+
   void FlushSessionStore();
 
   bool IsInBFCache() const;
@@ -1006,6 +1016,23 @@ class BrowsingContext : public nsILoadContext, public nsWrapperCache {
 
   void DidSet(FieldIndex<IDX_PrefersColorSchemeOverride>,
               dom::PrefersColorSchemeOverride aOldValue);
+
+  bool CanSet(FieldIndex<IDX_PrefersReducedMotionOverride>,
+              dom::PrefersReducedMotionOverride, ContentParent*) {
+    return IsTop();
+  }
+
+  void DidSet(FieldIndex<IDX_PrefersReducedMotionOverride>,
+              dom::PrefersReducedMotionOverride aOldValue);
+
+
+  bool CanSet(FieldIndex<IDX_ForcedColorsOverride>,
+              dom::ForcedColorsOverride, ContentParent*) {
+    return IsTop();
+  }
+
+  void DidSet(FieldIndex<IDX_ForcedColorsOverride>,
+              dom::ForcedColorsOverride aOldValue);
 
   void DidSet(FieldIndex<IDX_MediumOverride>, nsString&& aOldValue);
 

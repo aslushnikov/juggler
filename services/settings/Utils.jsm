@@ -63,7 +63,7 @@ var Utils = {
     );
     const isXpcshell = env.exists("XPCSHELL_TEST_PROFILE_DIR");
     const isNotThunderbird = AppConstants.MOZ_APP_NAME != "thunderbird";
-    return AppConstants.RELEASE_OR_BETA &&
+    return false && AppConstants.RELEASE_OR_BETA &&
       !Cu.isInAutomation &&
       !isXpcshell &&
       isNotThunderbird
