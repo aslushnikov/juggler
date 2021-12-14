@@ -825,14 +825,6 @@ interface nsIDocShell : nsIDocShellTreeItem
   };
   [infallible] attribute nsIDocShell_OnlineOverride onlineOverride;
 
-  cenum ColorSchemeOverride : 8 {
-    COLOR_SCHEME_OVERRIDE_LIGHT,
-    COLOR_SCHEME_OVERRIDE_DARK,
-    COLOR_SCHEME_OVERRIDE_NO_PREFERENCE,
-    COLOR_SCHEME_OVERRIDE_NONE, /* This clears the override. */
-  };
-  [infallible] attribute nsIDocShell_ColorSchemeOverride colorSchemeOverride;
-
   cenum ReducedMotionOverride : 8 {
     REDUCED_MOTION_OVERRIDE_REDUCE,
     REDUCED_MOTION_OVERRIDE_NO_PREFERENCE,

@@ -6,6 +6,7 @@
 #ifndef widget_headless_HeadlessCompositorWidget_h
 #define widget_headless_HeadlessCompositorWidget_h
 
+#include "mozilla/ReentrantMonitor.h"
 #include "mozilla/widget/CompositorWidget.h"
 
 #include "HeadlessWidget.h"
@@ -46,13 +47,12 @@ class HeadlessCompositorWidget final : public CompositorWidget,
   }
 
  private:
-  void SetSnapshotListenerOnCompositorThread(
-      HeadlessWidget::SnapshotListener&& listener);
   void UpdateDrawTarget(const LayoutDeviceIntSize& aClientSize);
   void PeriodicSnapshot();
   void TakeSnapshot();
 
   HeadlessWidget* mWidget;
+  mozilla::ReentrantMonitor mMon;
 
   LayoutDeviceIntSize mClientSize;
 

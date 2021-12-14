@@ -1302,7 +1302,6 @@ class nsDocShell final : public nsDocLoader,
   nsString mLanguageOverride;
   RefPtr<nsGeolocationService> mGeolocationServiceOverride;
   OnlineOverride mOnlineOverride;
-  ColorSchemeOverride mColorSchemeOverride;
   ReducedMotionOverride mReducedMotionOverride;
   ForcedColorsOverride mForcedColorsOverride;
 

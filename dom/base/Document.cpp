@@ -17638,20 +17638,6 @@ ColorScheme Document::DefaultColorScheme() const {
 }
 
 ColorScheme Document::PreferredColorScheme(IgnoreRFP aIgnoreRFP) const {
-  auto* docShell = static_cast<nsDocShell*>(GetDocShell());
-  nsIDocShell::ColorSchemeOverride colorScheme;
-  if (docShell && docShell->GetColorSchemeOverride(&colorScheme) == NS_OK &&
-      colorScheme != nsIDocShell::COLOR_SCHEME_OVERRIDE_NONE) {
-    switch (colorScheme) {
-      case nsIDocShell::COLOR_SCHEME_OVERRIDE_LIGHT:
-        return ColorScheme::Light;
-      case nsIDocShell::COLOR_SCHEME_OVERRIDE_DARK:
-        return ColorScheme::Dark;
-      case nsIDocShell::COLOR_SCHEME_OVERRIDE_NONE:
-      case nsIDocShell::COLOR_SCHEME_OVERRIDE_NO_PREFERENCE:
-        break;
-    };
-  }
   if (aIgnoreRFP == IgnoreRFP::No &&
       nsContentUtils::ShouldResistFingerprinting(this)) {
     return ColorScheme::Light;

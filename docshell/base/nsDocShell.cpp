@@ -383,7 +383,6 @@ nsDocShell::nsDocShell(BrowsingContext* aBrowsingContext,
       mBypassCSPEnabled(false),
       mForceActiveState(false),
       mOnlineOverride(nsIDocShell::ONLINE_OVERRIDE_NONE),
-      mColorSchemeOverride(COLOR_SCHEME_OVERRIDE_NONE),
       mReducedMotionOverride(REDUCED_MOTION_OVERRIDE_NONE),
       mForcedColorsOverride(FORCED_COLORS_OVERRIDE_NO_OVERRIDE),
       mAllowAuth(mItemType == typeContent),
@@ -3312,24 +3311,6 @@ nsDocShell::SetOnlineOverride(OnlineOverride aOnlineOverride) {
   }
 
   mOnlineOverride = aOnlineOverride;
-  return NS_OK;
-}
-
-NS_IMETHODIMP
-nsDocShell::GetColorSchemeOverride(ColorSchemeOverride* aColorSchemeOverride) {
-  *aColorSchemeOverride = GetRootDocShell()->mColorSchemeOverride;
-  return NS_OK;
-}
-
-NS_IMETHODIMP
-nsDocShell::SetColorSchemeOverride(ColorSchemeOverride aColorSchemeOverride) {
-  mColorSchemeOverride = aColorSchemeOverride;
-  RefPtr<nsPresContext> presContext = GetPresContext();
-  if (presContext) {
-    presContext->MediaFeatureValuesChanged(
-        {MediaFeatureChangeReason::SystemMetricsChange},
-        MediaFeatureChangePropagation::JustThisDocument);
-  }
   return NS_OK;
 }
 

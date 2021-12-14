@@ -14,24 +14,19 @@ namespace widget {
 HeadlessCompositorWidget::HeadlessCompositorWidget(
     const HeadlessCompositorWidgetInitData& aInitData,
     const layers::CompositorOptions& aOptions, HeadlessWidget* aWindow)
-    : CompositorWidget(aOptions), mWidget(aWindow) {
+    : CompositorWidget(aOptions), mWidget(aWindow), mMon("snapshotListener") {
   mClientSize = aInitData.InitialClientSize();
 }
 
 void HeadlessCompositorWidget::SetSnapshotListener(HeadlessWidget::SnapshotListener&& listener) {
   MOZ_ASSERT(NS_IsMainThread());
 
-  layers::CompositorThread()->Dispatch(NewRunnableMethod<HeadlessWidget::SnapshotListener&&>(
-      "HeadlessCompositorWidget::SetSnapshotListener", this,
-      &HeadlessCompositorWidget::SetSnapshotListenerOnCompositorThread,
-      std::move(listener)));
-}
-
-void HeadlessCompositorWidget::SetSnapshotListenerOnCompositorThread(
-    HeadlessWidget::SnapshotListener&& listener) {
-  MOZ_ASSERT(NS_IsInCompositorThread());
+  ReentrantMonitorAutoEnter lock(mMon);
   mSnapshotListener = std::move(listener);
-  PeriodicSnapshot();
+  layers::CompositorThread()->Dispatch(NewRunnableMethod(
+      "HeadlessCompositorWidget::PeriodicSnapshot", this,
+      &HeadlessCompositorWidget::PeriodicSnapshot
+  ));
 }
 
 already_AddRefed<gfx::DrawTarget> HeadlessCompositorWidget::StartRemoteDrawingInRegion(
@@ -83,6 +78,7 @@ void HeadlessCompositorWidget::UpdateDrawTarget(const LayoutDeviceIntSize& aClie
 }
 
 void HeadlessCompositorWidget::PeriodicSnapshot() {
+  ReentrantMonitorAutoEnter lock(mMon);
   if (!mSnapshotListener)
     return;
 
