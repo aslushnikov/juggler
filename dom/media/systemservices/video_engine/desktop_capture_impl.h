@@ -171,15 +171,7 @@ class BrowserDeviceInfoImpl : public VideoCaptureModule::DeviceInfo {
 // As with video, DesktopCaptureImpl is a proxy for screen sharing
 // and follows the video pipeline design
 class DesktopCaptureImpl : public DesktopCapturer::Callback,
-<<<<<<< HEAD
-                           public VideoCaptureModule {
-||||||| parent of 324dd3e8839e8 (chore(ff-beta): bootstrap build #1309)
-                           public VideoCaptureModule,
-                           public VideoCaptureExternal {
-=======
-                           public VideoCaptureModuleEx,
-                           public VideoCaptureExternal {
->>>>>>> 324dd3e8839e8 (chore(ff-beta): bootstrap build #1309)
+                           public VideoCaptureModuleEx {
  public:
   /* Create a screen capture modules object
    */

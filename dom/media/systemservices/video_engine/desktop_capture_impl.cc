@@ -358,29 +358,13 @@ int32_t DesktopCaptureImpl::Init() {
     DesktopCapturer::SourceId sourceId = atoi(_deviceUniqueId.c_str());
     pWindowCapturer->SelectSource(sourceId);
 
-<<<<<<< HEAD
-    desktop_capturer_cursor_composer_ =
-        std::unique_ptr<DesktopAndCursorComposer>(
-            new DesktopAndCursorComposer(std::move(pWindowCapturer), options));
-||||||| parent of 324dd3e8839e8 (chore(ff-beta): bootstrap build #1309)
-    MouseCursorMonitor* pMouseCursorMonitor =
-        MouseCursorMonitor::CreateForWindow(
-            webrtc::DesktopCaptureOptions::CreateDefault(), sourceId);
-    desktop_capturer_cursor_composer_ =
-        std::unique_ptr<DesktopAndCursorComposer>(new DesktopAndCursorComposer(
-            pWindowCapturer.release(), pMouseCursorMonitor));
-=======
     if (capture_cursor_) {
-      MouseCursorMonitor* pMouseCursorMonitor =
-          MouseCursorMonitor::CreateForWindow(
-              webrtc::DesktopCaptureOptions::CreateDefault(), sourceId);
       desktop_capturer_cursor_composer_ =
-          std::unique_ptr<DesktopAndCursorComposer>(new DesktopAndCursorComposer(
-              pWindowCapturer.release(), pMouseCursorMonitor));
+          std::unique_ptr<DesktopAndCursorComposer>(
+              new DesktopAndCursorComposer(std::move(pWindowCapturer), options));
     } else {
       desktop_capturer_cursor_composer_ = std::move(pWindowCapturer);
     }
->>>>>>> 324dd3e8839e8 (chore(ff-beta): bootstrap build #1309)
   } else if (_deviceType == CaptureDeviceType::Browser) {
     // XXX We don't capture cursors, so avoid the extra indirection layer. We
     // could also pass null for the pMouseCursorMonitor.
@@ -404,22 +388,8 @@ DesktopCaptureImpl::DesktopCaptureImpl(const int32_t id, const char* uniqueId,
       _deviceType(type),
       _requestedCapability(),
       _rotateFrame(kVideoRotation_0),
-<<<<<<< HEAD
       last_capture_time_ms_(rtc::TimeMillis()),
-||||||| parent of 324dd3e8839e8 (chore(ff-beta): bootstrap build #1309)
-      last_capture_time_(rtc::TimeNanos() / rtc::kNumNanosecsPerMillisec),
-      // XXX Note that this won't capture drift!
-      delta_ntp_internal_ms_(
-          Clock::GetRealTimeClock()->CurrentNtpInMilliseconds() -
-          last_capture_time_),
-=======
-      last_capture_time_(rtc::TimeNanos() / rtc::kNumNanosecsPerMillisec),
-      // XXX Note that this won't capture drift!
-      delta_ntp_internal_ms_(
-          Clock::GetRealTimeClock()->CurrentNtpInMilliseconds() -
-          last_capture_time_),
       capture_cursor_(captureCursor),
->>>>>>> 324dd3e8839e8 (chore(ff-beta): bootstrap build #1309)
       time_event_(EventWrapper::Create()),
 #if defined(_WIN32)
       capturer_thread_(

@@ -26,22 +26,12 @@ RefPtr<CompositorWidget> CompositorWidget::CreateLocal(
   // do it after the static_cast.
   nsBaseWidget* widget = static_cast<nsBaseWidget*>(aWidget);
   MOZ_RELEASE_ASSERT(widget);
-<<<<<<< HEAD
-||||||| parent of 324dd3e8839e8 (chore(ff-beta): bootstrap build #1309)
-#  ifdef MOZ_WIDGET_ANDROID
-  return new AndroidCompositorWidget(aOptions, widget);
-#  else
-=======
   if (aInitData.type() ==
       CompositorWidgetInitData::THeadlessCompositorWidgetInitData) {
     return new HeadlessCompositorWidget(
         aInitData.get_HeadlessCompositorWidgetInitData(), aOptions,
         static_cast<HeadlessWidget*>(aWidget));
   }
-#  ifdef MOZ_WIDGET_ANDROID
-  return new AndroidCompositorWidget(aOptions, widget);
-#  else
->>>>>>> 324dd3e8839e8 (chore(ff-beta): bootstrap build #1309)
   return new InProcessCompositorWidget(aOptions, widget);
 }
 #endif

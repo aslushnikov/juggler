@@ -1781,25 +1781,13 @@ uint32_t nsWindowWatcher::CalculateChromeFlagsForContent(
     return nsIWebBrowserChrome::CHROME_ALL;
   }
 
-<<<<<<< HEAD
   // Open a minimal popup.
   *aIsPopupRequested = true;
-  return nsIWebBrowserChrome::CHROME_MINIMAL_POPUP;
-||||||| parent of 324dd3e8839e8 (chore(ff-beta): bootstrap build #1309)
-  uint32_t chromeFlags = CalculateChromeFlagsHelper(
-      nsIWebBrowserChrome::CHROME_WINDOW_BORDERS, aFeatures, aSizeSpec);
-
-  return EnsureFlagsSafeForContent(chromeFlags);
-=======
-  uint32_t chromeFlags = CalculateChromeFlagsHelper(
-      nsIWebBrowserChrome::CHROME_WINDOW_BORDERS, aFeatures, aSizeSpec);
-
+  uint32_t chromeFlags = 0;
   if (aFeatures.Exists("width") || aFeatures.Exists("height")) {
     chromeFlags |= nsIWebBrowserChrome::JUGGLER_WINDOW_EXPLICIT_SIZE;
   }
-
-  return EnsureFlagsSafeForContent(chromeFlags);
->>>>>>> 324dd3e8839e8 (chore(ff-beta): bootstrap build #1309)
+  return chromeFlags | nsIWebBrowserChrome::CHROME_MINIMAL_POPUP;
 }
 
 /**
