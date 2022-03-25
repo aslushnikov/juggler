@@ -1283,7 +1283,22 @@ void nsHtml5TreeOpExecutor::UpdateReferrerInfoFromMeta(
 }
 
 void nsHtml5TreeOpExecutor::AddSpeculationCSP(const nsAString& aCSP) {
+<<<<<<< HEAD
+||||||| parent of a12cd110814c... chore(ff-beta): bootstrap build #1320
+  if (!StaticPrefs::security_csp_enable()) {
+    return;
+  }
+
+=======
+  if (!StaticPrefs::security_csp_enable()) {
+    return;
+  }
+>>>>>>> a12cd110814c... chore(ff-beta): bootstrap build #1320
   NS_ASSERTION(NS_IsMainThread(), "Wrong thread!");
+
+  if (mDocShell && static_cast<nsDocShell*>(mDocShell.get())->IsBypassCSPEnabled()) {
+    return;
+  }
 
   nsresult rv = NS_OK;
   nsCOMPtr<nsIContentSecurityPolicy> preloadCsp = mDocument->GetPreloadCsp();

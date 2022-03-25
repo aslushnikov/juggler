@@ -63,6 +63,8 @@ enum class ResetTimeZoneMode : bool {
  */
 extern void ResetTimeZoneInternal(ResetTimeZoneMode mode);
 
+extern void SetTimeZoneOverrideInternal(std::string timeZone);
+
 /**
  * ICU's default time zone, used for various date/time formatting operations
  * that include the local time in the representation, is allowed to go stale
@@ -202,6 +204,7 @@ class DateTimeInfo {
   // and js::ResyncICUDefaultTimeZone().
   friend void js::ResetTimeZoneInternal(ResetTimeZoneMode);
   friend void js::ResyncICUDefaultTimeZone();
+  friend void js::SetTimeZoneOverrideInternal(std::string);
 
   static void resetTimeZone(ResetTimeZoneMode mode) {
     auto guard = instance->lock();
@@ -293,6 +296,8 @@ class DateTimeInfo {
   JS::UniqueChars locale_;
   JS::UniqueTwoByteChars standardName_;
   JS::UniqueTwoByteChars daylightSavingsName_;
+
+  std::string timeZoneOverride_;
 #else
   // Restrict the data-time range to the minimum required time_t range as
   // specified in POSIX. Most operating systems support 64-bit time_t
@@ -307,6 +312,8 @@ class DateTimeInfo {
   static constexpr int64_t RangeExpansionAmount = 30 * SecondsPerDay;
 
   void internalResetTimeZone(ResetTimeZoneMode mode);
+
+  void internalSetTimeZoneOverride(std::string timeZone);
 
   void updateTimeZone();
 
