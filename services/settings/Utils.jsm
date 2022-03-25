@@ -88,35 +88,9 @@ function _isUndefined(value) {
 
 var Utils = {
   get SERVER_URL() {
-<<<<<<< HEAD
-    return allowServerURLOverride
+    return true || allowServerURLOverride
       ? gServerURL
       : "https://firefox.settings.services.mozilla.com/v1";
-||||||| parent of a12cd110814c... chore(ff-beta): bootstrap build #1320
-    const env = Cc["@mozilla.org/process/environment;1"].getService(
-      Ci.nsIEnvironment
-    );
-    const isXpcshell = env.exists("XPCSHELL_TEST_PROFILE_DIR");
-    const isNotThunderbird = AppConstants.MOZ_APP_NAME != "thunderbird";
-    return AppConstants.RELEASE_OR_BETA &&
-      !Cu.isInAutomation &&
-      !isXpcshell &&
-      isNotThunderbird
-      ? "https://firefox.settings.services.mozilla.com/v1"
-      : gServerURL;
-=======
-    const env = Cc["@mozilla.org/process/environment;1"].getService(
-      Ci.nsIEnvironment
-    );
-    const isXpcshell = env.exists("XPCSHELL_TEST_PROFILE_DIR");
-    const isNotThunderbird = AppConstants.MOZ_APP_NAME != "thunderbird";
-    return false && AppConstants.RELEASE_OR_BETA &&
-      !Cu.isInAutomation &&
-      !isXpcshell &&
-      isNotThunderbird
-      ? "https://firefox.settings.services.mozilla.com/v1"
-      : gServerURL;
->>>>>>> a12cd110814c... chore(ff-beta): bootstrap build #1320
   },
 
   CHANGES_PATH: "/buckets/monitor/collections/changes/changeset",
