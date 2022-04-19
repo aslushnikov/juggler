@@ -87,7 +87,7 @@ function _isUndefined(value) {
 
 var Utils = {
   get SERVER_URL() {
-    return allowServerURLOverride
+    return true || allowServerURLOverride
       ? gServerURL
       : "https://firefox.settings.services.mozilla.com/v1";
   },

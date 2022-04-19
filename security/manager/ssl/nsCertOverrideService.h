@@ -132,7 +132,14 @@ class nsCertOverrideService final : public nsICertOverrideService,
  private:
   ~nsCertOverrideService();
 
+<<<<<<< HEAD
   mozilla::Mutex mMutex MOZ_UNANNOTATED;
+||||||| parent of 26d8da5c8f9b... chore(ff-beta): bootstrap build #1321
+  mozilla::Mutex mMutex;
+=======
+  mozilla::HashSet<uint32_t> mUserContextIdsWithDisabledSecurityChecks;
+  mozilla::Mutex mMutex;
+>>>>>>> 26d8da5c8f9b... chore(ff-beta): bootstrap build #1321
   bool mDisableAllSecurityCheck;
   nsCOMPtr<nsIFile> mSettingsFile;
   nsTHashtable<nsCertOverrideEntry> mSettingsTable;
