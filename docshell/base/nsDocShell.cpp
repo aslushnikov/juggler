@@ -121,12 +121,8 @@
 #include "nsIDocShellTreeItem.h"
 #include "nsIDocShellTreeOwner.h"
 #include "mozilla/dom/Document.h"
-<<<<<<< HEAD
 #include "nsHTMLDocument.h"
-||||||| parent of 26d8da5c8f9b... chore(ff-beta): bootstrap build #1321
-=======
 #include "mozilla/dom/Element.h"
->>>>>>> 26d8da5c8f9b... chore(ff-beta): bootstrap build #1321
 #include "nsIDocumentLoaderFactory.h"
 #include "nsIDOMWindow.h"
 #include "nsIEditingSession.h"
