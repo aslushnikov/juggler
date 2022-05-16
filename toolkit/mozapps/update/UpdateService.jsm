@@ -3594,16 +3594,10 @@ UpdateService.prototype = {
   },
 
   get disabledForTesting() {
-<<<<<<< HEAD
+    /* for playwright */
+    return true;
     return (
       (Cu.isInAutomation || Marionette.running || RemoteAgent.running) &&
-||||||| parent of 978909d9057c... chore(ff-beta): bootstrap build #1323
-    return (
-      (Cu.isInAutomation || Marionette.running || RemoteAgent.listening) &&
-=======
-    return true || (
-      (Cu.isInAutomation || Marionette.running || RemoteAgent.listening) &&
->>>>>>> 978909d9057c... chore(ff-beta): bootstrap build #1323
       Services.prefs.getBoolPref(PREF_APP_UPDATE_DISABLEDFORTESTING, false)
     );
   },

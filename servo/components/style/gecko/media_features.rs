@@ -223,21 +223,13 @@ pub enum ForcedColors {
 }
 
 /// https://drafts.csswg.org/mediaqueries-5/#forced-colors
-<<<<<<< HEAD
 fn eval_forced_colors(context: &Context, query_value: Option<ForcedColors>) -> bool {
-    let forced = !context.device().use_document_colors();
-||||||| parent of 978909d9057c... chore(ff-beta): bootstrap build #1323
-fn eval_forced_colors(device: &Device, query_value: Option<ForcedColors>) -> bool {
-    let forced = !device.use_document_colors();
-=======
-fn eval_forced_colors(device: &Device, query_value: Option<ForcedColors>) -> bool {
     let prefers_forced_colors =
-        unsafe { bindings::Gecko_MediaFeatures_ForcedColors(device.document()) };
+        unsafe { bindings::Gecko_MediaFeatures_ForcedColors(context.device().document()) };
     let query_value = match query_value {
         Some(v) => v,
         None => return prefers_forced_colors,
     };
->>>>>>> 978909d9057c... chore(ff-beta): bootstrap build #1323
     match query_value {
         ForcedColors::Active => prefers_forced_colors,
         ForcedColors::None => !prefers_forced_colors,

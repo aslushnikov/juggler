@@ -1759,50 +1759,6 @@ void RuntimeService::PropagateStorageAccessPermissionGranted(
   }
 }
 
-<<<<<<< HEAD
-||||||| parent of 978909d9057c... chore(ff-beta): bootstrap build #1323
-void RuntimeService::NoteIdleThread(SafeRefPtr<WorkerThread> aThread) {
-  AssertIsOnMainThread();
-  MOZ_ASSERT(aThread);
-
-  bool shutdownThread = mShuttingDown;
-  bool scheduleTimer = false;
-
-  if (!shutdownThread) {
-    static TimeDuration timeout =
-        TimeDuration::FromSeconds(IDLE_THREAD_TIMEOUT_SEC);
-
-    const TimeStamp expirationTime = TimeStamp::NowLoRes() + timeout;
-
-    MutexAutoLock lock(mMutex);
-
-    const uint32_t previousIdleCount = mIdleThreadArray.Length();
-
-    if (previousIdleCount < MAX_IDLE_THREADS) {
-      IdleThreadInfo* const info = mIdleThreadArray.AppendElement();
-      info->mThread = std::move(aThread);
-      info->mExpirationTime = expirationTime;
-
-      scheduleTimer = previousIdleCount == 0;
-    } else {
-      shutdownThread = true;
-    }
-  }
-
-  MOZ_ASSERT_IF(shutdownThread, !scheduleTimer);
-  MOZ_ASSERT_IF(scheduleTimer, !shutdownThread);
-
-  // Too many idle threads, just shut this one down.
-  if (shutdownThread) {
-    MOZ_ALWAYS_SUCCEEDS(aThread->Shutdown());
-  } else if (scheduleTimer) {
-    MOZ_ALWAYS_SUCCEEDS(mIdleThreadTimer->InitWithNamedFuncCallback(
-        ShutdownIdleThreads, nullptr, IDLE_THREAD_TIMEOUT_SEC * 1000,
-        nsITimer::TYPE_ONE_SHOT, "RuntimeService::ShutdownIdleThreads"));
-  }
-}
-
-=======
 void RuntimeService::ResetDefaultLocaleInAllWorkers() {
   AssertIsOnMainThread();
   BroadcastAllWorkers([](auto& worker) {
@@ -1810,48 +1766,6 @@ void RuntimeService::ResetDefaultLocaleInAllWorkers() {
   });
 }
 
-void RuntimeService::NoteIdleThread(SafeRefPtr<WorkerThread> aThread) {
-  AssertIsOnMainThread();
-  MOZ_ASSERT(aThread);
-
-  bool shutdownThread = mShuttingDown;
-  bool scheduleTimer = false;
-
-  if (!shutdownThread) {
-    static TimeDuration timeout =
-        TimeDuration::FromSeconds(IDLE_THREAD_TIMEOUT_SEC);
-
-    const TimeStamp expirationTime = TimeStamp::NowLoRes() + timeout;
-
-    MutexAutoLock lock(mMutex);
-
-    const uint32_t previousIdleCount = mIdleThreadArray.Length();
-
-    if (previousIdleCount < MAX_IDLE_THREADS) {
-      IdleThreadInfo* const info = mIdleThreadArray.AppendElement();
-      info->mThread = std::move(aThread);
-      info->mExpirationTime = expirationTime;
-
-      scheduleTimer = previousIdleCount == 0;
-    } else {
-      shutdownThread = true;
-    }
-  }
-
-  MOZ_ASSERT_IF(shutdownThread, !scheduleTimer);
-  MOZ_ASSERT_IF(scheduleTimer, !shutdownThread);
-
-  // Too many idle threads, just shut this one down.
-  if (shutdownThread) {
-    MOZ_ALWAYS_SUCCEEDS(aThread->Shutdown());
-  } else if (scheduleTimer) {
-    MOZ_ALWAYS_SUCCEEDS(mIdleThreadTimer->InitWithNamedFuncCallback(
-        ShutdownIdleThreads, nullptr, IDLE_THREAD_TIMEOUT_SEC * 1000,
-        nsITimer::TYPE_ONE_SHOT, "RuntimeService::ShutdownIdleThreads"));
-  }
-}
-
->>>>>>> 978909d9057c... chore(ff-beta): bootstrap build #1323
 template <typename Func>
 void RuntimeService::BroadcastAllWorkers(const Func& aFunc) {
   AssertIsOnMainThread();

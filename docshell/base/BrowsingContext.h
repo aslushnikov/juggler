@@ -176,10 +176,10 @@ enum class ExplicitActiveStatus : uint8_t {
   FIELD(GVInaudibleAutoplayRequestStatus, GVAutoplayRequestStatus)            \
   /* ScreenOrientation-related APIs */                                        \
   FIELD(CurrentOrientationAngle, float)                                       \
-  FIELD(CurrentOrientationType, mozilla::dom::OrientationType)                \
+  FIELD(CurrentOrientationType, dom::OrientationType)                \
   FIELD(OrientationLock, mozilla::hal::ScreenOrientation)                     \
   FIELD(UserAgentOverride, nsString)                                          \
-  FIELD(TouchEventsOverrideInternal, mozilla::dom::TouchEventsOverride)       \
+  FIELD(TouchEventsOverrideInternal, dom::TouchEventsOverride)       \
   FIELD(EmbedderElementType, Maybe<nsString>)                                 \
   FIELD(MessageManagerGroup, nsString)                                        \
   FIELD(MaxTouchPointsOverride, uint8_t)                                      \
@@ -211,22 +211,16 @@ enum class ExplicitActiveStatus : uint8_t {
   FIELD(AuthorStyleDisabledDefault, bool)                                     \
   FIELD(ServiceWorkersTestingEnabled, bool)                                   \
   FIELD(MediumOverride, nsString)                                             \
-<<<<<<< HEAD
   /* DevTools override for prefers-color-scheme */                            \
   FIELD(PrefersColorSchemeOverride, dom::PrefersColorSchemeOverride)          \
   /* prefers-color-scheme override based on the color-scheme style of our     \
    * <browser> embedder element. */                                           \
   FIELD(EmbedderColorScheme, dom::PrefersColorSchemeOverride)                 \
   FIELD(DisplayMode, dom::DisplayMode)                                        \
-||||||| parent of 978909d9057c... chore(ff-beta): bootstrap build #1323
-  FIELD(PrefersColorSchemeOverride, mozilla::dom::PrefersColorSchemeOverride) \
-  FIELD(DisplayMode, mozilla::dom::DisplayMode)                               \
-=======
-  FIELD(PrefersColorSchemeOverride, mozilla::dom::PrefersColorSchemeOverride) \
-  FIELD(PrefersReducedMotionOverride, mozilla::dom::PrefersReducedMotionOverride) \
-  FIELD(ForcedColorsOverride, mozilla::dom::ForcedColorsOverride) \
-  FIELD(DisplayMode, mozilla::dom::DisplayMode)                               \
->>>>>>> 978909d9057c... chore(ff-beta): bootstrap build #1323
+  /* playwright addition */                                                   \
+  FIELD(PrefersReducedMotionOverride, dom::PrefersReducedMotionOverride)      \
+  /* playwright addition */                                                   \
+  FIELD(ForcedColorsOverride, dom::ForcedColorsOverride)                      \
   /* The number of entries added to the session history because of this       \
    * browsing context. */                                                     \
   FIELD(HistoryEntryCount, uint32_t)                                          \
@@ -903,11 +897,6 @@ class BrowsingContext : public nsILoadContext, public nsWrapperCache {
     return GetPrefersColorSchemeOverride();
   }
 
-<<<<<<< HEAD
-||||||| parent of 978909d9057c... chore(ff-beta): bootstrap build #1323
-  void FlushSessionStore();
-
-=======
   dom::PrefersReducedMotionOverride PrefersReducedMotionOverride() const {
     return GetPrefersReducedMotionOverride();
   }
@@ -916,9 +905,6 @@ class BrowsingContext : public nsILoadContext, public nsWrapperCache {
     return GetForcedColorsOverride();
   }
 
-  void FlushSessionStore();
-
->>>>>>> 978909d9057c... chore(ff-beta): bootstrap build #1323
   bool IsInBFCache() const;
 
   bool AllowJavascript() const { return GetAllowJavascript(); }
@@ -1071,11 +1057,8 @@ class BrowsingContext : public nsILoadContext, public nsWrapperCache {
   void DidSet(FieldIndex<IDX_PrefersColorSchemeOverride>,
               dom::PrefersColorSchemeOverride aOldValue);
 
-<<<<<<< HEAD
   void PresContextAffectingFieldChanged();
 
-||||||| parent of 978909d9057c... chore(ff-beta): bootstrap build #1323
-=======
   bool CanSet(FieldIndex<IDX_PrefersReducedMotionOverride>,
               dom::PrefersReducedMotionOverride, ContentParent*) {
     return IsTop();
@@ -1093,7 +1076,6 @@ class BrowsingContext : public nsILoadContext, public nsWrapperCache {
   void DidSet(FieldIndex<IDX_ForcedColorsOverride>,
               dom::ForcedColorsOverride aOldValue);
 
->>>>>>> 978909d9057c... chore(ff-beta): bootstrap build #1323
   void DidSet(FieldIndex<IDX_MediumOverride>, nsString&& aOldValue);
 
   bool CanSet(FieldIndex<IDX_SuspendMediaWhenInactive>, bool, ContentParent*) {
