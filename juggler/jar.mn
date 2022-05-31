@@ -6,6 +6,7 @@ juggler.jar:
 % content juggler %content/
   content/Helper.js (Helper.js)
   content/NetworkObserver.js (NetworkObserver.js)
+  content/BrowserFrameTree.js (BrowserFrameTree.js)
   content/TargetRegistry.js (TargetRegistry.js)
   content/SimpleChannel.js (SimpleChannel.js)
   content/protocol/PrimitiveTypes.js (protocol/PrimitiveTypes.js)

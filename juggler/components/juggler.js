@@ -8,6 +8,7 @@ const {Services} = ChromeUtils.import("resource://gre/modules/Services.jsm");
 const {Dispatcher} = ChromeUtils.import("chrome://juggler/content/protocol/Dispatcher.js");
 const {BrowserHandler} = ChromeUtils.import("chrome://juggler/content/protocol/BrowserHandler.js");
 const {NetworkObserver} = ChromeUtils.import("chrome://juggler/content/NetworkObserver.js");
+const {BrowserFrameTree} = ChromeUtils.import("chrome://juggler/content/BrowserFrameTree.js");
 const {TargetRegistry} = ChromeUtils.import("chrome://juggler/content/TargetRegistry.js");
 const {Helper} = ChromeUtils.import('chrome://juggler/content/Helper.js');
 const helper = new Helper();
@@ -42,6 +43,7 @@ CommandLineHandler.prototype = {
 
     const targetRegistry = new TargetRegistry();
     new NetworkObserver(targetRegistry);
+    new FrameTree();
 
     const loadFrameScript = () => {
       Services.mm.loadFrameScript(FRAME_SCRIPT, true /* aAllowDelayedLoad */);
