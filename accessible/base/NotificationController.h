@@ -276,6 +276,8 @@ class NotificationController final : public EventQueue,
   }
 #endif
 
+  bool IsUpdatePendingForJugglerAccessibility() { return IsUpdatePending(); }
+
  protected:
   virtual ~NotificationController();
 
