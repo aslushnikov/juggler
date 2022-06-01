@@ -42,20 +42,12 @@ using GeoPositionCallback =
     CallbackObjectHolder<PositionCallback, nsIDOMGeoPositionCallback>;
 using GeoPositionErrorCallback =
     CallbackObjectHolder<PositionErrorCallback, nsIDOMGeoPositionErrorCallback>;
-<<<<<<< HEAD
-}  // namespace mozilla::dom
-||||||| parent of 1d2da21effa1... chore(ff-beta): bootstrap build #1327
-}  // namespace dom
-}  // namespace mozilla
-=======
 typedef CallbackObjectHolder<PositionCallback, nsIDOMGeoPositionCallback>
     GeoPositionCallback;
 typedef CallbackObjectHolder<PositionErrorCallback,
                              nsIDOMGeoPositionErrorCallback>
     GeoPositionErrorCallback;
-}  // namespace dom
-}  // namespace mozilla
->>>>>>> 1d2da21effa1... chore(ff-beta): bootstrap build #1327
+}  // namespace mozilla::dom
 
 struct CachedPositionAndAccuracy {
   nsCOMPtr<nsIDOMGeoPosition> position;
