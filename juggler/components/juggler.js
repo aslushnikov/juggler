@@ -43,7 +43,7 @@ CommandLineHandler.prototype = {
 
     const targetRegistry = new TargetRegistry();
     new NetworkObserver(targetRegistry);
-    new FrameTree();
+    new BrowserFrameTree();
 
     const loadFrameScript = () => {
       Services.mm.loadFrameScript(FRAME_SCRIPT, true /* aAllowDelayedLoad */);
