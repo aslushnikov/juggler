@@ -9,6 +9,19 @@
 const SIMPLE_CHANNEL_MESSAGE_NAME = 'juggler:simplechannel';
 
 class SimpleChannel {
+  static createForActor(name, parentInstance) {
+    const channel = new SimpleChannel(name);
+
+    parentInstance.receiveMessage = message => channel._onMessage(message.data);
+
+    channel.setTransport({
+      sendMessage: obj => parentInstance.sendAsyncMessage(SIMPLE_CHANNEL_MESSAGE_NAME, obj),
+      dispose: () => parentInstance.receiveMessage = () => {},
+    });
+
+    return channel;
+  }
+
   static createForMessageManager(name, mm) {
     const channel = new SimpleChannel(name);
 

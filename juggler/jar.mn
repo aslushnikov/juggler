@@ -9,6 +9,8 @@ juggler.jar:
   content/BrowserFrameTree.js (BrowserFrameTree.js)
   content/TargetRegistry.js (TargetRegistry.js)
   content/SimpleChannel.js (SimpleChannel.js)
+  content/actors/JugglerFrameParent.jsm (actors/JugglerFrameParent.jsm)
+  content/actors/JugglerFrameChild.jsm (actors/JugglerFrameChild.jsm)
   content/protocol/PrimitiveTypes.js (protocol/PrimitiveTypes.js)
   content/protocol/Protocol.js (protocol/Protocol.js)
   content/protocol/Dispatcher.js (protocol/Dispatcher.js)
