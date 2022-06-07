@@ -9,7 +9,7 @@ const Cu = Components.utils;
 
 const {Helper} = ChromeUtils.import('chrome://juggler/content/Helper.js');
 const {SimpleChannel} = ChromeUtils.import('chrome://juggler/content/SimpleChannel.js');
-const {EventEmitter} = ChromeUtils.import('resource://gre/modules/EventEmitter.jsm');
+const { EventEmitter } = ChromeUtils.import('resource://gre/modules/EventEmitter.jsm');
 const {Runtime} = ChromeUtils.import('chrome://juggler/content/content/Runtime.js');
 
 const helper = new Helper();

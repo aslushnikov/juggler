@@ -468,7 +468,7 @@ class PageAgent {
     return {quads};
   }
 
-  _describeNode({objectId, frameId}) {
+  _describeNode({ objectId, frameId }) {
     const frame = this._frameTree.frame(frameId);
     if (!frame)
       throw new Error('Failed to find frame with id = ' + frameId);

@@ -11,6 +11,7 @@ const {ContextualIdentityService} = ChromeUtils.import("resource://gre/modules/C
 const {NetUtil} = ChromeUtils.import('resource://gre/modules/NetUtil.jsm');
 const {AppConstants} = ChromeUtils.import("resource://gre/modules/AppConstants.jsm");
 const {OS} = ChromeUtils.import("resource://gre/modules/osfile.jsm");
+const { BrowserFrameTree } = ChromeUtils.import("chrome://juggler/content/BrowserFrameTree.js");
 
 const Cr = Components.results;
 
@@ -103,13 +104,19 @@ class DownloadInterceptor {
 const screencastService = Cc['@mozilla.org/juggler/screencast;1'].getService(Ci.nsIScreencastService);
 
 class TargetRegistry {
+  static instance() {
+    return TargetRegistry._instance || null;
+  }
+
   constructor() {
     EventEmitter.decorate(this);
+    TargetRegistry._instance = this;
 
     this._browserContextIdToBrowserContext = new Map();
     this._userContextIdToBrowserContext = new Map();
     this._browserToTarget = new Map();
     this._browserBrowsingContextToTarget = new Map();
+    this._browserIdToPageTarget = new Map();
 
     this._browserProxy = null;
 
@@ -339,13 +346,19 @@ class TargetRegistry {
   targetForBrowser(browser) {
     return this._browserToTarget.get(browser);
   }
+
+  browserIdToPageTarget(browserId) {
+    return this._browserIdToPageTarget.get(browserId);
+  }
 }
+
+let lastPageId = 0;
 
 class PageTarget {
   constructor(registry, win, tab, browserContext, opener) {
     EventEmitter.decorate(this);
 
-    this._targetId = helper.generateId();
+    this._targetId = 'page-' + (++lastPageId);
     this._registry = registry;
     this._window = win;
     this._gBrowser = win.gBrowser;
@@ -363,6 +376,11 @@ class PageTarget {
     this.forcedColors = 'no-override';
     this._pageInitScripts = [];
 
+    // `browserId` of the root browsing context never changes for this page.
+    this._browserId = tab.linkedBrowser.browsingContext.browserId;
+    this._registry._browserIdToPageTarget.set(this._browserId, this);
+    this._frameTree = BrowserFrameTree.fromRootBrowsingContext(tab.linkedBrowser.browsingContext);
+
     const navigationListener = {
       QueryInterface: ChromeUtils.generateQI([Ci.nsIWebProgressListener, Ci.nsISupportsWeakReference]),
       onLocationChange: (aWebProgress, aRequest, aLocation) => this._onNavigated(aLocation),
@@ -379,6 +397,17 @@ class PageTarget {
     this._registry._browserBrowsingContextToTarget.set(this._linkedBrowser.browsingContext, this);
 
     this._registry.emit(TargetRegistry.Events.TargetCreated, this);
+  }
+
+  frameTree() {
+    return this._frameTree;
+  }
+
+  async navigate({ frameId, url, referrer }) {
+    const frame = this._frameTree.frameIdToFrame(frameId);
+    if (!frame)
+      throw new Error(`Failed to find frame with id ${frameId}`);
+    return await frame.navigate(url, referrer);
   }
 
   dialog(dialogId) {
@@ -646,6 +675,7 @@ class PageTarget {
       if (e)
         dump(e.message + '\n' + e.stack + '\n');
     }
+    this._registry._browserIdToPageTarget.delete(this._browserId);
     this._registry.emit(TargetRegistry.Events.TargetDestroyed, this);
   }
 }
@@ -656,6 +686,13 @@ PageTarget.Events = {
   Crashed: Symbol('PageTarget.Crashed'),
   DialogOpened: Symbol('PageTarget.DialogOpened'),
   DialogClosed: Symbol('PageTarget.DialogClosed'),
+
+  FrameAttached: 'frameattached',
+  FrameDetached: 'framedetached',
+  NavigationStarted: 'navigationstarted',
+  NavigationCommitted: 'navigationcommitted',
+  NavigationAborted: 'navigationaborted',
+  SameDocumentNavigation: 'samedocumentnavigation',
 };
 
 function fromProtocolColorScheme(colorScheme) {

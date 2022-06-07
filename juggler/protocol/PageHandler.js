@@ -8,6 +8,7 @@ const {Helper} = ChromeUtils.import('chrome://juggler/content/Helper.js');
 const {Services} = ChromeUtils.import("resource://gre/modules/Services.jsm");
 const {NetworkObserver, PageNetwork} = ChromeUtils.import('chrome://juggler/content/NetworkObserver.js');
 const {PageTarget} = ChromeUtils.import('chrome://juggler/content/TargetRegistry.js');
+const { BrowserFrameTree } = ChromeUtils.import("chrome://juggler/content/BrowserFrameTree.js");
 
 const Cc = Components.classes;
 const Ci = Components.interfaces;
@@ -91,6 +92,12 @@ class PageHandler {
     if (this._pageTarget.videoRecordingInfo())
       this._onVideoRecordingStarted();
 
+    for (const frame of this._pageTarget.frameTree().allFrames()) {
+      this._onFrameAttached(frame);
+      if (frame.pendingNavigation())
+        this._onNavigationStarted(frame);
+    }
+
     this._eventListeners = [
       helper.on(this._pageTarget, PageTarget.Events.DialogOpened, this._onDialogOpened.bind(this)),
       helper.on(this._pageTarget, PageTarget.Events.DialogClosed, this._onDialogClosed.bind(this)),
@@ -103,20 +110,26 @@ class PageHandler {
       helper.on(this._pageNetwork, PageNetwork.Events.Response, this._handleNetworkEvent.bind(this, 'Network.responseReceived')),
       helper.on(this._pageNetwork, PageNetwork.Events.RequestFinished, this._handleNetworkEvent.bind(this, 'Network.requestFinished')),
       helper.on(this._pageNetwork, PageNetwork.Events.RequestFailed, this._handleNetworkEvent.bind(this, 'Network.requestFailed')),
+      helper.on(this._pageTarget.frameTree(), BrowserFrameTree.Events.FrameAttached, this._onFrameAttached.bind(this)),
+      helper.on(this._pageTarget.frameTree(), BrowserFrameTree.Events.FrameDetached, this._onFrameDetached.bind(this)),
+      helper.on(this._pageTarget.frameTree(), BrowserFrameTree.Events.NavigationStarted, this._onNavigationStarted.bind(this)),
+      helper.on(this._pageTarget.frameTree(), BrowserFrameTree.Events.NavigationCommitted, this._onNavigationCommitted.bind(this)),
+      helper.on(this._pageTarget.frameTree(), BrowserFrameTree.Events.NavigationAborted, this._onNavigationAborted.bind(this)),
+      helper.on(this._pageTarget.frameTree(), BrowserFrameTree.Events.SameDocumentNavigation, this._onSameDocumentNavigated.bind(this)),
       contentChannel.register('page', {
         pageBindingCalled: emitProtocolEvent('Page.bindingCalled'),
         pageDispatchMessageFromWorker: emitProtocolEvent('Page.dispatchMessageFromWorker'),
         pageEventFired: emitProtocolEvent('Page.eventFired'),
         pageFileChooserOpened: emitProtocolEvent('Page.fileChooserOpened'),
-        pageFrameAttached: this._onFrameAttached.bind(this),
-        pageFrameDetached: emitProtocolEvent('Page.frameDetached'),
+        // pageFrameAttached: this._onFrameAttached.bind(this),
+        // pageFrameDetached: emitProtocolEvent('Page.frameDetached'),
         pageLinkClicked: emitProtocolEvent('Page.linkClicked'),
         pageWillOpenNewWindowAsynchronously: emitProtocolEvent('Page.willOpenNewWindowAsynchronously'),
-        pageNavigationAborted: emitProtocolEvent('Page.navigationAborted'),
-        pageNavigationCommitted: emitProtocolEvent('Page.navigationCommitted'),
-        pageNavigationStarted: emitProtocolEvent('Page.navigationStarted'),
+        // pageNavigationAborted: emitProtocolEvent('Page.navigationAborted'),
+        // pageNavigationCommitted: emitProtocolEvent('Page.navigationCommitted'),
+        // pageNavigationStarted: emitProtocolEvent('Page.navigationStarted'),
+        // pageSameDocumentNavigation: emitProtocolEvent('Page.sameDocumentNavigation'),
         pageReady: this._onPageReady.bind(this),
-        pageSameDocumentNavigation: emitProtocolEvent('Page.sameDocumentNavigation'),
         pageUncaughtError: emitProtocolEvent('Page.uncaughtError'),
         pageWorkerCreated: this._onWorkerCreated.bind(this),
         pageWorkerDestroyed: this._onWorkerDestroyed.bind(this),
@@ -208,13 +221,56 @@ class PageHandler {
     }
   }
 
-  _onFrameAttached({frameId, parentFrameId}) {
-    this._session.emitEvent('Page.frameAttached', {frameId, parentFrameId});
+  _onNavigationStarted(frame) {
+    this._session.emitEvent('Page.navigationStarted', {
+      frameId: frame.frameId(),
+      navigationId: frame.pendingNavigation().navigationId,
+      url: frame.pendingNavigation().navigationURL,
+    });
+  }
+
+  _onNavigationCommitted(frame, { navigationId }) {
+    this._session.emitEvent('Page.navigationCommitted', {
+      frameId: frame.frameId(),
+      navigationId,
+      url: frame.url(),
+      //TODO: report proper frame name.
+      name: '',
+    });
+  }
+
+  _onNavigationAborted(frame, { navigationId, errorText }) {
+    this._session.emitEvent('Page.navigationCommitted', {
+      frameId: frame.frameId(),
+      errorText,
+      navigationId,
+    });
+  }
+
+  _onSameDocumentNavigated(frame) {
+    this._session.emitEvent('Page.sameDocumentNavigation', {
+      frameId: frame.frameId(),
+      url: frame.url(),
+    });
+  }
+
+  _onFrameAttached(frame) {
+    const frameId = frame.frameId();
+    this._session.emitEvent('Page.frameAttached', {
+      frameId,
+      parentFrameId: frame.parent()?.frameId()
+    });
     this._reportedFrameIds.add(frameId);
     const events = this._networkEventsForUnreportedFrameIds.get(frameId) || [];
     this._networkEventsForUnreportedFrameIds.delete(frameId);
     for (const {eventName, eventDetails} of events)
       this._session.emitEvent(eventName, eventDetails);
+  }
+
+  _onFrameDetached(frame) {
+    this._session.emitEvent('Page.frameAttached', {
+      frameId: frame.frameId(),
+    });
   }
 
   async ['Page.close']({runBeforeUnload}) {
@@ -311,7 +367,8 @@ class PageHandler {
   }
 
   async ['Page.navigate'](options) {
-    return await this._contentPage.send('navigate', options);
+    // return await this._contentPage.send('navigate', options);
+    return await this._pageTarget.navigate(options);
   }
 
   async ['Page.goBack'](options) {

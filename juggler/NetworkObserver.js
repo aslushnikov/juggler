@@ -124,7 +124,19 @@ class NetworkRequest {
       browsingContext = loadContext?.topFrameElement?.browsingContext;
     }
 
-    this._frameId = helper.browsingContextToFrameId(browsingContext);
+    if (!browsingContext) {
+      // give up on requests without browsing context.
+      return;
+    }
+
+    const pageTarget = this._networkObserver._targetRegistry.browserIdToPageTarget(browsingContext.browserId);
+    const frame = pageTarget?.frameTree().browsingContextToFrame(browsingContext);
+    if (!frame) {
+      // Give up if we failed to attribute request to frame
+      return;
+    }
+    this._frame = frame;
+    this._frameId = frame.frameId();
 
     this.requestId = httpChannel.channelId + '';
     this.navigationId = httpChannel.isMainDocumentChannel ? this.requestId : undefined;
@@ -485,6 +497,13 @@ class NetworkRequest {
     const loadInfo = this.httpChannel.loadInfo;
     const causeType = loadInfo?.externalContentPolicyType || Ci.nsIContentPolicy.TYPE_OTHER;
     const internalCauseType = loadInfo?.internalContentPolicyType || Ci.nsIContentPolicy.TYPE_OTHER;
+    if (this._frame && this.navigationId) {
+      //TODO: complete attempt to migrate from webProgress to network to observe navigations.
+      this._frame._onNavigationStarted({
+        navigationId: this.navigationId,
+        navigationURL: this.httpChannel.URI.spec,
+      });
+    }
     pageNetwork.emit(PageNetwork.Events.Request, {
       url: this.httpChannel.URI.spec,
       frameId: this._frameId,

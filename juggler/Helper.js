@@ -38,6 +38,17 @@ class Helper {
     return () => receiver.off(eventName, handlerWrapper);
   }
 
+  once(receiver, eventName, handler) {
+    return new Promise(resolve => {
+      const tearDown = this.on(receiver, eventName, (...args) => {
+        if (handler(...args)) {
+          tearDown();
+          resolve();
+        }
+      });
+    });
+  }
+
   addProgressListener(progress, listener, flags) {
     progress.addProgressListener(listener, flags);
     return () => progress.removeProgressListener(listener);

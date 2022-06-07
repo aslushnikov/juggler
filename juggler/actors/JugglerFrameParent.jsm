@@ -1,7 +1,7 @@
 "use strict";
 
 const { SimpleChannel } = ChromeUtils.import('chrome://juggler/content/SimpleChannel.js');
-const { BrowserFrameTree } = ChromeUtils.import('chrome://juggler/content/BrowserFrameTree.js');
+const { TargetRegistry } = ChromeUtils.import('chrome://juggler/content/TargetRegistry.js');
 
 var EXPORTED_SYMBOLS = ['JugglerFrameParent'];
 
@@ -13,13 +13,19 @@ class JugglerFrameParent extends JSWindowActorParent {
   receiveMessage() { }
 
   async actorCreated() {
-    this.channel = SimpleChannel.createForActor('browser::frame', this);
-    const frameTree = BrowserFrameTree.instance();
+    const pageTarget = TargetRegistry.instance().browserIdToPageTarget(this.browsingContext.browserId);
+    if (!pageTarget)
+      return;
+    const frameTree = pageTarget.frameTree();
     this._frame = frameTree.browsingContextToFrame(this.browsingContext);
     if (!this._frame)
       return;
+
+    // Navigation committed!
+    this._frame._onGlobalWindowCleared();
+    this.channel = SimpleChannel.createForActor('browser::frame', this);
     dump(`
-      pair created for frame: ${this._frame.id()}
+      pair created for frame: ${this._frame.frameId()}
     `);
   }
 
@@ -27,7 +33,7 @@ class JugglerFrameParent extends JSWindowActorParent {
     if (!this._frame)
       return;
     dump(`
-      pair destroyed for frame: ${this._frame.id()}
+      pair destroyed for frame: ${this._frame.frameId()}
     `);
   }
 }
