@@ -42,7 +42,7 @@ class SimpleChannel {
     this._disposed = false;
     this.transport = {
       sendMessage: null,
-      dispose: null,
+      dispose: () => {},
     };
     this._ready = false;
   }
@@ -65,7 +65,7 @@ class SimpleChannel {
 
     this.transport = {
       sendMessage: null,
-      dispose: null,
+      dispose: () => {},
     };
     this._ready = false;
   }

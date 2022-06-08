@@ -106,8 +106,9 @@ class BrowserFrameTree {
 
   async _onBrowsingContextWillProcessSwitch(browsingContext) {
     const browserFrame = this._browsingContextToBrowserFrame.get(browsingContext);
-    if (browserFrame)
-      browserFrame._setActorParent(null);
+    if (browserFrame) {
+      browserFrame._setWindowActor(null);
+    }
   }
 
   _updateCrossProcessCookie() {
@@ -192,9 +193,14 @@ class BrowserFrame {
     this._frameTree.emit(BFTEvents.FrameAttached, this);
   }
 
-  _setActorParent(actor) {
+  _setWindowActor(actor) {
+    // All old execution contexts must be destroyed.
     for (const executionContextId of this._executionContextIds)
       this._onExecutionContextDestroyed({ executionContextId });
+
+    // Creation of a new WindowGlobalParent means that pending navigation succeeded.
+    if (this._pendingNavigation)
+      this._onNavigationCommitted({ url: this._pendingNavigation.navigationURL, name: this._pendingNavigation.name });
 
     if (actor)
       this._channel.bindToActor(actor);
@@ -213,12 +219,13 @@ class BrowserFrame {
     this._frameTree.emit(BrowserFrameTree.Events.ExecutionContextDestroyed, { executionContextId });
   }
 
-  _onNavigationStarted({ navigationId, url }) {
+  _onNavigationStarted({ navigationId, url, name }) {
     if (this._pendingNavigation)
       return;
     this._pendingNavigation = {
       navigationId,
       navigationURL: url,
+      name,
     };
     this._frameTree.emit(BrowserFrameTree.Events.NavigationStarted, {
       frameId: this.frameId(),

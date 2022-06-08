@@ -228,31 +228,6 @@ class PageHandler {
     });
   }
 
-  _onNavigationCommitted(frame, { navigationId }) {
-    this._session.emitEvent('Page.navigationCommitted', {
-      frameId: frame.frameId(),
-      navigationId,
-      url: frame.url(),
-      //TODO: report proper frame name.
-      name: '',
-    });
-  }
-
-  _onNavigationAborted(frame, { navigationId, errorText }) {
-    this._session.emitEvent('Page.navigationCommitted', {
-      frameId: frame.frameId(),
-      errorText,
-      navigationId,
-    });
-  }
-
-  _onSameDocumentNavigated(frame) {
-    this._session.emitEvent('Page.sameDocumentNavigation', {
-      frameId: frame.frameId(),
-      url: frame.url(),
-    });
-  }
-
   _onFrameAttached(frame) {
     const frameId = frame.frameId();
     this._session.emitEvent('Page.frameAttached', {

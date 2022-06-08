@@ -24,12 +24,12 @@ class JugglerFrameParent extends JSWindowActorParent {
     this._frame = frameTree.browsingContextToFrame(this.browsingContext);
     if (!this._frame)
       return;
-    this._frame._setActorParent(this);
+    this._frame._setWindowActor(this);
   }
 
   didDestroy() {
     if (!this._frame)
       return;
-    this._frame._setActorParent(null);
+    this._frame._setWindowActor(null);
   }
 }

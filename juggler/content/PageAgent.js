@@ -307,6 +307,7 @@ class PageAgent {
       frameId: frame.id(),
       navigationId: frame.pendingNavigationId(),
       url: frame.pendingNavigationURL(),
+      name: frame.name(),
     });
   }
 
