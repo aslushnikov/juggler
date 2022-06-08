@@ -15,7 +15,7 @@ const {Runtime} = ChromeUtils.import('chrome://juggler/content/content/Runtime.j
 const helper = new Helper();
 
 class FrameTree {
-  constructor(rootDocShell) {
+  constructor(rootDocShell, pendingNavigationId, pendingNavigationURL) {
     EventEmitter.decorate(this);
 
     this._browsingContextGroup = rootDocShell.browsingContext.group;
@@ -33,7 +33,11 @@ class FrameTree {
     this._docShellToFrame = new Map();
     this._frameIdToFrame = new Map();
     this._pageReady = false;
+
     this._mainFrame = this._createFrame(rootDocShell);
+    this._mainFrame._pendingNavigationId = pendingNavigationId;
+    this._mainFrame._pendingNavigationURL = pendingNavigationURL;
+
     const webProgress = rootDocShell.QueryInterface(Ci.nsIInterfaceRequestor)
                                 .getInterface(Ci.nsIWebProgress);
     this.QueryInterface = ChromeUtils.generateQI([
@@ -59,8 +63,6 @@ class FrameTree {
     this._eventListeners = [
       helper.addObserver(this._onDOMWindowCreated.bind(this), 'content-document-global-created'),
       helper.addObserver(this._onDOMWindowCreated.bind(this), 'juggler-dom-window-reused'),
-      helper.addObserver(subject => this._onDocShellCreated(subject.QueryInterface(Ci.nsIDocShell)), 'webnavigation-create'),
-      helper.addObserver(subject => this._onDocShellDestroyed(subject.QueryInterface(Ci.nsIDocShell)), 'webnavigation-destroy'),
       helper.addProgressListener(webProgress, this, flags),
     ];
   }
@@ -204,7 +206,11 @@ class FrameTree {
     this._browsingContextGroup.__jugglerFrameTrees.delete(this);
     this._wdm.removeListener(this._wdmListener);
     this._runtime.dispose();
-    helper.removeListeners(this._eventListeners);
+    try {
+      helper.removeListeners(this._eventListeners);
+    } catch (e) {
+      // webProgress could be already destroyed at this point.
+    }
   }
 
   onStateChange(progress, request, flag, status) {
@@ -213,10 +219,8 @@ class FrameTree {
     const channel = request.QueryInterface(Ci.nsIChannel);
     const docShell = progress.DOMWindow.docShell;
     const frame = this._docShellToFrame.get(docShell);
-    if (!frame) {
-      dump(`ERROR: got a state changed event for un-tracked docshell!\n`);
+    if (!frame)
       return;
-    }
 
     if (!channel.isDocument) {
       // Somehow, we can get worker requests here,
@@ -225,6 +229,7 @@ class FrameTree {
     }
 
     const isStart = flag & Ci.nsIWebProgressListener.STATE_START;
+    const isRedirect = flag & Ci.nsIWebProgressListener.STATE_REDIRECTING;
     const isTransferring = flag & Ci.nsIWebProgressListener.STATE_TRANSFERRING;
     const isStop = flag & Ci.nsIWebProgressListener.STATE_STOP;
     const isDocument = flag & Ci.nsIWebProgressListener.STATE_IS_DOCUMENT;
@@ -272,19 +277,6 @@ class FrameTree {
     }
   }
 
-  _onDocShellCreated(docShell) {
-    // Bug 1142752: sometimes, the docshell appears to be immediately
-    // destroyed, bailout early to prevent random exceptions.
-    if (docShell.isBeingDestroyed())
-      return;
-    // If this docShell doesn't belong to our frame tree - do nothing.
-    let root = docShell;
-    while (root.parent)
-      root = root.parent;
-    if (root === this._mainFrame._docShell)
-      this._createFrame(docShell);
-  }
-
   _createFrame(docShell) {
     const parentFrame = this._docShellToFrame.get(docShell.parent) || null;
     const frame = new Frame(this, this._runtime, docShell, parentFrame);
@@ -296,25 +288,6 @@ class FrameTree {
     if (frame.domWindow())
       frame._onGlobalObjectCleared();
     return frame;
-  }
-
-  _onDocShellDestroyed(docShell) {
-    const frame = this._docShellToFrame.get(docShell);
-    if (frame)
-      this._detachFrame(frame);
-  }
-
-  _detachFrame(frame) {
-    // Detach all children first
-    for (const subframe of frame._children)
-      this._detachFrame(subframe);
-    this._docShellToFrame.delete(frame._docShell);
-    this._frameIdToFrame.delete(frame.id());
-    if (frame._parentFrame)
-      frame._parentFrame._children.delete(frame);
-    frame._parentFrame = null;
-    frame.dispose();
-    this.emit(FrameTree.Events.FrameDetached, frame);
   }
 }
 

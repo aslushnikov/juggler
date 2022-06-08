@@ -50,9 +50,9 @@ class WorkerData {
 }
 
 class PageAgent {
-  constructor(messageManager, browserChannel, frameTree) {
-    this._messageManager = messageManager;
+  constructor(browserChannel, frameTree, contentWindow) {
     this._browserChannel = browserChannel;
+    this._contentWindow = contentWindow;
     this._browserPage = browserChannel.connect('page');
     this._frameTree = frameTree;
     this._runtime = frameTree.runtime();
@@ -66,11 +66,11 @@ class PageAgent {
 
     // Dispatch frameAttached events for all initial frames
     for (const frame of this._frameTree.frames()) {
-      this._onFrameAttached(frame);
-      if (frame.url())
-        this._onNavigationCommitted(frame);
-      if (frame.pendingNavigationId())
-        this._onNavigationStarted(frame);
+      // this._onFrameAttached(frame);
+      // if (frame.url())
+      //   this._onNavigationCommitted(frame);
+      // if (frame.pendingNavigationId())
+      //   this._onNavigationStarted(frame);
     }
 
     // Report created workers.
@@ -99,12 +99,10 @@ class PageAgent {
       helper.addObserver(this._linkClicked.bind(this, true), 'juggler-link-click-sync'),
       helper.addObserver(this._onWindowOpenInNewContext.bind(this), 'juggler-window-open-in-new-context'),
       helper.addObserver(this._filePickerShown.bind(this), 'juggler-file-picker-shown'),
-      helper.addEventListener(this._messageManager, 'DOMContentLoaded', this._onDOMContentLoaded.bind(this)),
       helper.addObserver(this._onDocumentOpenLoad.bind(this), 'juggler-document-open-loaded'),
-      helper.addEventListener(this._messageManager, 'error', this._onError.bind(this)),
       helper.on(this._frameTree, 'load', this._onLoad.bind(this)),
-      helper.on(this._frameTree, 'frameattached', this._onFrameAttached.bind(this)),
-      helper.on(this._frameTree, 'framedetached', this._onFrameDetached.bind(this)),
+      // helper.on(this._frameTree, 'frameattached', this._onFrameAttached.bind(this)),
+      // helper.on(this._frameTree, 'framedetached', this._onFrameDetached.bind(this)),
       helper.on(this._frameTree, 'navigationstarted', this._onNavigationStarted.bind(this)),
       helper.on(this._frameTree, 'navigationcommitted', this._onNavigationCommitted.bind(this)),
       helper.on(this._frameTree, 'navigationaborted', this._onNavigationAborted.bind(this)),
@@ -526,7 +524,7 @@ class PageAgent {
   }
 
   async _screenshot({mimeType, clip, omitDeviceScaleFactor}) {
-    const content = this._messageManager.content;
+    const content = this._contentWindow;
     if (clip) {
       const data = takeScreenshot(content, clip.x, clip.y, clip.width, clip.height, mimeType, omitDeviceScaleFactor);
       return {data};

@@ -9,16 +9,9 @@
 const SIMPLE_CHANNEL_MESSAGE_NAME = 'juggler:simplechannel';
 
 class SimpleChannel {
-  static createForActor(name, parentInstance) {
+  static createForActor(name, actor) {
     const channel = new SimpleChannel(name);
-
-    parentInstance.receiveMessage = message => channel._onMessage(message.data);
-
-    channel.setTransport({
-      sendMessage: obj => parentInstance.sendAsyncMessage(SIMPLE_CHANNEL_MESSAGE_NAME, obj),
-      dispose: () => parentInstance.receiveMessage = () => {},
-    });
-
+    channel.bindToActor(actor);
     return channel;
   }
 
@@ -46,12 +39,35 @@ class SimpleChannel {
     this._handlers = new Map();
     this._bufferedIncomingMessages = [];
     this._bufferedOutgoingMessages = [];
+    this._disposed = false;
     this.transport = {
       sendMessage: null,
       dispose: null,
     };
     this._ready = false;
-    this._disposed = false;
+  }
+
+  bindToActor(actor) {
+    const oldReceiveMessage = actor.receiveMessage;
+    actor.receiveMessage = message => this._onMessage(message.data);
+
+    this.setTransport({
+      sendMessage: obj => actor.sendAsyncMessage(SIMPLE_CHANNEL_MESSAGE_NAME, obj),
+      dispose: () => actor.receiveMessage = oldReceiveMessage,
+    });
+  }
+
+  resetTransport() {
+    for (const {resolve, reject, methodName} of this._pendingMessages.values())
+      reject(new Error(`Failed "${methodName}": ${this._name} is reset.`));
+    this._pendingMessages.clear();
+    this.transport.dispose();
+
+    this.transport = {
+      sendMessage: null,
+      dispose: null,
+    };
+    this._ready = false;
   }
 
   setTransport(transport) {

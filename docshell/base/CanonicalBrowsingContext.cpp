@@ -1557,6 +1557,14 @@ nsresult CanonicalBrowsingContext::PendingRemotenessChange::FinishTopContent() {
     return NS_ERROR_FAILURE;
   }
 
+  {
+    nsCOMPtr<nsIObserverService> observerService =
+        mozilla::services::GetObserverService();
+    if (observerService) {
+      observerService->NotifyObservers(ToSupports(target), "juggler-will-process-switch", nullptr);
+    }
+  }
+
   RefPtr<nsFrameLoaderOwner> frameLoaderOwner = do_QueryObject(browserElement);
   MOZ_RELEASE_ASSERT(frameLoaderOwner,
                      "embedder browser must be nsFrameLoaderOwner");
@@ -1667,6 +1675,14 @@ nsresult CanonicalBrowsingContext::PendingRemotenessChange::FinishSubframe() {
   if (mContentParent != embedderBrowser->Manager() &&
       NS_WARN_IF(mContentParent->IsDead())) {
     return NS_ERROR_FAILURE;
+  }
+
+  {
+    nsCOMPtr<nsIObserverService> observerService =
+        mozilla::services::GetObserverService();
+    if (observerService) {
+      observerService->NotifyObservers(ToSupports(target), "juggler-will-process-switch", nullptr);
+    }
   }
 
   RefPtr<BrowserParent> oldBrowser = target->GetBrowserParent();

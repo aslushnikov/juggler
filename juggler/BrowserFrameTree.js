@@ -2,6 +2,7 @@ const { Helper } = ChromeUtils.import('chrome://juggler/content/Helper.js');
 const { Services } = ChromeUtils.import("resource://gre/modules/Services.jsm");
 const { TabManager } = ChromeUtils.import('chrome://remote/content/shared/TabManager.jsm');
 const { ActorManagerParent } = ChromeUtils.import('resource://gre/modules/ActorManagerParent.jsm');
+const { SimpleChannel } = ChromeUtils.import('chrome://juggler/content/SimpleChannel.js');
 const { EventEmitter } = ChromeUtils.import('resource://gre/modules/EventEmitter.jsm');
 const { NetUtil } = ChromeUtils.import('resource://gre/modules/NetUtil.jsm');
 
@@ -23,7 +24,7 @@ class BrowserFrameTree {
   constructor(rootBrowsingContext) {
     EventEmitter.decorate(this);
     this._browserId = rootBrowsingContext.browserId;
-    this._lastFrameId = 1;
+    this._lastFrameId = 0;
     this._browsingContextToBrowserFrame = new Map();
     this._frameIdToFrame = new Map();
 
@@ -33,10 +34,22 @@ class BrowserFrameTree {
         this._mainFrame = frame;
     }
 
+    this._initScripts = [];
+
     this._eventListeners = [
       helper.addObserver(this._onBrowsingContextAttached.bind(this), 'browsing-context-attached'),
       helper.addObserver(this._onBrowsingContextDiscarded.bind(this), 'browsing-context-discarded'),
+      helper.addObserver(this._onBrowsingContextWillProcessSwitch.bind(this), 'juggler-will-process-switch'),
     ];
+  }
+
+  async setInitScripts(initScripts) {
+    this._initScripts = initScripts;
+    this._updateCrossProcessCookie();
+  }
+
+  mainFrame() {
+    return this._mainFrame;
   }
 
   allFrames() {
@@ -56,13 +69,20 @@ class BrowserFrameTree {
     return this._frameIdToFrame.get(frameId);
   }
 
+  _attachBrowsingContext(browsingContext) {
+    // Frame will register itself in our maps.
+    const frame = new BrowserFrame(this, 'frame-' + (++this._lastFrameId), browsingContext);
+    this._updateCrossProcessCookie();
+    return frame;
+  }
+
   async _onBrowsingContextAttached(browsingContext, topic, why) {
     // Only track browsing contexts from our frame tree.
     if (browsingContext.browserId !== this._browserId)
       return;
     // Only top-level frames can be replaced.
     if (why === 'replace') {
-      this._mainFrame.setBrowsingContext(browsingContext);
+      this._mainFrame._setBrowsingContext(browsingContext);
     } else if (why === 'attach') {
       this._attachBrowsingContext(browsingContext);
     } else {
@@ -72,20 +92,35 @@ class BrowserFrameTree {
     }
   }
 
-  _attachBrowsingContext(browsingContext) {
-    // Frame will register itself in our maps.
-    return new BrowserFrame(this, 'frame-' + (++this._lastFrameId), browsingContext);
-  }
-
   async _onBrowsingContextDiscarded(browsingContext, topic, why) {
     // This case should've been handled already in `browsing-context-attached` event.
     if (why === 'replace')
       return;
 
     const browserFrame = this._browsingContextToBrowserFrame.get(browsingContext);
-    if (browserFrame)
+    if (browserFrame) {
       browserFrame._detach();
+      this._updateCrossProcessCookie();
+    }
   }
+
+  async _onBrowsingContextWillProcessSwitch(browsingContext) {
+    const browserFrame = this._browsingContextToBrowserFrame.get(browsingContext);
+    if (browserFrame)
+      browserFrame._setActorParent(null);
+  }
+
+  _updateCrossProcessCookie() {
+    const browsingContextIdToFrameId = new Map(
+        [...this._browsingContextToBrowserFrame].map(([browsingContext, frame]) => [ browsingContext.id, frame.frameId() ])
+    );
+    Services.ppmm.sharedData.set('juggler:frametree-cookie-' + this._browserId, {
+      browsingContextIdToFrameId,
+      initScripts: this._initScripts,
+    });
+    Services.ppmm.sharedData.flush();
+  }
+
 }
 
 // `BrowserFrame` has a 1:1 relationship to `BrowsingContext`.
@@ -94,7 +129,7 @@ class BrowserFrameTree {
 // can come and go, e.g. when frames attach and detach. They are also re-created for a cross-group navigation.
 //
 // To support the cross-group navigation case, `BrowserFrame` instance can re-bind to a new browsing context instance
-// via the `setBrowsingContext()` method.
+// via the `_setBrowsingContext()` method.
 class BrowserFrame {
   constructor(frameTree, frameId, browsingContext) {
     this._frameTree = frameTree;
@@ -108,127 +143,129 @@ class BrowserFrame {
 
     if (browsingContext.parent) {
       const parentFrame = this._frameTree.browsingContextToFrame(browsingContext.parent);
-      if (!parentFrame) {
-        dump(`
-          ERROR: failed to find BrowserFrame for a related browsingContext.parent!
-        `);
-      }
       this._parent = parentFrame;
       this._parent._children.add(this);
     }
     this._frameTree._frameIdToFrame.set(frameId, this);
 
-    this._browsingContextListeners = [];
-    this.setBrowsingContext(browsingContext);
+    this._setBrowsingContext(browsingContext);
 
-    this._frameTree.emit(BrowserFrameTree.Events.FrameAttached, this);
+    this._executionContextIds = new Set();
+
+    this._channel = new SimpleChannel('channel-' + frameId);
+    const emitEvent = eventName => (...args) => this._frameTree.emit(eventName, ...args);
+    const emitEventWithFrameId = eventName => (options) => this._frameTree.emit(eventName, { ...options, frameId: this._frameId });
+    const BFTEvents = BrowserFrameTree.Events;
+    this._channelListeners = [
+      this._channel.register('page', {
+        pageBindingCalled: emitEvent(BFTEvents.BindingCalled),
+        pageDispatchMessageFromWorker: emitEvent(BFTEvents.MessageFromWorker),
+        pageEventFired: emitEventWithFrameId(BFTEvents.EventFired),
+        pageFileChooserOpened: emitEvent(BFTEvents.FileChooserOpened),
+        pageLinkClicked: emitEvent(BFTEvents.LinkClicked),
+        pageWillOpenNewWindowAsynchronously: emitEvent(BFTEvents.WillOpenNewWindowAsynchronously),
+        pageReady: () => {
+          if (!this._parent)
+            this._frameTree.emit(BFTEvents.Ready);
+        },
+        pageUncaughtError: emitEventWithFrameId(BFTEvents.UncaughtError),
+        pageWorkerCreated: emitEventWithFrameId(BFTEvents.WorkerCreated),
+        pageWorkerDestroyed: emitEvent(BFTEvents.WorkerDesotryed),
+
+        pageNavigationStarted: this._onNavigationStarted.bind(this),
+        pageNavigationCommitted: this._onNavigationCommitted.bind(this),
+        pageNavigationAborted: this._onNavigationAborted.bind(this),
+        pageSameDocumentNavigation: emitEventWithFrameId(BFTEvents.SameDocumentNavigation),
+
+        runtimeConsole: emitEvent(BFTEvents.Console),
+        runtimeExecutionContextCreated: this._onExecutionContextCreated.bind(this),
+        runtimeExecutionContextDestroyed: this._onExecutionContextDestroyed.bind(this),
+
+        webSocketCreated: emitEventWithFrameId(BFTEvents.WebSocketCreated),
+        webSocketOpened: emitEventWithFrameId(BFTEvents.WebSocketOpened),
+        webSocketClosed: emitEventWithFrameId(BFTEvents.WebSocketClosed),
+        webSocketFrameReceived: emitEventWithFrameId(BFTEvents.WebSocketFrameReceived),
+        webSocketFrameSent: emitEventWithFrameId(BFTEvents.WebSocketFrameSent),
+      }),
+    ];
+
+    this._frameTree.emit(BFTEvents.FrameAttached, this);
   }
 
-  async navigate(url, referrer) {
-    try {
-      NetUtil.newURI(url);
-    } catch (e) {
-      throw new Error(`Invalid url: "${url}"`);
-    }
-    let referrerInfo = null;
-    if (referrer) {
-      try {
-        const referrerURI = NetUtil.newURI(referrer);
-        const ReferrerInfo = Components.Constructor(
-          '@mozilla.org/referrer-info;1',
-          'nsIReferrerInfo',
-          'init'
-        );
-        referrerInfo = new ReferrerInfo(Ci.nsIHttpChannel.REFERRER_POLICY_UNSET, true, referrerURI);
-      } catch (e) {
-        throw new Error(`Invalid referrer: "${referrer}"`);
-      }
-    }
-    this._browsingContext.loadURI(url, {
-      triggeringPrincipal: Services.scriptSecurityManager.getSystemPrincipal(),
-      flags: Ci.nsIWebNavigation.LOAD_FLAGS_NONE,
-      referrerInfo,
-      postData: null,
-      headers: null,
-    });
-    await helper.once(this._frameTree, BrowserFrameTree.Events.NavigationStarted, frame => {
-      return frame === this;
-    });
-    dump(`
+  _setActorParent(actor) {
+    for (const executionContextId of this._executionContextIds)
+      this._onExecutionContextDestroyed({ executionContextId });
 
-        kicked out navigation
+    if (actor)
+      this._channel.bindToActor(actor);
+    else
+      this._channel.resetTransport();
+  }
 
-    `);
-    return this._pendingNavigation;
+  _onExecutionContextCreated({ executionContextId, auxData }) {
+    this._executionContextIds.add(executionContextId);
+    auxData.frameId = this.frameId();
+    this._frameTree.emit(BrowserFrameTree.Events.ExecutionContextCreated, { executionContextId, auxData });
+  }
+
+  _onExecutionContextDestroyed({ executionContextId }) {
+    this._executionContextIds.delete(executionContextId);
+    this._frameTree.emit(BrowserFrameTree.Events.ExecutionContextDestroyed, { executionContextId });
+  }
+
+  _onNavigationStarted({ navigationId, url }) {
+    if (this._pendingNavigation)
+      return;
+    this._pendingNavigation = {
+      navigationId,
+      navigationURL: url,
+    };
+    this._frameTree.emit(BrowserFrameTree.Events.NavigationStarted, {
+      frameId: this.frameId(),
+      navigationId,
+      url: navigationURL,
+    });
+  }
+
+  _onNavigationCommitted({ url, name }) {
+    if (!this._pendingNavigation)
+      return;
+    this._frameTree.emit(BrowserFrameTree.Events.NavigationCommitted, {
+      frameId: this.frameId(),
+      navigationId: this._pendingNavigation.navigationId,
+      name,
+      url,
+    });
+    this._pendingNavigation = null;
+  }
+
+  _onNavigationAborted({ errorText }) {
+    if (!this._pendingNavigation)
+      return;
+    this._frameTree.emit(BrowserFrameTree.Events.NavigationAborted, {
+      frameId: this.frameId(),
+      navigationId: this._pendingNavigation.navigationId,
+      errorText,
+    });
+    this._pendingNavigation = null;
+  }
+
+  async navigate(options) {
+    options.frameId = helper.browsingContextToFrameId(this._browsingContext);
+    return await this._channel.connect('page').send('navigate', options);
   }
 
   // This might happen due to cross-process navigation.
-  setBrowsingContext(browsingContext) {
+  _setBrowsingContext(browsingContext) {
     // Tear down navigation listeners and global maps.
     if (this._browsingContext) {
-      helper.removeListeners(this._browsingContextListeners);
       this._frameTree._browsingContextToBrowserFrame.delete(this._browsingContext);
     }
 
     // Update browsing context.
     this._browsingContext = browsingContext;
     this._frameTree._browsingContextToBrowserFrame.set(this._browsingContext, this);
-
-    // Re-bind navigation listener.
-    const webProgress = this._browsingContext.webProgress;
-    const webProgressListener = {
-      QueryInterface: ChromeUtils.generateQI([Ci.nsIWebProgressListener, Ci.nsISupportsWeakReference]),
-      onStateChange: (progress, request, flag, status) => {
-        if (progress !== webProgress)
-          return;
-        if (flag & Ci.nsIWebProgressListener.STATE_STOP && status)
-          this._onNavigationAborted(status);
-      },
-      onLocationChange: (progress, request, location, flags) => {
-        if (progress !== webProgress)
-          return;
-        const sameDocumentNavigation = !!(flags & Ci.nsIWebProgressListener.LOCATION_CHANGE_HASHCHANGE);
-        if (sameDocumentNavigation)
-          this._onSameDocumentNavigated();
-      }
-    };
-    this._browsingContextListeners = [
-      helper.addProgressListener(webProgress, webProgressListener, Ci.nsIWebProgress.NOTIFY_STATE_ALL | Ci.nsIWebProgress.NOTIFY_LOCATION),
-    ];
-  }
-
-  _onSameDocumentNavigated() {
-    this._frameTree.emit(BrowserFrameTree.Events.SameDocumentNavigation, this);
-  }
-
-  _onNavigationStarted({ navigationId, navigationURL }) {
-    this._pendingNavigation = {
-      navigationId,
-      navigationURL,
-    };
-
-    this._frameTree.emit(BrowserFrameTree.Events.NavigationStarted, this, this._pendingNavigation);
-  }
-
-  _onGlobalWindowCleared() {
-    this._onNavigationCommitted();
-  }
-
-  _onNavigationCommitted() {
-    if (!this._pendingNavigation)
-      return;
-    const { navigationId } = this._pendingNavigation;
-    this._pendingNavigation = null;
-    this._frameTree.emit(BrowserFrameTree.Events.NavigationCommitted, this, { navigationId });
-  }
-
-  _onNavigationAborted(statusCode) {
-    if (!this._pendingNavigation)
-      return;
-    const errorText = helper.getNetworkErrorStatusText(statusCode);
-    const { navigationId } = this._pendingNavigation;
-    this._pendingNavigation = null;
-    this._frameTree.emit(BrowserFrameTree.Events.NavigationAborted, this, { errorText, navigationId });
+    this._frameTree._updateCrossProcessCookie();
   }
 
   url() { return this._browsingContext.currentURI.spec; }
@@ -251,6 +288,8 @@ class BrowserFrame {
     this._frameTree._browsingContextToBrowserFrame.delete(this._browsingContext);
     this._frameTree._frameIdToFrame.delete(this._frameId);
     this._frameTree.emit(BrowserFrameTree.Events.FrameDetached, this);
+    helper.removeListeners(this._channelListeners);
+    this._channel.dispose();
   }
 }
 
@@ -261,15 +300,24 @@ BrowserFrameTree.Events = {
   NavigationCommitted: 'navigationcommitted',
   NavigationAborted: 'navigationaborted',
   SameDocumentNavigation: 'samedocumentnavigation',
-  // WorkerCreated: 'workercreated',
-  // WorkerDestroyed: 'workerdestroyed',
-  // WebSocketCreated: 'websocketcreated',
-  // WebSocketOpened: 'websocketopened',
-  // WebSocketClosed: 'websocketclosed',
-  // WebSocketFrameReceived: 'websocketframereceived',
-  // WebSocketFrameSent: 'websocketframesent',
-  // PageReady: 'pageready',
-  // Load: 'load',
+  BindingCalled: 'bindingcalled',
+  MessageFromWorker: 'messagefromworker',
+  EventFired: 'eventfired',
+  FileChooserOpened: 'filechooseropened',
+  LinkClicked: 'linkclicked',
+  WillOpenNewWindowAsynchronously: 'willopennewwindowasynchronously',
+  Ready: 'ready',
+  UncaughtError: 'uncaughterror',
+  WorkerCreated: 'workercreated',
+  WorkerDesotryed: 'workerdestroyed',
+  Console: 'console',
+  ExecutionContextCreated: 'executioncontextcreated',
+  ExecutionContextDestroyed: 'executioncontextdestroyed',
+  WebSocketCreated: 'websocketcreated',
+  WebSocketOpened: 'websocketopened',
+  WebSocketClosed: 'websocketclosed',
+  WebSocketFrameReceived: 'websocketframereceived',
+  WebSocketFrameSent: 'websocketframesent',
 };
 
 var EXPORTED_SYMBOLS = ['BrowserFrameTree'];
@@ -286,6 +334,8 @@ ActorManagerParent.addJSWindowActors({
       moduleURI: 'chrome://juggler/content/actors/JugglerFrameChild.jsm',
       events: {
         DOMWindowCreated: {},
+        DOMContentLoaded: {},
+        error: {},
         DOMDocElementInserted: {},
         pageshow: {},
         pagehide: {},

@@ -15,8 +15,6 @@ const helper = new Helper();
 const Cc = Components.classes;
 const Ci = Components.interfaces;
 
-const FRAME_SCRIPT = "chrome://juggler/content/content/main.js";
-
 // Command Line Handler
 function CommandLineHandler() {
 };
@@ -44,7 +42,6 @@ CommandLineHandler.prototype = {
     new NetworkObserver(targetRegistry);
 
     const loadFrameScript = () => {
-      Services.mm.loadFrameScript(FRAME_SCRIPT, true /* aAllowDelayedLoad */);
       if (Cc["@mozilla.org/gfx/info;1"].getService(Ci.nsIGfxInfo).isHeadless) {
         const styleSheetService = Cc["@mozilla.org/content/style-sheet-service;1"].getService(Components.interfaces.nsIStyleSheetService);
         const ioService = Cc["@mozilla.org/network/io-service;1"].getService(Components.interfaces.nsIIOService);

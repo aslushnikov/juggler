@@ -403,13 +403,6 @@ class PageTarget {
     return this._frameTree;
   }
 
-  async navigate({ frameId, url, referrer }) {
-    const frame = this._frameTree.frameIdToFrame(frameId);
-    if (!frame)
-      throw new Error(`Failed to find frame with id ${frameId}`);
-    return await frame.navigate(url, referrer);
-  }
-
   dialog(dialogId) {
     return this._dialogs.get(dialogId);
   }
@@ -559,7 +552,10 @@ class PageTarget {
   }
 
   async pushInitScripts() {
-    await this._channel.connect('').send('setInitScripts', [...this._browserContext.initScripts, ...this._pageInitScripts]).catch(e => void e);
+    await this._frameTree.setInitScripts([
+      ...this._browserContext.initScripts,
+      ...this._pageInitScripts,
+    ]);
   }
 
   async addBinding(worldName, name, script) {
@@ -754,6 +750,7 @@ class BrowserContext {
     this.initScripts = [];
     this.bindings = [];
     this.settings = {};
+    this._updateUserContextIdCookie();
     this.pages = new Set();
   }
 
@@ -854,12 +851,25 @@ class BrowserContext {
 
   async addBinding(worldName, name, script) {
     this.bindings.push({ worldName, name, script });
+    this._updateUserContextIdCookie();
     await Promise.all(Array.from(this.pages).map(page => page.addBinding(worldName, name, script)));
   }
 
   async applySetting(name, value) {
     this.settings[name] = value;
+    this._updateUserContextIdCookie();
     await Promise.all(Array.from(this.pages).map(page => page.applyContextSetting(name, value)));
+  }
+
+  _updateUserContextIdCookie() {
+    Services.ppmm.sharedData.set(
+      'juggler:usercontextidcookie:' + this.userContextId,
+      {
+        bindings: this.bindings,
+        settings: this.settings,
+      },
+    );
+    Services.ppmm.sharedData.flush();
   }
 
   async grantPermissions(origin, permissions) {
