@@ -155,14 +155,14 @@ class JugglerFrameChild extends JSWindowActorChild {
   _dispose() {
     if (!this._pageAgent)
       return;
+    // Reset transport so that all messages
+    // will be pending and will not throw any errors.
+    this._channel.resetTransport();
     this._pageAgent.dispose();
     this._pageAgent = null;
     this._frameTree.dispose();
     this._frameTree = null;
-    this._channel.dispose();
-    this._channel = null;
     helper.removeListeners(this._eventListeners);
-
   }
 
   didDestroy() {

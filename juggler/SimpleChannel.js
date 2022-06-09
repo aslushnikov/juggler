@@ -38,7 +38,6 @@ class SimpleChannel {
     this._pendingMessages = new Map();
     this._handlers = new Map();
     this._bufferedIncomingMessages = [];
-    this._bufferedOutgoingMessages = [];
     this._disposed = false;
     this.transport = {
       sendMessage: null,
@@ -58,9 +57,6 @@ class SimpleChannel {
   }
 
   resetTransport() {
-    for (const {resolve, reject, methodName} of this._pendingMessages.values())
-      reject(new Error(`Failed "${methodName}": ${this._name} is reset.`));
-    this._pendingMessages.clear();
     this.transport.dispose();
 
     this.transport = {
@@ -88,9 +84,8 @@ class SimpleChannel {
     if (this._ready)
       return;
     this._ready = true;
-    for (const msg of this._bufferedOutgoingMessages)
-      this.transport.sendMessage(msg);
-    this._bufferedOutgoingMessages = [];
+    for (const { message } of this._pendingMessages.values())
+      this.transport.sendMessage(message);
   }
 
   dispose() {
@@ -150,14 +145,12 @@ class SimpleChannel {
     if (this._disposed)
       throw new Error(`ERROR: channel ${this._name} is already disposed! Cannot send "${methodName}" to "${namespace}"`);
     const id = ++this._messageId;
-    const promise = new Promise((resolve, reject) => {
-      this._pendingMessages.set(id, {connectorId, resolve, reject, methodName, namespace});
-    });
     const message = {requestId: id, methodName, params, namespace};
+    const promise = new Promise((resolve, reject) => {
+      this._pendingMessages.set(id, {connectorId, resolve, reject, methodName, namespace, message});
+    });
     if (this._ready)
       this.transport.sendMessage(message);
-    else
-      this._bufferedOutgoingMessages.push(message);
     return promise;
   }
 
