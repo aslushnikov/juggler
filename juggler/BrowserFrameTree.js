@@ -36,10 +36,22 @@ class BrowserFrameTree {
 
     this._initScripts = [];
 
+    // We want to receive observer notifications only about this subtree.
+    const filterBC = (callback) => {
+      return (browsingContext, topic, data) => {
+        // Only track browsing contexts from our frame tree.
+        if (browsingContext.browserId !== this._browserId)
+          return;
+        callback(browsingContext, topic, data);
+      }
+    };
     this._eventListeners = [
-      helper.addObserver(this._onBrowsingContextAttached.bind(this), 'browsing-context-attached'),
-      helper.addObserver(this._onBrowsingContextDiscarded.bind(this), 'browsing-context-discarded'),
-      helper.addObserver(this._onBrowsingContextWillProcessSwitch.bind(this), 'juggler-will-process-switch'),
+      helper.addObserver(filterBC(this._onNavigationStarted.bind(this)), 'juggler-navigation-started'),
+      helper.addObserver(filterBC(this._onNavigationCommitted.bind(this)), 'juggler-navigation-committed'),
+      helper.addObserver(filterBC(this._onNavigationAborted.bind(this)), 'juggler-navigation-aborted'),
+      helper.addObserver(filterBC(this._onBrowsingContextAttached.bind(this)), 'browsing-context-attached'),
+      helper.addObserver(filterBC(this._onBrowsingContextDiscarded.bind(this)), 'browsing-context-discarded'),
+      helper.addObserver(filterBC(this._onBrowsingContextWillProcessSwitch.bind(this)), 'juggler-will-process-switch'),
     ];
   }
 
@@ -76,10 +88,45 @@ class BrowserFrameTree {
     return frame;
   }
 
-  async _onBrowsingContextAttached(browsingContext, topic, why) {
-    // Only track browsing contexts from our frame tree.
-    if (browsingContext.browserId !== this._browserId)
+  async _onNavigationStarted(browsingContext, topic, channelId) {
+    const frame = this._browsingContextToBrowserFrame.get(browsingContext);
+    if (!frame)
       return;
+    frame._pendingNavigationId = channelId;
+    this.emit(BrowserFrameTree.Events.NavigationStarted, {
+      frameId: frame.frameId(),
+      navigationId: channelId,
+    });
+  }
+
+  async _onNavigationCommitted(browsingContext, topic, url) {
+    const frame = this._browsingContextToBrowserFrame.get(browsingContext);
+    if (!frame || !frame._pendingNavigationId)
+      return;
+    const navigationId = frame._pendingNavigationId;
+    frame._pendingNavigationId = null;
+    this.emit(BrowserFrameTree.Events.NavigationCommitted, {
+      frameId: frame.frameId(),
+      navigationId,
+      url,
+      name: '',
+    });
+  }
+
+  async _onNavigationAborted(browsingContext, topic, errorCode) {
+    const frame = this._browsingContextToBrowserFrame.get(browsingContext);
+    if (!frame || !frame._pendingNavigationId)
+      return;
+    const navigationId = frame._pendingNavigationId;
+    frame._pendingNavigationId = null;
+    this.emit(BrowserFrameTree.Events.NavigationCommitted, {
+      frameId: frame.frameId(),
+      navigationId,
+      errorText: helper.getNetworkErrorStatusText(errorCode),
+    });
+  }
+
+  async _onBrowsingContextAttached(browsingContext, topic, why) {
     // Only top-level frames can be replaced.
     if (why === 'replace') {
       this._mainFrame._setBrowsingContext(browsingContext);
@@ -106,9 +153,8 @@ class BrowserFrameTree {
 
   async _onBrowsingContextWillProcessSwitch(browsingContext) {
     const browserFrame = this._browsingContextToBrowserFrame.get(browsingContext);
-    if (browserFrame) {
+    if (browserFrame)
       browserFrame._setWindowActor(null);
-    }
   }
 
   _updateCrossProcessCookie() {
@@ -140,7 +186,8 @@ class BrowserFrame {
     this._children = new Set();
     this._browsingContext = null;
 
-    this._pendingNavigation = null;
+    // This is assigned from BrowserFrameTree.
+    this._pendingNavigationId = null;
 
     if (browsingContext.parent) {
       const parentFrame = this._frameTree.browsingContextToFrame(browsingContext.parent);
@@ -173,9 +220,9 @@ class BrowserFrame {
         pageWorkerCreated: emitEventWithFrameId(BFTEvents.WorkerCreated),
         pageWorkerDestroyed: emitEvent(BFTEvents.WorkerDesotryed),
 
-        pageNavigationStarted: this._onNavigationStarted.bind(this),
-        pageNavigationCommitted: this._onNavigationCommitted.bind(this),
-        pageNavigationAborted: this._onNavigationAborted.bind(this),
+        // pageNavigationStarted: this._onNavigationStarted.bind(this),
+        // pageNavigationCommitted: this._onNavigationCommitted.bind(this),
+        // pageNavigationAborted: this._onNavigationAborted.bind(this),
         pageSameDocumentNavigation: emitEventWithFrameId(BFTEvents.SameDocumentNavigation),
 
         runtimeConsole: emitEvent(BFTEvents.Console),
@@ -198,10 +245,6 @@ class BrowserFrame {
     for (const executionContextId of this._executionContextIds)
       this._onExecutionContextDestroyed({ executionContextId });
 
-    // Creation of a new WindowGlobalParent means that pending navigation succeeded.
-    if (this._pendingNavigation)
-      this._onNavigationCommitted({ url: this._pendingNavigation.navigationURL, name: this._pendingNavigation.name });
-
     if (actor)
       this._channel.bindToActor(actor);
     else
@@ -217,44 +260,6 @@ class BrowserFrame {
   _onExecutionContextDestroyed({ executionContextId }) {
     this._executionContextIds.delete(executionContextId);
     this._frameTree.emit(BrowserFrameTree.Events.ExecutionContextDestroyed, { executionContextId });
-  }
-
-  _onNavigationStarted({ navigationId, url, name }) {
-    if (this._pendingNavigation)
-      return;
-    this._pendingNavigation = {
-      navigationId,
-      navigationURL: url,
-      name,
-    };
-    this._frameTree.emit(BrowserFrameTree.Events.NavigationStarted, {
-      frameId: this.frameId(),
-      navigationId,
-      url: navigationURL,
-    });
-  }
-
-  _onNavigationCommitted({ url, name }) {
-    if (!this._pendingNavigation)
-      return;
-    this._frameTree.emit(BrowserFrameTree.Events.NavigationCommitted, {
-      frameId: this.frameId(),
-      navigationId: this._pendingNavigation.navigationId,
-      name,
-      url,
-    });
-    this._pendingNavigation = null;
-  }
-
-  _onNavigationAborted({ errorText }) {
-    if (!this._pendingNavigation)
-      return;
-    this._frameTree.emit(BrowserFrameTree.Events.NavigationAborted, {
-      frameId: this.frameId(),
-      navigationId: this._pendingNavigation.navigationId,
-      errorText,
-    });
-    this._pendingNavigation = null;
   }
 
   async navigate(options) {

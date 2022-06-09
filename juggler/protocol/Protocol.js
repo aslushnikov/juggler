@@ -656,7 +656,6 @@ const Page = {
     'navigationStarted': {
       frameId: t.String,
       navigationId: t.String,
-      url: t.String,
     },
     'navigationCommitted': {
       frameId: t.String,

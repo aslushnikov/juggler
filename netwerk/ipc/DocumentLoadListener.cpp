@@ -794,6 +794,13 @@ auto DocumentLoadListener::Open(nsDocShellLoadState* aLoadState,
   // We make the promise use direct task dispatch in order to reduce the number
   // of event loops iterations.
   mOpenPromise->UseDirectTaskDispatch(__func__);
+  if (mIsDocumentLoad) {
+    nsCOMPtr<nsIObserverService> observerService =
+        mozilla::services::GetObserverService();
+    if (observerService) {
+      observerService->NotifyObservers(ToSupports(loadingContext), "juggler-navigation-started", NS_ConvertASCIItoUTF16(nsPrintfCString("%llu", mDocumentChannelId.value())).get());
+    }
+  }
   return mOpenPromise;
 }
 
@@ -1135,6 +1142,14 @@ void DocumentLoadListener::DisconnectListeners(nsresult aStatus,
        ", aContinueNavigating=%d]",
        this, static_cast<uint32_t>(aStatus),
        static_cast<uint32_t>(aLoadGroupStatus), aContinueNavigating));
+  if (mIsDocumentLoad && !aContinueNavigating) {
+    nsCOMPtr<nsIObserverService> observerService =
+        mozilla::services::GetObserverService();
+    if (observerService) {
+      auto* loadingContext = GetLoadingBrowsingContext();
+      observerService->NotifyObservers(ToSupports(loadingContext), "juggler-navigation-aborted", NS_ConvertASCIItoUTF16(nsPrintfCString("%u", aStatus)).get());
+    }
+  }
 
   RejectOpenPromise(aStatus, aLoadGroupStatus, aContinueNavigating, __func__);
 
@@ -2421,6 +2436,14 @@ DocumentLoadListener::OnStartRequest(nsIRequest* aRequest) {
   mInitiatedRedirectToRealChannel = true;
 
   MaybeReportBlockedByURLClassifier(status);
+
+  if (mIsDocumentLoad) {
+    nsCOMPtr<nsIObserverService> observerService =
+        mozilla::services::GetObserverService();
+    if (observerService) {
+      observerService->NotifyObservers(ToSupports(loadingContext), "juggler-navigation-committed", NS_ConvertASCIItoUTF16(GetChannelCreationURI()->GetSpecOrDefault()).get());
+    }
+  }
 
   // Determine if a new process needs to be spawned. If it does, this will
   // trigger a cross process switch, and we should hold off on redirecting to
