@@ -469,9 +469,10 @@ class PageTarget {
     // Otherwise, explicitly set page viewport prevales over browser context
     // default viewport.
     const viewportSize = this._viewportSize || this._browserContext.defaultViewportSize;
+    // TODO: cross-group navigation may re-create browser, so viewport size might need to be restored.
     const actualSize = await setViewportSizeForBrowser(viewportSize, this._linkedBrowser, this._window);
     this._linkedBrowser.browsingContext.overrideDPPX = this._browserContext.deviceScaleFactor || this._initialDPPX;
-    await this._channel.connect('').send('awaitViewportDimensions', {
+    await this._frameTree._mainFrame._channel.connect('').send('awaitViewportDimensions', {
       width: actualSize.width,
       height: actualSize.height,
       deviceSizeIsPageSize: !!this._browserContext.deviceScaleFactor,
@@ -542,10 +543,6 @@ class PageTarget {
     this._browserContext.grantPermissionsToOrigin(this._url);
   }
 
-  async ensurePermissions() {
-    await this._channel.connect('').send('ensurePermissions', {}).catch(e => void e);
-  }
-
   async setInitScripts(scripts) {
     this._pageInitScripts = scripts;
     await this.pushInitScripts();
@@ -567,7 +564,7 @@ class PageTarget {
   }
 
   async hasFailedToOverrideTimezone() {
-    return await this._channel.connect('').send('hasFailedToOverrideTimezone').catch(e => true);
+    return await this._frameTree._mainFrame._channel.connect('').send('hasFailedToOverrideTimezone').catch(e => true);
   }
 
   async _startVideoRecording({width, height, dir}) {
@@ -747,6 +744,7 @@ class BrowserContext {
     this.forcedColors = 'no-override';
     this.reducedMotion = 'none';
     this.videoRecordingOptions = undefined;
+
     this.initScripts = [];
     this.bindings = [];
     this.settings = {};
@@ -878,7 +876,7 @@ class BrowserContext {
     for (const page of this.pages) {
       if (origin === '*' || page._url.startsWith(origin)) {
         this.grantPermissionsToOrigin(page._url);
-        promises.push(page.ensurePermissions());
+        promises.push(page.frameTree().ensurePermissions());
       }
     }
     await Promise.all(promises);

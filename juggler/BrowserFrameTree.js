@@ -55,6 +55,7 @@ class BrowserFrameTree {
     ];
   }
 
+
   async setInitScripts(initScripts) {
     this._initScripts = initScripts;
     this._updateCrossProcessCookie();
@@ -62,6 +63,46 @@ class BrowserFrameTree {
 
   mainFrame() {
     return this._mainFrame;
+  }
+
+  async ensurePermissions() {
+    await Promise.all(this.allFrames().map(async frame => {
+      await frame._channel.connect('').send('ensurePermissions', {}).catch(e => void e);
+    }));
+  }
+
+  _parseRuntimeCommandOptions(options) {
+    const [frameId, executionContextId] = fromPersistentExecutionContext(options.executionContextId);
+    const frame = this._frameIdToFrame.get(frameId);
+    if (!frame)
+      throw new Error('Failed to find execution context id ' + options.executionContextId);
+    return {
+      frame,
+      options: {
+        ...options,
+        executionContextId,
+      }
+    };
+  }
+
+  async evaluate(opts) {
+    const { frame, options } = this._parseRuntimeCommandOptions(opts);
+    return await frame._channel.connect('page').send('evaluate', options);
+  }
+
+  async callFunction(opts) {
+    const { frame, options } = this._parseRuntimeCommandOptions(opts);
+    return await frame._channel.connect('page').send('callFunction', options);
+  }
+
+  async getObjectProperties(opts) {
+    const { frame, options } = this._parseRuntimeCommandOptions(opts);
+    return await frame._channel.connect('page').send('getObjectProperties', options);
+  }
+
+  async disposeObject(opts) {
+    const { frame, options } = this._parseRuntimeCommandOptions(opts);
+    return await frame._channel.connect('page').send('disposeObject', options);
   }
 
   allFrames() {
@@ -225,9 +266,9 @@ class BrowserFrame {
         // pageNavigationAborted: this._onNavigationAborted.bind(this),
         pageSameDocumentNavigation: emitEventWithFrameId(BFTEvents.SameDocumentNavigation),
 
-        runtimeConsole: emitEvent(BFTEvents.Console),
-        runtimeExecutionContextCreated: this._onExecutionContextCreated.bind(this),
-        runtimeExecutionContextDestroyed: this._onExecutionContextDestroyed.bind(this),
+        runtimeConsole: this._onRuntimeConsole.bind(this),
+        runtimeExecutionContextCreated: this._onRuntimeExecutionContextCreated.bind(this),
+        runtimeExecutionContextDestroyed: this._onRuntimeExecutionContextDestroyed.bind(this),
 
         webSocketCreated: emitEventWithFrameId(BFTEvents.WebSocketCreated),
         webSocketOpened: emitEventWithFrameId(BFTEvents.WebSocketOpened),
@@ -243,7 +284,7 @@ class BrowserFrame {
   _setWindowActor(actor) {
     // All old execution contexts must be destroyed.
     for (const executionContextId of this._executionContextIds)
-      this._onExecutionContextDestroyed({ executionContextId });
+      this._onRuntimeExecutionContextDestroyed({ executionContextId });
 
     if (actor)
       this._channel.bindToActor(actor);
@@ -251,15 +292,27 @@ class BrowserFrame {
       this._channel.resetTransport();
   }
 
-  _onExecutionContextCreated({ executionContextId, auxData }) {
-    this._executionContextIds.add(executionContextId);
-    auxData.frameId = this.frameId();
-    this._frameTree.emit(BrowserFrameTree.Events.ExecutionContextCreated, { executionContextId, auxData });
+  _onRuntimeConsole(options) {
+    this._frameTree.emit(BrowserFrameTree.Events.Console, {
+      ...options,
+      executionContextId: toPersistentExecutionContext(this.frameId(), options.executionContextId),
+    });
   }
 
-  _onExecutionContextDestroyed({ executionContextId }) {
+  _onRuntimeExecutionContextCreated({ executionContextId, auxData }) {
+    this._executionContextIds.add(executionContextId);
+    auxData.frameId = this.frameId();
+    this._frameTree.emit(BrowserFrameTree.Events.ExecutionContextCreated, {
+      executionContextId: toPersistentExecutionContext(this.frameId(), executionContextId),
+      auxData
+    });
+  }
+
+  _onRuntimeExecutionContextDestroyed({ executionContextId }) {
     this._executionContextIds.delete(executionContextId);
-    this._frameTree.emit(BrowserFrameTree.Events.ExecutionContextDestroyed, { executionContextId });
+    this._frameTree.emit(BrowserFrameTree.Events.ExecutionContextDestroyed, {
+      executionContextId: toPersistentExecutionContext(this.frameId(), executionContextId),
+    });
   }
 
   async navigate(options) {
@@ -331,6 +384,14 @@ BrowserFrameTree.Events = {
   WebSocketFrameReceived: 'websocketframereceived',
   WebSocketFrameSent: 'websocketframesent',
 };
+
+function toPersistentExecutionContext(frameId, executionContextId) {
+  return frameId + '===' + executionContextId;
+}
+
+function fromPersistentExecutionContext(persistentExecutionContextId) {
+  return persistentExecutionContextId.split('===');
+}
 
 var EXPORTED_SYMBOLS = ['BrowserFrameTree'];
 this.BrowserFrameTree = BrowserFrameTree;

@@ -108,19 +108,20 @@ class JugglerFrameChild extends JSWindowActorChild {
       this._frameTree.addBinding(worldName, name, script);
     this._frameTree.setInitScripts(frameTreeCookie.initScripts);
     this._pageAgent = new PageAgent(this._channel, this._frameTree, this.contentWindow);
+    const self = this;
     this._eventListeners = [
       helper.on(this._frameTree, FrameTree.Events.WillProcessSwap, () => false && this._dispose()),
       this._channel.register('', {
         setInitScripts(scripts) {
-          this._frameTree.setInitScripts(scripts);
+          self._frameTree.setInitScripts(scripts);
         },
 
         addBinding({worldName, name, script}) {
-          this._frameTree.addBinding(worldName, name, script);
+          self._frameTree.addBinding(worldName, name, script);
         },
 
         applyContextSetting({name, value}) {
-          this.applySetting[name](value);
+          self.applySetting[name](value);
         },
 
         ensurePermissions() {
@@ -128,12 +129,12 @@ class JugglerFrameChild extends JSWindowActorChild {
         },
 
         hasFailedToOverrideTimezone() {
-          return this._failedToOverrideTimezone;
+          return self._failedToOverrideTimezone;
         },
 
         async awaitViewportDimensions({ width, height, deviceSizeIsPageSize }) {
-          this.docShell.deviceSizeIsPageSize = deviceSizeIsPageSize;
-          const win = this.docShell.domWindow;
+          self.docShell.deviceSizeIsPageSize = deviceSizeIsPageSize;
+          const win = self.docShell.domWindow;
           if (win.innerWidth === width && win.innerHeight === height)
             return;
           await new Promise(resolve => {

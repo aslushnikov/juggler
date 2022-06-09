@@ -99,6 +99,7 @@ class PageHandler {
         this._onNavigationStarted(frame);
     }
 
+    const BFTEvents = BrowserFrameTree.Events;
     this._eventListeners = [
       helper.on(this._pageTarget, PageTarget.Events.DialogOpened, this._onDialogOpened.bind(this)),
       helper.on(this._pageTarget, PageTarget.Events.DialogClosed, this._onDialogClosed.bind(this)),
@@ -113,26 +114,33 @@ class PageHandler {
       helper.on(this._pageNetwork, PageNetwork.Events.RequestFinished, this._handleNetworkEvent.bind(this, 'Network.requestFinished')),
       helper.on(this._pageNetwork, PageNetwork.Events.RequestFailed, this._handleNetworkEvent.bind(this, 'Network.requestFailed')),
 
-      helper.on(this._frameTree, BrowserFrameTree.Events.FrameAttached, this._onFrameAttached.bind(this)),
-      helper.on(this._frameTree, BrowserFrameTree.Events.FrameDetached, this._onFrameDetached.bind(this)),
-      helper.on(this._frameTree, BrowserFrameTree.Events.NavigationStarted, emitProtocolEvent('Page.navigationStarted')),
-      helper.on(this._frameTree, BrowserFrameTree.Events.NavigationCommitted, emitProtocolEvent('Page.navigationCommitted')),
-      helper.on(this._frameTree, BrowserFrameTree.Events.NavigationAborted, emitProtocolEvent('Page.navigationAborted')),
-      helper.on(this._frameTree, BrowserFrameTree.Events.SameDocumentNavigation, emitProtocolEvent('Page.sameDocumentNavigation')),
-      helper.on(this._frameTree, BrowserFrameTree.Events.BindingCalled, emitProtocolEvent('Page.bindingCalled')),
-      helper.on(this._frameTree, BrowserFrameTree.Events.MessageFromWorker, emitProtocolEvent('Page.dispatchMessageFromWorker')),
-      helper.on(this._frameTree, BrowserFrameTree.Events.EventFired, emitProtocolEvent('Page.eventFired')),
-      helper.on(this._frameTree, BrowserFrameTree.Events.Ready, this._onPageReady.bind(this)),
-      helper.on(this._frameTree, BrowserFrameTree.Events.ExecutionContextCreated, emitProtocolEvent('Runtime.executionContextCreated')),
-      helper.on(this._frameTree, BrowserFrameTree.Events.ExecutionContextDestroyed, emitProtocolEvent('Runtime.executionContextDestroyed')),
-      helper.on(this._frameTree, BrowserFrameTree.Events.FileChooserOpened, emitProtocolEvent('Page.fileChooserOpened')),
-      helper.on(this._frameTree, BrowserFrameTree.Events.LinkClicked, emitProtocolEvent('Page.linkClicked')),
-      helper.on(this._frameTree, BrowserFrameTree.Events.WillOpenNewWindowAsynchronously, emitProtocolEvent('Page.willOpenNewWindowAsynchronously')),
+      helper.on(this._frameTree, BFTEvents.FrameAttached, this._onFrameAttached.bind(this)),
+      helper.on(this._frameTree, BFTEvents.FrameDetached, this._onFrameDetached.bind(this)),
+      helper.on(this._frameTree, BFTEvents.NavigationStarted, emitProtocolEvent('Page.navigationStarted')),
+      helper.on(this._frameTree, BFTEvents.NavigationCommitted, emitProtocolEvent('Page.navigationCommitted')),
+      helper.on(this._frameTree, BFTEvents.NavigationAborted, emitProtocolEvent('Page.navigationAborted')),
+      helper.on(this._frameTree, BFTEvents.SameDocumentNavigation, emitProtocolEvent('Page.sameDocumentNavigation')),
+      helper.on(this._frameTree, BFTEvents.BindingCalled, emitProtocolEvent('Page.bindingCalled')),
+      helper.on(this._frameTree, BFTEvents.MessageFromWorker, emitProtocolEvent('Page.dispatchMessageFromWorker')),
+      helper.on(this._frameTree, BFTEvents.EventFired, emitProtocolEvent('Page.eventFired')),
+      helper.on(this._frameTree, BFTEvents.Ready, this._onPageReady.bind(this)),
+      helper.on(this._frameTree, BFTEvents.ExecutionContextCreated, emitProtocolEvent('Runtime.executionContextCreated')),
+      helper.on(this._frameTree, BFTEvents.ExecutionContextDestroyed, emitProtocolEvent('Runtime.executionContextDestroyed')),
+      helper.on(this._frameTree, BFTEvents.FileChooserOpened, emitProtocolEvent('Page.fileChooserOpened')),
+      helper.on(this._frameTree, BFTEvents.LinkClicked, emitProtocolEvent('Page.linkClicked')),
+      helper.on(this._frameTree, BFTEvents.WillOpenNewWindowAsynchronously, emitProtocolEvent('Page.willOpenNewWindowAsynchronously')),
+      helper.on(this._frameTree, BFTEvents.UncaughtError, emitProtocolEvent('Page.uncaughtError')),
+      helper.on(this._frameTree, BFTEvents.WebSocketCreated, emitProtocolEvent('Page.webSocketCreated')),
+      helper.on(this._frameTree, BFTEvents.WebSocketOpened, emitProtocolEvent('Page.webSocketOpened')),
+      helper.on(this._frameTree, BFTEvents.WebSocketClosed, emitProtocolEvent('Page.webSocketClosed')),
+      helper.on(this._frameTree, BFTEvents.WebSocketFrameReceived, emitProtocolEvent('Page.webSocketFrameReceived')),
+      helper.on(this._frameTree, BFTEvents.WebSocketFrameSent, emitProtocolEvent('Page.webSocketFrameSent')),
+
+      //TODO: move the rest.
+      // helper.on(this._frameTree, BFTEvents.WorkerCreated, this._onWorkerCreated.bind(this),
+      // helper.on(this._frameTree, BFTEvents.WorkerDesotryed, this._onWorkerDestroyed.bind(this),
       /*
       contentChannel.register('page', {
-        pageUncaughtError: emitProtocolEvent('Page.uncaughtError'),
-        pageWorkerCreated: this._onWorkerCreated.bind(this),
-        pageWorkerDestroyed: this._onWorkerDestroyed.bind(this),
         runtimeConsole: params => {
           const consoleMessageHash = hashConsoleMessage(params);
           for (const worker of this._workers) {
@@ -144,11 +152,6 @@ class PageHandler {
           emitProtocolEvent('Runtime.console')(params);
         },
 
-        webSocketCreated: emitProtocolEvent('Page.webSocketCreated'),
-        webSocketOpened: emitProtocolEvent('Page.webSocketOpened'),
-        webSocketClosed: emitProtocolEvent('Page.webSocketClosed'),
-        webSocketFrameReceived: emitProtocolEvent('Page.webSocketFrameReceived'),
-        webSocketFrameSent: emitProtocolEvent('Page.webSocketFrameSent'),
       }),
       */
     ];
@@ -259,19 +262,19 @@ class PageHandler {
   }
 
   async ['Runtime.evaluate'](options) {
-    return await this._contentPage.send('evaluate', options);
+    return await this._frameTree.evaluate(options);
   }
 
   async ['Runtime.callFunction'](options) {
-    return await this._contentPage.send('callFunction', options);
+    return await this._frameTree.callFunction(options);
   }
 
   async ['Runtime.getObjectProperties'](options) {
-    return await this._contentPage.send('getObjectProperties', options);
+    return await this._frameTree.getObjectProperties(options);
   }
 
   async ['Runtime.disposeObject'](options) {
-    return await this._contentPage.send('disposeObject', options);
+    return await this._frameTree.disposeObject(options);
   }
 
   async ['Network.getResponseBody']({requestId}) {
