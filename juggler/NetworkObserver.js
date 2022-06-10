@@ -380,6 +380,11 @@ class NetworkRequest {
       return;
     }
 
+    // Ok, so now we have intercepted the request, let's issue onRequest.
+    // If interception has been disabled while we were intercepting, resume and forget.
+    const interceptionEnabled = this._shouldIntercept();
+    this._sendOnRequest(!!interceptionEnabled);
+
     const browserContext = pageNetwork._target.browserContext();
     if (browserContext.isNetworkOffline()) {
       // Implement offline.
@@ -387,10 +392,6 @@ class NetworkRequest {
       return;
     }
 
-    // Ok, so now we have intercepted the request, let's issue onRequest.
-    // If interception has been disabled while we were intercepting, resume and forget.
-    const interceptionEnabled = this._shouldIntercept();
-    this._sendOnRequest(!!interceptionEnabled);
     if (interceptionEnabled)
       pageNetwork._interceptedRequests.set(this.requestId, this);
     else
