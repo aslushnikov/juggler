@@ -16,9 +16,112 @@ function collectAllBrowsingContexts(browsingContext, allBrowsingContexts = []) {
   return allBrowsingContexts;
 }
 
+class BrowserFrameTreeManager {
+  constructor() {
+    this._browserIdToFrameTree = new Map();
+    this._eventListeners = [
+      helper.addObserver(this._onBrowsingContextAttached.bind(this), 'browsing-context-attached'),
+      helper.addObserver(this._onBrowsingContextDiscarded.bind(this), 'browsing-context-discarded'),
+      helper.addObserver(this._onNavigationStarted.bind(this), 'juggler-navigation-started'),
+      helper.addObserver(this._onNavigationCommitted.bind(this), 'juggler-navigation-committed'),
+      helper.addObserver(this._onNavigationAborted.bind(this), 'juggler-navigation-aborted'),
+      helper.addObserver(this._onBrowsingContextWillProcessSwitch.bind(this), 'juggler-will-process-switch'),
+    ];
+  }
+
+  async _onBrowsingContextAttached(browsingContext, topic, why) {
+    // Only top-level frames can be replaced.
+    if (why === 'replace') {
+      const frameTree = this._browserIdToFrameTree.get(browsingContext.browserId);
+      frameTree._mainFrame._setBrowsingContext(browsingContext);
+    } else if (why === 'attach') {
+      let frameTree = this._browserIdToFrameTree.get(browsingContext.browserId);
+      if (!frameTree) {
+        frameTree = new BrowserFrameTree(browsingContext);
+        this._browserIdToFrameTree.set(browsingContext.browserId, frameTree);
+      } else {
+        frameTree._attachBrowsingContext(browsingContext);
+      }
+    } else {
+      dump(`
+        error: unknown "why" condition in "browsing-context-attached" event - "${why}"
+      `);
+    }
+  }
+
+  async _onBrowsingContextDiscarded(browsingContext, topic, why) {
+    // This case should've been handled already in `browsing-context-attached` event.
+    if (why === 'replace')
+      return;
+    const frameTree = this._browserIdToFrameTree.get(browsingContext.browserId);
+    const browserFrame = frameTree?.browsingContextToFrame(browsingContext);
+    // When the main frame is detached, then the whole page is closed.
+    if (browserFrame === frameTree.mainFrame()) {
+      frameTree.dispose();
+      this._browserIdToFrameTree.delete(browsingContext.browserId);
+    } else if (browserFrame) {
+      browserFrame._detach();
+    }
+  }
+
+  async _onNavigationStarted(browsingContext, topic, channelId) {
+    const frameTree = this._browserIdToFrameTree.get(browsingContext.browserId);
+    const frame = frameTree?.browsingContextToFrame(browsingContext);
+    if (!frame)
+      return;
+    frame._pendingNavigationId = channelId;
+    frameTree.emit(BrowserFrameTree.Events.NavigationStarted, {
+      frameId: frame.frameId(),
+      navigationId: channelId,
+    });
+  }
+
+  async _onNavigationCommitted(browsingContext, topic, url) {
+    const frameTree = this._browserIdToFrameTree.get(browsingContext.browserId);
+    const frame = frameTree?.browsingContextToFrame(browsingContext);
+    if (!frame || !frame._pendingNavigationId)
+      return;
+
+    //TODO: are we fine with this async hop to the renderer?
+    const name = await frame._channel.connect('').send('getFrameName');
+    const navigationId = frame._pendingNavigationId;
+    frame._pendingNavigationId = null;
+    frameTree.emit(BrowserFrameTree.Events.NavigationCommitted, {
+      frameId: frame.frameId(),
+      navigationId,
+      url,
+      name,
+    });
+  }
+
+  async _onNavigationAborted(browsingContext, topic, errorCode) {
+    const frameTree = this._browserIdToFrameTree.get(browsingContext.browserId);
+    const frame = frameTree?.browsingContextToFrame(browsingContext);
+    if (!frame || !frame._pendingNavigationId)
+      return;
+    const navigationId = frame._pendingNavigationId;
+    frame._pendingNavigationId = null;
+    frameTree.emit(BrowserFrameTree.Events.NavigationAborted, {
+      frameId: frame.frameId(),
+      navigationId,
+      errorText: helper.getNetworkErrorStatusText(parseInt(errorCode)),
+    });
+  }
+
+  async _onBrowsingContextWillProcessSwitch(browsingContext) {
+    const frameTree = this._browserIdToFrameTree.get(browsingContext.browserId);
+    const frame = frameTree?.browsingContextToFrame(browsingContext);
+    if (frame)
+      frame._setWindowActor(null);
+  }
+}
+
+const gManager = new BrowserFrameTreeManager();
+
+// This is a frame tree for a single page.
 class BrowserFrameTree {
-  static fromRootBrowsingContext(browsingContext) {
-    return new BrowserFrameTree(browsingContext);
+  static fromBrowsingContext(browsingContext) {
+    return gManager._browserIdToFrameTree.get(browsingContext.browserId);
   }
 
   constructor(rootBrowsingContext) {
@@ -41,24 +144,6 @@ class BrowserFrameTree {
       bindings: new Map(),
     };
     this._initScripts = [];
-
-    // We want to receive observer notifications only about this subtree.
-    const filterBC = (callback) => {
-      return (browsingContext, topic, data) => {
-        // Only track browsing contexts from our frame tree.
-        if (browsingContext.browserId !== this._browserId)
-          return;
-        callback(browsingContext, topic, data);
-      }
-    };
-    this._eventListeners = [
-      helper.addObserver(filterBC(this._onNavigationStarted.bind(this)), 'juggler-navigation-started'),
-      helper.addObserver(filterBC(this._onNavigationCommitted.bind(this)), 'juggler-navigation-committed'),
-      helper.addObserver(filterBC(this._onNavigationAborted.bind(this)), 'juggler-navigation-aborted'),
-      helper.addObserver(filterBC(this._onBrowsingContextAttached.bind(this)), 'browsing-context-attached'),
-      helper.addObserver(filterBC(this._onBrowsingContextDiscarded.bind(this)), 'browsing-context-discarded'),
-      helper.addObserver(filterBC(this._onBrowsingContextWillProcessSwitch.bind(this)), 'juggler-will-process-switch'),
-    ];
   }
 
   async setInitScripts(initScripts) {
@@ -210,7 +295,6 @@ class BrowserFrameTree {
   }
 
   dispose() {
-    helper.removeListeners(this._eventListeners);
     this._mainFrame._detach();
   }
 
@@ -232,80 +316,7 @@ class BrowserFrameTree {
   _attachBrowsingContext(browsingContext) {
     // Frame will register itself in our maps.
     const frame = new BrowserFrame(this, 'frame-' + (++this._lastFrameId), browsingContext);
-    this._updateCrossProcessCookie();
     return frame;
-  }
-
-  async _onNavigationStarted(browsingContext, topic, channelId) {
-    const frame = this._browsingContextToBrowserFrame.get(browsingContext);
-    if (!frame)
-      return;
-    frame._pendingNavigationId = channelId;
-    this.emit(BrowserFrameTree.Events.NavigationStarted, {
-      frameId: frame.frameId(),
-      navigationId: channelId,
-    });
-  }
-
-  async _onNavigationCommitted(browsingContext, topic, url) {
-    const frame = this._browsingContextToBrowserFrame.get(browsingContext);
-    if (!frame || !frame._pendingNavigationId)
-      return;
-
-    //TODO: are we fine with this async hop to the renderer?
-    const name = await frame._channel.connect('').send('getFrameName');
-    const navigationId = frame._pendingNavigationId;
-    frame._pendingNavigationId = null;
-    this.emit(BrowserFrameTree.Events.NavigationCommitted, {
-      frameId: frame.frameId(),
-      navigationId,
-      url,
-      name,
-    });
-  }
-
-  async _onNavigationAborted(browsingContext, topic, errorCode) {
-    const frame = this._browsingContextToBrowserFrame.get(browsingContext);
-    if (!frame || !frame._pendingNavigationId)
-      return;
-    const navigationId = frame._pendingNavigationId;
-    frame._pendingNavigationId = null;
-    this.emit(BrowserFrameTree.Events.NavigationAborted, {
-      frameId: frame.frameId(),
-      navigationId,
-      errorText: helper.getNetworkErrorStatusText(parseInt(errorCode)),
-    });
-  }
-
-  async _onBrowsingContextAttached(browsingContext, topic, why) {
-    // Only top-level frames can be replaced.
-    if (why === 'replace') {
-      this._mainFrame._setBrowsingContext(browsingContext);
-    } else if (why === 'attach') {
-      this._attachBrowsingContext(browsingContext);
-    } else {
-      dump(`
-        error: unknown "why" condition in "browsing-context-attached" event - "${why}"
-      `);
-    }
-  }
-
-  async _onBrowsingContextDiscarded(browsingContext, topic, why) {
-    // This case should've been handled already in `browsing-context-attached` event.
-    if (why === 'replace')
-      return;
-
-    const browserFrame = this._browsingContextToBrowserFrame.get(browsingContext);
-    if (browserFrame) {
-      browserFrame._detach();
-      this._updateCrossProcessCookie();
-    }
-  }
-
-  async _onBrowsingContextWillProcessSwitch(browsingContext) {
-    const browserFrame = this._browsingContextToBrowserFrame.get(browsingContext);
-    if (browserFrame)
-      browserFrame._setWindowActor(null);
   }
 
   _updateCrossProcessCookie() {
@@ -322,6 +333,11 @@ class BrowserFrameTree {
 // To support the cross-group navigation case, `BrowserFrame` instance can re-bind to a new browsing context instance
 // via the `_setBrowsingContext()` method.
 class BrowserFrame {
+  static fromBrowsingContext(browsingContext) {
+    const frameTree = gManager._browserIdToFrameTree.get(browsingContext.browserId);
+    return frameTree._browsingContextToBrowserFrame.get(browsingContext);
+  }
+
   constructor(frameTree, frameId, browsingContext) {
     this._frameTree = frameTree;
     this._frameId = frameId;
@@ -536,7 +552,6 @@ class BrowserFrame {
     this._rendererFrameId = helper.browsingContextToFrameId(browsingContext);
 
     this._frameTree._browsingContextToBrowserFrame.set(this._browsingContext, this);
-    this._frameTree._updateCrossProcessCookie();
   }
 
   url() { return this._browsingContext.currentURI.spec; }
@@ -639,8 +654,9 @@ function fromPageLevelUniqueId(pageUniqueId) {
   return pageUniqueId.split('===');
 }
 
-var EXPORTED_SYMBOLS = ['BrowserFrameTree'];
+var EXPORTED_SYMBOLS = ['BrowserFrameTree', 'BrowserFrame'];
 this.BrowserFrameTree = BrowserFrameTree;
+this.BrowserFrame = BrowserFrame;
 
 // Register JSWindowActors that will be instantiated for 
 // each frame.

@@ -115,7 +115,6 @@ class TargetRegistry {
     this._userContextIdToBrowserContext = new Map();
     this._browserToTarget = new Map();
     this._browserBrowsingContextToTarget = new Map();
-    this._browserIdToPageTarget = new Map();
 
     this._browserProxy = null;
 
@@ -275,7 +274,7 @@ class TargetRegistry {
     return this._userContextIdToBrowserContext.get(userContextId);
   }
 
-  async newPage({browserContextId}) {
+  async newPage({ browserContextId }) {
     const browserContext = this.browserContextForId(browserContextId);
     const features = "chrome,dialog=no,all";
     // See _callWithURIToLoad in browser.js for the structure of window.arguments
@@ -330,10 +329,6 @@ class TargetRegistry {
   targetForBrowser(browser) {
     return this._browserToTarget.get(browser);
   }
-
-  browserIdToPageTarget(browserId) {
-    return this._browserIdToPageTarget.get(browserId);
-  }
 }
 
 let lastPageId = 0;
@@ -359,10 +354,7 @@ class PageTarget {
     this.forcedColors = 'no-override';
     this._pageInitScripts = [];
 
-    // `browserId` of the root browsing context never changes for this page.
-    this._browserId = tab.linkedBrowser.browsingContext.browserId;
-    this._registry._browserIdToPageTarget.set(this._browserId, this);
-    this._frameTree = BrowserFrameTree.fromRootBrowsingContext(tab.linkedBrowser.browsingContext);
+    this._frameTree = BrowserFrameTree.fromBrowsingContext(tab.linkedBrowser.browsingContext);
 
     const navigationListener = {
       QueryInterface: ChromeUtils.generateQI([Ci.nsIWebProgressListener, Ci.nsISupportsWeakReference]),
@@ -623,7 +615,6 @@ class PageTarget {
       if (e)
         dump(e.message + '\n' + e.stack + '\n');
     }
-    this._registry._browserIdToPageTarget.delete(this._browserId);
     this._registry.emit(TargetRegistry.Events.TargetDestroyed, this);
   }
 }

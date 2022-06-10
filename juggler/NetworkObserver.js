@@ -8,6 +8,7 @@ const {EventEmitter} = ChromeUtils.import('resource://gre/modules/EventEmitter.j
 const {Helper} = ChromeUtils.import('chrome://juggler/content/Helper.js');
 const {Services} = ChromeUtils.import("resource://gre/modules/Services.jsm");
 const {NetUtil} = ChromeUtils.import('resource://gre/modules/NetUtil.jsm');
+const { BrowserFrame } = ChromeUtils.import('chrome://juggler/content/BrowserFrameTree.js');
 
 
 const Cc = Components.classes;
@@ -129,8 +130,7 @@ class NetworkRequest {
       return;
     }
 
-    const pageTarget = this._networkObserver._targetRegistry.browserIdToPageTarget(browsingContext.browserId);
-    const frame = pageTarget?.frameTree().browsingContextToFrame(browsingContext);
+    const frame = BrowserFrame.fromBrowsingContext(browsingContext);
     if (!frame) {
       // Give up if we failed to attribute request to frame
       return;

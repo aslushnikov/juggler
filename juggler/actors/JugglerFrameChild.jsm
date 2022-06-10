@@ -86,15 +86,13 @@ class JugglerFrameChild extends JSWindowActorChild {
 
   actorCreated() {
     const pageCrossProcessCookie = Services.cpmm.sharedData.get('juggler:frametree-cookie-' + this.browsingContext.browserId);
-    if (!pageCrossProcessCookie)
-      return;
     const userContextId = this.browsingContext.originAttributes.userContextId;
     const contextCrossProcessCookie = Services.cpmm.sharedData.get('juggler:context-cookie-' + userContextId);
 
     const cookie = {
-      bindings: new Map(...contextCrossProcessCookie.bindings, ...pageCrossProcessCookie.bindings),
-      initScripts: [...contextCrossProcessCookie.initScripts, ...pageCrossProcessCookie.initScripts],
-      interceptFileChooserDialog: pageCrossProcessCookie.interceptFileChooserDialog,
+      bindings: new Map(...contextCrossProcessCookie.bindings, ...(pageCrossProcessCookie?.bindings ?? [])),
+      initScripts: [...contextCrossProcessCookie.initScripts, ...(pageCrossProcessCookie?.initScripts ?? [])],
+      interceptFileChooserDialog: pageCrossProcessCookie?.interceptFileChooserDialog ?? false,
       contextSettings: contextCrossProcessCookie.settings,
     };
 
