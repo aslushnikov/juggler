@@ -317,7 +317,7 @@ class TargetRegistry {
     const target = this._browserToTarget.get(browser);
     browser.focus();
     if (browserContext._crossProcessCookie.settings.timezoneId) {
-      if (await target._frameTree().hasFailedToOverrideTimezone())
+      if (await target._frameTree.hasFailedToOverrideTimezone())
         throw new Error('Failed to override timezone');
     }
     return target.id();
