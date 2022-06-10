@@ -55,6 +55,9 @@ class BrowserFrameTreeManager {
       return;
     const frameTree = this._browserIdToFrameTree.get(browsingContext.browserId);
     const browserFrame = frameTree?.browsingContextToFrame(browsingContext);
+    if (!browserFrame)
+      return;
+
     // When the main frame is detached, then the whole page is closed.
     if (browserFrame === frameTree.mainFrame()) {
       frameTree.dispose();
