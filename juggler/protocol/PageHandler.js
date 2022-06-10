@@ -292,8 +292,7 @@ class PageHandler {
   }
 
   async ['Page.describeNode']({ frameId, objectId }) {
-    const frame = this._frameTree.frameIdToFrameOrDie(frameId);
-    return await frame.describeNode(objectId);
+    return await this._frameTree.describeNode(frameId, objectId);
   }
 
   async ['Page.scrollIntoViewIfNeeded']({ frameId, objectId, rect }) {

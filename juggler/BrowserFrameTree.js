@@ -292,6 +292,19 @@ class BrowserFrameTree {
     return await this._mainFrame._channel.connect('page').send('screenshot', options);
   }
 
+  async describeNode(frameId, objectId) {
+    const frame = this._frameIdToFrame.get(frameId);
+    const { contentFrameId, ownerFrameId } = await frame._channel.connect('page').send('describeNode', {
+      frameId: frame._rendererFrameId,
+      objectId,
+    });
+    const contentFrame = this.allFrames().find(frame => frame._rendererFrameId === contentFrameId);
+    const ownerFrame = this.allFrames().find(frame => frame._rendererFrameId === ownerFrameId);
+    return {
+      contentFrameId: contentFrame.frameId(),
+      ownerFrameId: ownerFrame.frameId(),
+    };
+  }
 
   allFrames() {
     return [...this._frameIdToFrame.values()];
@@ -434,13 +447,6 @@ class BrowserFrame {
   async reload() {
     return await this._channel.connect('page').send('reload', {
       frameId: this._rendererFrameId,
-    });
-  }
-
-  async describeNode(objectId) {
-    return await this._channel.connect('page').send('describeNode', {
-      frameId: this._rendererFrameId,
-      objectId,
     });
   }
 
