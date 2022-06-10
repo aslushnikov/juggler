@@ -174,7 +174,7 @@ class BrowserFrameTree {
     const { frame, options } = this._parseRuntimeCommandOptions(opts);
     if (frame.frameId() !== opts.frameId)
       throw new Error(`ERROR: failed to find execution context "${executionContextId}" in frame "${this._frameId}"`);
-    return await this._channel.send('adoptNode', {
+    return await frame._channel.connect('page').send('adoptNode', {
       ...options,
       frameId: frame._rendererFrameId,
     });
@@ -267,10 +267,10 @@ class BrowserFrameTree {
       return;
     const navigationId = frame._pendingNavigationId;
     frame._pendingNavigationId = null;
-    this.emit(BrowserFrameTree.Events.NavigationCommitted, {
+    this.emit(BrowserFrameTree.Events.NavigationAborted, {
       frameId: frame.frameId(),
       navigationId,
-      errorText: helper.getNetworkErrorStatusText(errorCode),
+      errorText: helper.getNetworkErrorStatusText(parseInt(errorCode)),
     });
   }
 
