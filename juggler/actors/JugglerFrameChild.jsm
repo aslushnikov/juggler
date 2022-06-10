@@ -140,6 +140,10 @@ class JugglerFrameChild extends JSWindowActorChild {
           return self._failedToOverrideTimezone;
         },
 
+        getFrameName() {
+          return self._frameTree._mainFrame.name();
+        },
+
         async awaitViewportDimensions({ width, height, deviceSizeIsPageSize }) {
           self.docShell.deviceSizeIsPageSize = deviceSizeIsPageSize;
           const win = self.docShell.domWindow;

@@ -67,7 +67,7 @@ class BrowserFrameTree {
   }
 
   async addBinding({ name, script, worldName }) {
-    this._crossProcessCookie.bindings.add(name, { script, worldName });
+    this._crossProcessCookie.bindings.set(name, { script, worldName });
     this._updateCrossProcessCookie();
 
     // Fan out to all existing frames.
@@ -251,13 +251,16 @@ class BrowserFrameTree {
     const frame = this._browsingContextToBrowserFrame.get(browsingContext);
     if (!frame || !frame._pendingNavigationId)
       return;
+
+    //TODO: are we fine with this async hop to the renderer?
+    const name = await frame._channel.connect('').send('getFrameName');
     const navigationId = frame._pendingNavigationId;
     frame._pendingNavigationId = null;
     this.emit(BrowserFrameTree.Events.NavigationCommitted, {
       frameId: frame.frameId(),
       navigationId,
       url,
-      name: '',
+      name,
     });
   }
 
@@ -348,7 +351,6 @@ class BrowserFrame {
     const BFTEvents = BrowserFrameTree.Events;
     this._channelListeners = [
       this._channel.register('page', {
-        pageBindingCalled: emitEvent(BFTEvents.BindingCalled),
         pageDispatchMessageFromWorker: emitEvent(BFTEvents.MessageFromWorker),
         pageEventFired: emitEventWithFrameId(BFTEvents.EventFired),
         pageFileChooserOpened: emitEvent(BFTEvents.FileChooserOpened),
@@ -371,6 +373,7 @@ class BrowserFrame {
         runtimeConsole: this._onRuntimeConsole.bind(this),
         runtimeExecutionContextCreated: this._onRuntimeExecutionContextCreated.bind(this),
         runtimeExecutionContextDestroyed: this._onRuntimeExecutionContextDestroyed.bind(this),
+        pageBindingCalled: this._onBindingCalled.bind(this),
 
         webSocketCreated: emitEventWithFrameId(BFTEvents.WebSocketCreated),
         webSocketOpened: emitEventWithFrameId(BFTEvents.WebSocketOpened),
@@ -497,6 +500,14 @@ class BrowserFrame {
     this._executionContextIds.delete(executionContextId);
     this._frameTree.emit(BrowserFrameTree.Events.ExecutionContextDestroyed, {
       executionContextId: toPageLevelUniqueId(this.frameId(), executionContextId),
+    });
+  }
+
+  _onBindingCalled({ executionContextId, name, payload }) {
+    this._frameTree.emit(BrowserFrameTree.Events.BindingCalled, {
+      executionContextId: toPageLevelUniqueId(this.frameId(), executionContextId),
+      name,
+      payload,
     });
   }
 
