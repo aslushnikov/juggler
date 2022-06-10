@@ -2441,7 +2441,10 @@ DocumentLoadListener::OnStartRequest(nsIRequest* aRequest) {
     nsCOMPtr<nsIObserverService> observerService =
         mozilla::services::GetObserverService();
     if (observerService) {
-      observerService->NotifyObservers(ToSupports(loadingContext), "juggler-navigation-committed", NS_ConvertASCIItoUTF16(GetChannelCreationURI()->GetSpecOrDefault()).get());
+      if (status === NS_OK)
+        observerService->NotifyObservers(ToSupports(loadingContext), "juggler-navigation-committed", NS_ConvertASCIItoUTF16(GetChannelCreationURI()->GetSpecOrDefault()).get());
+      else
+        observerService->NotifyObservers(ToSupports(loadingContext), "juggler-navigation-aborted", NS_ConvertASCIItoUTF16(nsPrintfCString("%u", status)).get());
     }
   }
 

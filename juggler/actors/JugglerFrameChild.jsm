@@ -85,15 +85,21 @@ class JugglerFrameChild extends JSWindowActorChild {
   }
 
   actorCreated() {
-    const pageCrossProcessCookie = Services.cpmm.sharedData.get('juggler:frametree-cookie-' + this.browsingContext.browserId);
     const userContextId = this.browsingContext.originAttributes.userContextId;
     const contextCrossProcessCookie = Services.cpmm.sharedData.get('juggler:context-cookie-' + userContextId);
+    const pageCrossProcessCookie = Services.cpmm.sharedData.get('juggler:frametree-cookie-' + this.browsingContext.browserId);
 
     const cookie = {
-      bindings: new Map(...contextCrossProcessCookie.bindings, ...(pageCrossProcessCookie?.bindings ?? [])),
-      initScripts: [...contextCrossProcessCookie.initScripts, ...(pageCrossProcessCookie?.initScripts ?? [])],
+      bindings: new Map([
+        ...(contextCrossProcessCookie?.bindings ?? []),
+        ...(pageCrossProcessCookie?.bindings ?? [])
+      ]),
+      initScripts: [
+        ...(contextCrossProcessCookie?.initScripts ?? []),
+        ...(pageCrossProcessCookie?.initScripts ?? [])
+      ],
       interceptFileChooserDialog: pageCrossProcessCookie?.interceptFileChooserDialog ?? false,
-      contextSettings: contextCrossProcessCookie.settings,
+      contextSettings: contextCrossProcessCookie?.settings ?? {},
     };
 
     this._channel = SimpleChannel.createForActor('content::frame', this);
@@ -102,18 +108,20 @@ class JugglerFrameChild extends JSWindowActorChild {
     this.docShell.overrideHasFocus = true;
     this.docShell.forceActiveState = true;
 
-    this._frameTree = new FrameTree(this.docShell);
+    this._frameTree = new FrameTree(this.docShell, this.contentWindow);
+    this._pageAgent = new PageAgent(this._channel, this._frameTree, this.contentWindow);
+
     for (const [name, value] of Object.entries(cookie.contextSettings)) {
       if (value !== undefined)
         this.applySetting[name](value);
     }
-    for (const { worldName, name, script } of cookie.bindings)
+    for (const { worldName, name, script } of cookie.bindings.values())
       this._frameTree.addBinding(worldName, name, script);
     this._frameTree.setInitScripts(cookie.initScripts);
-    this._pageAgent = new PageAgent(this._channel, this._frameTree, this.contentWindow);
     this._pageAgent._setInterceptFileChooserDialog({
       enabled: cookie.interceptFileChooserDialog,
     });
+
     const self = this;
     this._eventListeners = [
       helper.on(this._frameTree, FrameTree.Events.WillProcessSwap, () => false && this._dispose()),

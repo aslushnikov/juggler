@@ -15,7 +15,7 @@ const {Runtime} = ChromeUtils.import('chrome://juggler/content/content/Runtime.j
 const helper = new Helper();
 
 class FrameTree {
-  constructor(rootDocShell, pendingNavigationId, pendingNavigationURL) {
+  constructor(rootDocShell, contentWindow) {
     EventEmitter.decorate(this);
 
     this._isolatedWorlds = new Map();
@@ -30,9 +30,7 @@ class FrameTree {
     this._frameIdToFrame = new Map();
     this._pageReady = false;
 
-    this._mainFrame = this._createFrame(rootDocShell);
-    this._mainFrame._pendingNavigationId = pendingNavigationId;
-    this._mainFrame._pendingNavigationURL = pendingNavigationURL;
+    this._mainFrame = this._createFrame(rootDocShell, contentWindow);
 
     const webProgress = rootDocShell.QueryInterface(Ci.nsIInterfaceRequestor)
                                 .getInterface(Ci.nsIWebProgress);
@@ -272,9 +270,9 @@ class FrameTree {
     }
   }
 
-  _createFrame(docShell) {
+  _createFrame(docShell, domWindow) {
     const parentFrame = this._docShellToFrame.get(docShell.parent) || null;
-    const frame = new Frame(this, this._runtime, docShell, parentFrame);
+    const frame = new Frame(this, this._runtime, docShell, parentFrame, domWindow);
     this._docShellToFrame.set(docShell, frame);
     this._frameIdToFrame.set(frame.id(), frame);
     this.emit(FrameTree.Events.FrameAttached, frame);
@@ -313,10 +311,11 @@ class IsolatedWorld {
 }
 
 class Frame {
-  constructor(frameTree, runtime, docShell, parentFrame) {
+  constructor(frameTree, runtime, docShell, parentFrame, domWindow) {
     this._frameTree = frameTree;
     this._runtime = runtime;
     this._docShell = docShell;
+    this._domWindow = domWindow;
     this._children = new Set();
     this._frameId = helper.browsingContextToFrameId(this._docShell.browsingContext);
     this._parentFrame = null;
@@ -517,7 +516,7 @@ class Frame {
   }
 
   domWindow() {
-    return this._docShell.domWindow;
+    return this._domWindow;
   }
 
   name() {
@@ -539,7 +538,6 @@ class Frame {
   url() {
     return this._url;
   }
-
 }
 
 class Worker {

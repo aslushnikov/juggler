@@ -20,13 +20,23 @@ class BrowserFrameTreeManager {
   constructor() {
     this._browserIdToFrameTree = new Map();
     this._eventListeners = [
-      helper.addObserver(this._onBrowsingContextAttached.bind(this), 'browsing-context-attached'),
-      helper.addObserver(this._onBrowsingContextDiscarded.bind(this), 'browsing-context-discarded'),
-      helper.addObserver(this._onNavigationStarted.bind(this), 'juggler-navigation-started'),
-      helper.addObserver(this._onNavigationCommitted.bind(this), 'juggler-navigation-committed'),
-      helper.addObserver(this._onNavigationAborted.bind(this), 'juggler-navigation-aborted'),
-      helper.addObserver(this._onBrowsingContextWillProcessSwitch.bind(this), 'juggler-will-process-switch'),
+      this._observeBC(this._onBrowsingContextAttached.bind(this), 'browsing-context-attached'),
+      this._observeBC(this._onBrowsingContextDiscarded.bind(this), 'browsing-context-discarded'),
+      this._observeBC(this._onNavigationStarted.bind(this), 'juggler-navigation-started'),
+      this._observeBC(this._onNavigationCommitted.bind(this), 'juggler-navigation-committed'),
+      this._observeBC(this._onNavigationAborted.bind(this), 'juggler-navigation-aborted'),
+      this._observeBC(this._onBrowsingContextWillProcessSwitch.bind(this), 'juggler-will-process-switch'),
     ];
+  }
+
+  // Filter out some suspicious browing contexts we are not interested in.
+  _observeBC(callback, topic) {
+    return helper.addObserver((browsingContext, ...args) => {
+      // We do not want to attach to any chrome-level browsing contexts.
+      if (!browsingContext.isContent)
+        return;
+      callback(browsingContext, ...args);
+    }, topic);
   }
 
   async _onBrowsingContextAttached(browsingContext, topic, why) {
