@@ -16,7 +16,6 @@ juggler.jar:
   content/protocol/Dispatcher.js (protocol/Dispatcher.js)
   content/protocol/PageHandler.js (protocol/PageHandler.js)
   content/protocol/BrowserHandler.js (protocol/BrowserHandler.js)
-  content/content/main.js (content/main.js)
   content/content/FrameTree.js (content/FrameTree.js)
   content/content/PageAgent.js (content/PageAgent.js)
   content/content/Runtime.js (content/Runtime.js)
