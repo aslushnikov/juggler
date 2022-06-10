@@ -18,10 +18,6 @@ class FrameTree {
   constructor(rootDocShell, pendingNavigationId, pendingNavigationURL) {
     EventEmitter.decorate(this);
 
-    this._browsingContextGroup = rootDocShell.browsingContext.group;
-    if (!this._browsingContextGroup.__jugglerFrameTrees)
-      this._browsingContextGroup.__jugglerFrameTrees = new Set();
-    this._browsingContextGroup.__jugglerFrameTrees.add(this);
     this._isolatedWorlds = new Map();
 
     this._webSocketEventService = Cc[
@@ -203,7 +199,6 @@ class FrameTree {
   }
 
   dispose() {
-    this._browsingContextGroup.__jugglerFrameTrees.delete(this);
     this._wdm.removeListener(this._wdmListener);
     this._runtime.dispose();
     try {

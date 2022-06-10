@@ -294,15 +294,14 @@ class BrowserFrameTree {
 
   async describeNode(frameId, objectId) {
     const frame = this._frameIdToFrame.get(frameId);
-    const { contentFrameId, ownerFrameId } = await frame._channel.connect('page').send('describeNode', {
+    const { contentFrameId } = await frame._channel.connect('page').send('describeNode', {
       frameId: frame._rendererFrameId,
       objectId,
     });
-    const contentFrame = this.allFrames().find(frame => frame._rendererFrameId === contentFrameId);
-    const ownerFrame = this.allFrames().find(frame => frame._rendererFrameId === ownerFrameId);
+    const contentFrame = contentFrameId ? this.allFrames().find(frame => frame._rendererFrameId === contentFrameId) : undefined;
     return {
-      contentFrameId: contentFrame.frameId(),
-      ownerFrameId: ownerFrame.frameId(),
+      contentFrameId: contentFrame?.frameId(),
+      ownerFrameId: frame.frameId(),
     };
   }
 

@@ -464,20 +464,8 @@ class PageAgent {
     if (!frame)
       throw new Error('Failed to find frame with id = ' + frameId);
     const unsafeObject = frame.unsafeObject(objectId);
-    const browsingContextGroup = frame.docShell().browsingContext.group;
-    const frames = this._frameTree.allFramesInBrowsingContextGroup(browsingContextGroup);
-    let contentFrame;
-    let ownerFrame;
-    for (const frame of frames) {
-      if (unsafeObject.contentWindow && frame.docShell() === unsafeObject.contentWindow.docShell)
-        contentFrame = frame;
-      const document = frame.domWindow().document;
-      if (unsafeObject === document || unsafeObject.ownerDocument === document)
-        ownerFrame = frame;
-    }
     return {
-      contentFrameId: contentFrame ? contentFrame.id() : undefined,
-      ownerFrameId: ownerFrame ? ownerFrame.id() : undefined,
+      contentFrameId: helper.browsingContextToFrameId(unsafeObject.contentWindow?.browsingContext),
     };
   }
 
