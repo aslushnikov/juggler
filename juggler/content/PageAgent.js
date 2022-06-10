@@ -30,7 +30,9 @@ class WorkerData {
     this._eventListeners = [
       worker.channel().register('runtime', {
         runtimeConsole: emit('runtimeConsole'),
-        runtimeExecutionContextCreated: emit('runtimeExecutionContextCreated'),
+        runtimeExecutionContextCreated: (...args) => {
+          emit('runtimeExecutionContextCreated')(...args);
+        },
         runtimeExecutionContextDestroyed: emit('runtimeExecutionContextDestroyed'),
       }),
       browserChannel.register(worker.id(), {
@@ -149,7 +151,6 @@ class PageAgent {
         reload: this._reload.bind(this),
         screenshot: this._screenshot.bind(this),
         scrollIntoViewIfNeeded: this._scrollIntoViewIfNeeded.bind(this),
-        setCacheDisabled: this._setCacheDisabled.bind(this),
         setFileInputFiles: this._setFileInputFiles.bind(this),
         setInterceptFileChooserDialog: this._setInterceptFileChooserDialog.bind(this),
         evaluate: this._runtime.evaluate.bind(this._runtime),
@@ -158,15 +159,6 @@ class PageAgent {
         disposeObject: this._runtime.disposeObject.bind(this._runtime),
       }),
     ];
-  }
-
-  _setCacheDisabled({cacheDisabled}) {
-    const enable = Ci.nsIRequest.LOAD_NORMAL;
-    const disable = Ci.nsIRequest.LOAD_BYPASS_CACHE |
-                  Ci.nsIRequest.INHIBIT_CACHING;
-
-    const docShell = this._frameTree.mainFrame().docShell();
-    docShell.defaultLoadFlags = cacheDisabled ? disable : enable;
   }
 
   _emitAllEvents(frame) {
@@ -224,7 +216,7 @@ class PageAgent {
       this._emitAllEvents(this._frameTree.mainFrame());
   }
 
-  _setInterceptFileChooserDialog({enabled}) {
+  _setInterceptFileChooserDialog({ enabled }) {
     this._docShell.fileInputInterceptionEnabled = !!enabled;
   }
 
@@ -424,7 +416,7 @@ class PageAgent {
     return {success: true};
   }
 
-  async _adoptNode({frameId, objectId, executionContextId}) {
+  async _adoptNode({ frameId, objectId, executionContextId }) {
     const frame = this._frameTree.frame(frameId);
     if (!frame)
       throw new Error('Failed to find frame with id = ' + frameId);

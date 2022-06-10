@@ -4,7 +4,6 @@
 
 const {EventEmitter} = ChromeUtils.import('resource://gre/modules/EventEmitter.jsm');
 const {Helper} = ChromeUtils.import('chrome://juggler/content/Helper.js');
-const {SimpleChannel} = ChromeUtils.import('chrome://juggler/content/SimpleChannel.js');
 const {Services} = ChromeUtils.import("resource://gre/modules/Services.jsm");
 const {Preferences} = ChromeUtils.import("resource://gre/modules/Preferences.jsm");
 const {ContextualIdentityService} = ChromeUtils.import("resource://gre/modules/ContextualIdentityService.jsm");
@@ -142,21 +141,6 @@ class TargetRegistry {
         target.dispose();
       }
     }, 'oop-frameloader-crashed');
-
-    Services.mm.addMessageListener('juggler:content-ready', {
-      receiveMessage: message => {
-        const linkedBrowser = message.target;
-        const target = this._browserToTarget.get(linkedBrowser);
-        if (!target)
-          return;
-
-        return {
-          initScripts: target.browserContext().initScripts,
-          bindings: target.browserContext().bindings,
-          settings: target.browserContext().settings,
-        };
-      },
-    });
 
     const onTabOpenListener = (appWindow, window, event) => {
       const tab = event.target;
@@ -332,8 +316,8 @@ class TargetRegistry {
     const browser = window.gBrowser.browsers[0];
     const target = this._browserToTarget.get(browser);
     browser.focus();
-    if (browserContext.settings.timezoneId) {
-      if (await target.hasFailedToOverrideTimezone())
+    if (browserContext._crossProcessCookie.settings.timezoneId) {
+      if (await target._frameTree().hasFailedToOverrideTimezone())
         throw new Error('Failed to override timezone');
     }
     return target.id();
@@ -369,7 +353,6 @@ class PageTarget {
     this._initialDPPX = this._linkedBrowser.browsingContext.overrideDPPX;
     this._url = 'about:blank';
     this._openerId = opener ? opener.id() : undefined;
-    this._channel = SimpleChannel.createForMessageManager(`browser::page[${this._targetId}]`, this._linkedBrowser.messageManager);
     this._videoRecordingInfo = undefined;
     this._screencastRecordingInfo = undefined;
     this._dialogs = new Map();
@@ -472,7 +455,7 @@ class PageTarget {
     // TODO: cross-group navigation may re-create browser, so viewport size might need to be restored.
     const actualSize = await setViewportSizeForBrowser(viewportSize, this._linkedBrowser, this._window);
     this._linkedBrowser.browsingContext.overrideDPPX = this._browserContext.deviceScaleFactor || this._initialDPPX;
-    await this._frameTree._mainFrame._channel.connect('').send('awaitViewportDimensions', {
+    await this._frameTree.awaitViewportDimensions({
       width: actualSize.width,
       height: actualSize.height,
       deviceSizeIsPageSize: !!this._browserContext.deviceScaleFactor,
@@ -521,10 +504,6 @@ class PageTarget {
     });
   }
 
-  channel() {
-    return this._channel;
-  }
-
   id() {
     return this._targetId;
   }
@@ -541,30 +520,6 @@ class PageTarget {
   _onNavigated(aLocation) {
     this._url = aLocation.spec;
     this._browserContext.grantPermissionsToOrigin(this._url);
-  }
-
-  async setInitScripts(scripts) {
-    this._pageInitScripts = scripts;
-    await this.pushInitScripts();
-  }
-
-  async pushInitScripts() {
-    await this._frameTree.setInitScripts([
-      ...this._browserContext.initScripts,
-      ...this._pageInitScripts,
-    ]);
-  }
-
-  async addBinding(worldName, name, script) {
-    await this._channel.connect('').send('addBinding', { worldName, name, script }).catch(e => void e);
-  }
-
-  async applyContextSetting(name, value) {
-    await this._channel.connect('').send('applyContextSetting', { name, value }).catch(e => void e);
-  }
-
-  async hasFailedToOverrideTimezone() {
-    return await this._frameTree._mainFrame._channel.connect('').send('hasFailedToOverrideTimezone').catch(e => true);
   }
 
   async _startVideoRecording({width, height, dir}) {
@@ -745,11 +700,17 @@ class BrowserContext {
     this.reducedMotion = 'none';
     this.videoRecordingOptions = undefined;
 
-    this.initScripts = [];
-    this.bindings = [];
-    this.settings = {};
-    this._updateUserContextIdCookie();
+    this._crossProcessCookie = {
+      initScripts: [],
+      bindings: new Map(),
+      settings: {},
+    };
+    this._updateCrossProcessCookie();
     this.pages = new Set();
+  }
+
+  isNetworkOffline() {
+    return this._crossProcessCookie.settings.onlineOverride === 'offline';
   }
 
   setColorScheme(colorScheme) {
@@ -843,30 +804,24 @@ class BrowserContext {
   }
 
   async setInitScripts(scripts) {
-    this.initScripts = scripts;
-    await Promise.all(Array.from(this.pages).map(page => page.pushInitScripts()));
+    this._crossProcessCookie.initScripts = scripts;
+    this._updateCrossProcessCookie();
   }
 
   async addBinding(worldName, name, script) {
-    this.bindings.push({ worldName, name, script });
-    this._updateUserContextIdCookie();
-    await Promise.all(Array.from(this.pages).map(page => page.addBinding(worldName, name, script)));
+    this._crossProcessCookie.bindings.set(name, { worldName, name, script });
+    this._updateCrossProcessCookie();
+    await Promise.all(Array.from(this.pages).map(page => page._frameTree.addBinding({ worldName, name, script })));
   }
 
   async applySetting(name, value) {
-    this.settings[name] = value;
-    this._updateUserContextIdCookie();
-    await Promise.all(Array.from(this.pages).map(page => page.applyContextSetting(name, value)));
+    this._crossProcessCookie.settings[name] = value;
+    this._updateCrossProcessCookie();
+    await Promise.all(Array.from(this.pages).map(page => page._frameTree.onBrowserContextSettingChanged(name, value)));
   }
 
-  _updateUserContextIdCookie() {
-    Services.ppmm.sharedData.set(
-      'juggler:usercontextidcookie:' + this.userContextId,
-      {
-        bindings: this.bindings,
-        settings: this.settings,
-      },
-    );
+  _updateCrossProcessCookie() {
+    Services.ppmm.sharedData.set('juggler:context-cookie-' + this.userContextId, this._crossProcessCookie);
     Services.ppmm.sharedData.flush();
   }
 

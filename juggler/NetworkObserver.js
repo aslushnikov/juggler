@@ -381,7 +381,7 @@ class NetworkRequest {
     }
 
     const browserContext = pageNetwork._target.browserContext();
-    if (browserContext.settings.onlineOverride === 'offline') {
+    if (browserContext.isNetworkOffline()) {
       // Implement offline.
       this.abort(Cr.NS_ERROR_OFFLINE);
       return;
@@ -476,7 +476,7 @@ class NetworkRequest {
     const browserContext = pageNetwork._target.browserContext();
     if (browserContext.requestInterceptionEnabled)
       return true;
-    if (browserContext.settings.onlineOverride === 'offline')
+    if (browserContext.isNetworkOffline())
       return true;
     return false;
   }

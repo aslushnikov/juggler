@@ -95,14 +95,13 @@ class BrowserHandler {
   _onTargetCreated(target) {
     if (!this._shouldAttachToTarget(target))
       return;
-    const channel = target.channel();
     const session = this._dispatcher.createSession();
     this._attachedSessions.set(target, session);
     this._session.emitEvent('Browser.attachedToTarget', {
       sessionId: session.sessionId(),
       targetInfo: target.info()
     });
-    session.setHandler(new PageHandler(target, session, channel));
+    session.setHandler(new PageHandler(target, session));
   }
 
   _onTargetDestroyed(target) {

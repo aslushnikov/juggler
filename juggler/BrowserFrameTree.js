@@ -34,6 +34,12 @@ class BrowserFrameTree {
         this._mainFrame = frame;
     }
 
+    // Settings that are stored in a shared memory.
+    this._crossProcessCookie = {
+      initScripts: [],
+      interceptFileChooserDialog: [],
+      bindings: new Map(),
+    };
     this._initScripts = [];
 
     // We want to receive observer notifications only about this subtree.
@@ -55,10 +61,89 @@ class BrowserFrameTree {
     ];
   }
 
-
   async setInitScripts(initScripts) {
-    this._initScripts = initScripts;
+    this._crossProcessCookie.initScripts = initScripts;
     this._updateCrossProcessCookie();
+  }
+
+  async addBinding({ name, script, worldName }) {
+    this._crossProcessCookie.bindings.add(name, { script, worldName });
+    this._updateCrossProcessCookie();
+
+    // Fan out to all existing frames.
+    await Promise.all(this.allFrames().map(async frame => {
+      await frame._channel.connect('page').send('addBinding', { name, script, worldName });
+    }));
+  }
+
+  async awaitViewportDimensions({width, height, deviceSizeIsPageSize }) {
+    await this._mainFrame._channel.connect('').send('awaitViewportDimensions', {
+      width,
+      height,
+      deviceSizeIsPageSize,
+    });
+  }
+
+  async hasFailedToOverrideTimezone() {
+    return await this._mainFrame._channel.connect('').send('hasFailedToOverrideTimezone').catch(e => true);
+  }
+
+  async onBrowserContextSettingChanged(settingName, settingValue) {
+    // Fan out to all existing frames.
+    await Promise.all(this.allFrames().map(async frame => {
+      await frame._channel.connect('').send('applyContextSetting', { name: settingName, value: settingValue }).catch(e => void e);
+    }));
+  }
+
+  async setInterceptFileChooserDialog(enabled) {
+    // Set this as cookie so that all new iframes get this setting.
+    this._crossProcessCookie.interceptFileChooserDialog = enabled;
+    this._updateCrossProcessCookie();
+    // Fan out to all existing frames.
+    await Promise.all(this.allFrames().map(async frame => {
+      await frame._channel.connect('page').send('setInterceptFileChooserDialog', { enabled });
+    }));
+  }
+
+  async dispatchKeyEvent(options) {
+    //TODO: this does not work with OOPIF
+    return await this._mainFrame._channel.connect('page').send('dispatchKeyEvent', options);
+  }
+
+  async dispatchTouchEvent(options) {
+    //TODO: this does not work with OOPIF
+    return await this._mainFrame._channel.connect('page').send('dispatchTouchEvent', options);
+  }
+
+  async dispatchTapEvent(options) {
+    //TODO: this does not work with OOPIF
+    return await this._mainFrame._channel.connect('page').send('dispatchTapEvent', options);
+  }
+
+  async dispatchMouseEvent(options) {
+    //TODO: this does not work with OOPIF
+    return await this._mainFrame._channel.connect('page').send('dispatchMouseEvent', options);
+  }
+
+  async dispatchWheelEvent(options) {
+    //TODO: this does not work with OOPIF
+    return await this._mainFrame._channel.connect('page').send('dispatchWheelEvent', options);
+  }
+
+  async insertText(options) {
+    //TODO: this does not work with OOPIF
+    return await this._mainFrame._channel.connect('page').send('insertText', options);
+  }
+
+  async getFullAXTree({ objectId }) {
+    //TODO: this does not work with OOPIF
+    return await this._mainFrame._channel.connect('page').send('getFullAXTree', {
+      objectId,
+    });
+  }
+
+  async forceRendererCrash() {
+    await this._mainFrame._channel.connect('page').send('crash', {});
   }
 
   mainFrame() {
@@ -72,7 +157,7 @@ class BrowserFrameTree {
   }
 
   _parseRuntimeCommandOptions(options) {
-    const [frameId, executionContextId] = fromPersistentExecutionContext(options.executionContextId);
+    const [frameId, rendererExecutionContextId] = fromPageLevelUniqueId(options.executionContextId);
     const frame = this._frameIdToFrame.get(frameId);
     if (!frame)
       throw new Error('Failed to find execution context id ' + options.executionContextId);
@@ -80,9 +165,19 @@ class BrowserFrameTree {
       frame,
       options: {
         ...options,
-        executionContextId,
+        executionContextId: rendererExecutionContextId,
       }
     };
+  }
+
+  async adoptNode(opts) {
+    const { frame, options } = this._parseRuntimeCommandOptions(opts);
+    if (frame.frameId() !== opts.frameId)
+      throw new Error(`ERROR: failed to find execution context "${executionContextId}" in frame "${this._frameId}"`);
+    return await this._channel.send('adoptNode', {
+      ...options,
+      frameId: frame._rendererFrameId,
+    });
   }
 
   async evaluate(opts) {
@@ -105,6 +200,11 @@ class BrowserFrameTree {
     return await frame._channel.connect('page').send('disposeObject', options);
   }
 
+  async screenshot(options) {
+    return await this._mainFrame._channel.connect('page').send('screenshot', options);
+  }
+
+
   allFrames() {
     return [...this._frameIdToFrame.values()];
   }
@@ -120,6 +220,13 @@ class BrowserFrameTree {
 
   frameIdToFrame(frameId) {
     return this._frameIdToFrame.get(frameId);
+  }
+
+  frameIdToFrameOrDie(frameId) {
+    const frame = this._frameIdToFrame.get(frameId);
+    if (!frame)
+      throw new Error(`Failed to find frame with id ${frameId}`);
+    return frame;
   }
 
   _attachBrowsingContext(browsingContext) {
@@ -199,16 +306,9 @@ class BrowserFrameTree {
   }
 
   _updateCrossProcessCookie() {
-    const browsingContextIdToFrameId = new Map(
-        [...this._browsingContextToBrowserFrame].map(([browsingContext, frame]) => [ browsingContext.id, frame.frameId() ])
-    );
-    Services.ppmm.sharedData.set('juggler:frametree-cookie-' + this._browserId, {
-      browsingContextIdToFrameId,
-      initScripts: this._initScripts,
-    });
+    Services.ppmm.sharedData.set('juggler:frametree-cookie-' + this._browserId, this._crossProcessCookie);
     Services.ppmm.sharedData.flush();
   }
-
 }
 
 // `BrowserFrame` has a 1:1 relationship to `BrowsingContext`.
@@ -240,6 +340,7 @@ class BrowserFrame {
     this._setBrowsingContext(browsingContext);
 
     this._executionContextIds = new Set();
+    this._workers = new Map();
 
     this._channel = new SimpleChannel('channel-' + frameId);
     const emitEvent = eventName => (...args) => this._frameTree.emit(eventName, ...args);
@@ -258,8 +359,9 @@ class BrowserFrame {
             this._frameTree.emit(BFTEvents.Ready);
         },
         pageUncaughtError: emitEventWithFrameId(BFTEvents.UncaughtError),
-        pageWorkerCreated: emitEventWithFrameId(BFTEvents.WorkerCreated),
-        pageWorkerDestroyed: emitEvent(BFTEvents.WorkerDesotryed),
+
+        pageWorkerCreated: this._onDedicatedWorkerCreated.bind(this),
+        pageWorkerDestroyed: this._onDedicatedWorkerDestroyed.bind(this),
 
         // pageNavigationStarted: this._onNavigationStarted.bind(this),
         // pageNavigationCommitted: this._onNavigationCommitted.bind(this),
@@ -281,10 +383,67 @@ class BrowserFrame {
     this._frameTree.emit(BFTEvents.FrameAttached, this);
   }
 
+  async setFileInputFiles(options) {
+    return await this._channel.connect('page').send('setFileInputFiles', {
+      ...options,
+      frameId: this._rendererFrameId,
+    });
+  }
+
+  async getContentQuads(options) {
+    return await this._channel.connect('page').send('getContentQuads', {
+      ...options,
+      frameId: this._rendererFrameId,
+    });
+  }
+
+  async goBack() {
+    return await this._channel.connect('page').send('goBack', {
+      frameId: this._rendererFrameId,
+    });
+  }
+
+  async goForward() {
+    return await this._channel.connect('page').send('goForward', {
+      frameId: this._rendererFrameId,
+    });
+  }
+
+  async reload() {
+    return await this._channel.connect('page').send('reload', {
+      frameId: this._rendererFrameId,
+    });
+  }
+
+  async describeNode(objectId) {
+    return await this._channel.connect('page').send('describeNode', {
+      frameId: this._rendererFrameId,
+      objectId,
+    });
+  }
+
+  async scrollIntoViewIfNeeded(objectId, rect) {
+    return await this._channel.connect('page').send('scrollIntoViewIfNeeded', {
+      frameId: this._rendererFrameId,
+      objectId,
+      rect,
+    });
+  }
+
+  async sendMessageToWorker(workerId, methodName, params) {
+    const worker = this._workers.get(workerId);
+    if (!worker)
+      throw new Error(`Failed to find worker with id "${workerId}"`);
+    return await worker.sendMessageToWorker(methodName, params);
+  }
+
   _setWindowActor(actor) {
     // All old execution contexts must be destroyed.
     for (const executionContextId of this._executionContextIds)
       this._onRuntimeExecutionContextDestroyed({ executionContextId });
+    // All workers must be destroyed as well.
+    for (const workerId of this._workers.keys())
+      this._onDedicatedWorkerDestroyed({ workerId });
 
     if (actor)
       this._channel.bindToActor(actor);
@@ -292,10 +451,36 @@ class BrowserFrame {
       this._channel.resetTransport();
   }
 
+  _onDedicatedWorkerCreated({ frameId, url, workerId }) {
+    const worker = new DedicatedWorker(this._frameTree, this._channel, workerId);
+    this._workers.set(workerId, worker);
+    this._frameTree.emit(BrowserFrameTree.Events.WorkerCreated, {
+      frameId: this._frameId,
+      url,
+      workerId,
+    });
+  }
+
+  _onDedicatedWorkerDestroyed({ workerId }) {
+    const worker = this._workers.get(workerId);
+    if (!worker)
+      return;
+    this._workers.delete(workerId);
+    worker.dispose();
+    this._frameTree.emit(BrowserFrameTree.Events.WorkerDestroyed, { workerId });
+  }
+
   _onRuntimeConsole(options) {
+    const consoleMessageHash = hashConsoleMessage(options);
+    for (const worker of this._workers.values()) {
+      if (worker._workerConsoleMessages.has(consoleMessageHash)) {
+        worker._workerConsoleMessages.delete(consoleMessageHash);
+        return;
+      }
+    }
     this._frameTree.emit(BrowserFrameTree.Events.Console, {
       ...options,
-      executionContextId: toPersistentExecutionContext(this.frameId(), options.executionContextId),
+      executionContextId: toPageLevelUniqueId(this.frameId(), options.executionContextId),
     });
   }
 
@@ -303,7 +488,7 @@ class BrowserFrame {
     this._executionContextIds.add(executionContextId);
     auxData.frameId = this.frameId();
     this._frameTree.emit(BrowserFrameTree.Events.ExecutionContextCreated, {
-      executionContextId: toPersistentExecutionContext(this.frameId(), executionContextId),
+      executionContextId: toPageLevelUniqueId(this.frameId(), executionContextId),
       auxData
     });
   }
@@ -311,13 +496,15 @@ class BrowserFrame {
   _onRuntimeExecutionContextDestroyed({ executionContextId }) {
     this._executionContextIds.delete(executionContextId);
     this._frameTree.emit(BrowserFrameTree.Events.ExecutionContextDestroyed, {
-      executionContextId: toPersistentExecutionContext(this.frameId(), executionContextId),
+      executionContextId: toPageLevelUniqueId(this.frameId(), executionContextId),
     });
   }
 
   async navigate(options) {
-    options.frameId = helper.browsingContextToFrameId(this._browsingContext);
-    return await this._channel.connect('page').send('navigate', options);
+    return await this._channel.connect('page').send('navigate', {
+      ...options,
+      frameId: this._rendererFrameId,
+    });
   }
 
   // This might happen due to cross-process navigation.
@@ -329,6 +516,14 @@ class BrowserFrame {
 
     // Update browsing context.
     this._browsingContext = browsingContext;
+
+    // Local frame id might change as Cross-Group navigations happen.
+    // We never report it over the protocol, but it is used inside the content process.
+    //
+    // TODO: in future, all renderer code should not use frameId's at all!!!
+    // Using rendererFrameId might damage message re-sending as a new renderer attaches.
+    this._rendererFrameId = helper.browsingContextToFrameId(browsingContext);
+
     this._frameTree._browsingContextToBrowserFrame.set(this._browsingContext, this);
     this._frameTree._updateCrossProcessCookie();
   }
@@ -358,6 +553,41 @@ class BrowserFrame {
   }
 }
 
+class DedicatedWorker {
+  constructor(frameTree, frameChannel, workerId) {
+    this._frameTree = frameTree;
+    this._contentWorker = frameChannel.connect(workerId);
+    this._workerConsoleMessages = new Set();
+    this._workerId = workerId;
+
+    const emitWorkerEvent = eventName => (...args) => this._frameTree.emit(eventName, workerId, ...args);
+    this._eventListeners = [
+      frameChannel.register(workerId, {
+        runtimeConsole: (params) => {
+          this._workerConsoleMessages.add(hashConsoleMessage(params));
+          this._frameTree.emit(BrowserFrameTree.Events.WorkerConsole, workerId, params);
+        },
+        runtimeExecutionContextCreated: params => {
+          emitWorkerEvent(BrowserFrameTree.WorkerExecutionContextCreated)(params);
+        },
+        runtimeExecutionContextDestroyed: emitWorkerEvent(BrowserFrameTree.WorkerExecutionContextDestroyed),
+      }),
+    ];
+  }
+
+  async sendMessageToWorker(methodName, params) {
+    const [domain] = methodName.split('.');
+    if (domain !== 'Runtime')
+      throw new Error('ERROR: can only dispatch to Runtime domain inside worker');
+    return await this._contentWorker.send(methodName, params);
+  }
+
+  dispose() {
+    this._contentWorker.dispose();
+    helper.removeListeners(this._eventListeners);
+  }
+}
+
 BrowserFrameTree.Events = {
   FrameAttached: 'frameattached',
   FrameDetached: 'framedetached',
@@ -373,8 +603,13 @@ BrowserFrameTree.Events = {
   WillOpenNewWindowAsynchronously: 'willopennewwindowasynchronously',
   Ready: 'ready',
   UncaughtError: 'uncaughterror',
+
   WorkerCreated: 'workercreated',
-  WorkerDesotryed: 'workerdestroyed',
+  WorkerDestroyed: 'workerdestroyed',
+  WorkerExecutionContextCreated: 'workerexecutioncontextcreated',
+  WorkerExecutionContextDestroyed: 'workerexecutioncontextdestroyed',
+  WorkerConsole: 'workerconsole',
+
   Console: 'console',
   ExecutionContextCreated: 'executioncontextcreated',
   ExecutionContextDestroyed: 'executioncontextdestroyed',
@@ -385,12 +620,12 @@ BrowserFrameTree.Events = {
   WebSocketFrameSent: 'websocketframesent',
 };
 
-function toPersistentExecutionContext(frameId, executionContextId) {
-  return frameId + '===' + executionContextId;
+function toPageLevelUniqueId(frameId, rendererId) {
+  return frameId + '===' + rendererId;
 }
 
-function fromPersistentExecutionContext(persistentExecutionContextId) {
-  return persistentExecutionContextId.split('===');
+function fromPageLevelUniqueId(pageUniqueId) {
+  return pageUniqueId.split('===');
 }
 
 var EXPORTED_SYMBOLS = ['BrowserFrameTree'];
@@ -417,6 +652,10 @@ ActorManagerParent.addJSWindowActors({
     allFrames: true,
   },
 });
+
+function hashConsoleMessage(params) {
+  return params.location.lineNumber + ':' + params.location.columnNumber + ':' + params.location.url;
+}
 
 function channelId(channel) {
   if (channel instanceof Ci.nsIIdentChannel) {

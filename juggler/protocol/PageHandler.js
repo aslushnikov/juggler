@@ -16,69 +16,13 @@ const Cu = Components.utils;
 const XUL_NS = 'http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul';
 const helper = new Helper();
 
-function hashConsoleMessage(params) {
-  return params.location.lineNumber + ':' + params.location.columnNumber + ':' + params.location.url;
-}
-
-class WorkerHandler {
-  constructor(session, contentChannel, workerId) {
-    this._session = session;
-    this._contentWorker = contentChannel.connect(workerId);
-    this._workerConsoleMessages = new Set();
-    this._workerId = workerId;
-
-    const emitWrappedProtocolEvent = eventName => {
-      return params => {
-        this._session.emitEvent('Page.dispatchMessageFromWorker', {
-          workerId,
-          message: JSON.stringify({method: eventName, params}),
-        });
-      }
-    }
-
-    this._eventListeners = [
-      contentChannel.register(workerId, {
-        runtimeConsole: (params) => {
-          this._workerConsoleMessages.add(hashConsoleMessage(params));
-          emitWrappedProtocolEvent('Runtime.console')(params);
-        },
-        runtimeExecutionContextCreated: emitWrappedProtocolEvent('Runtime.executionContextCreated'),
-        runtimeExecutionContextDestroyed: emitWrappedProtocolEvent('Runtime.executionContextDestroyed'),
-      }),
-    ];
-  }
-
-  async sendMessage(message) {
-    const [domain, method] = message.method.split('.');
-    if (domain !== 'Runtime')
-      throw new Error('ERROR: can only dispatch to Runtime domain inside worker');
-    const result = await this._contentWorker.send(method, message.params);
-    this._session.emitEvent('Page.dispatchMessageFromWorker', {
-      workerId: this._workerId,
-      message: JSON.stringify({result, id: message.id}),
-    });
-  }
-
-  dispose() {
-    this._contentWorker.dispose();
-    helper.removeListeners(this._eventListeners);
-  }
-}
-
 class PageHandler {
-  constructor(target, session, contentChannel) {
+  constructor(target, session) {
     this._session = session;
-    this._contentChannel = contentChannel;
-    this._contentPage = contentChannel.connect('page');
-    this._workers = new Map();
 
     this._pageTarget = target;
     this._frameTree = target.frameTree();
     this._pageNetwork = PageNetwork.forPageTarget(target);
-
-    const emitProtocolEvent = eventName => {
-      return (...args) => this._session.emitEvent(eventName, ...args);
-    }
 
     this._reportedFrameIds = new Set();
     this._networkEventsForUnreportedFrameIds = new Map();
@@ -100,6 +44,20 @@ class PageHandler {
     }
 
     const BFTEvents = BrowserFrameTree.Events;
+
+    const emitWorkerEvent = eventName => {
+      return (workerId, params) => {
+        this._session.emitEvent('Page.dispatchMessageFromWorker', {
+          workerId,
+          message: JSON.stringify({method: eventName, params}),
+        });
+      }
+    }
+
+    const emitProtocolEvent = eventName => {
+      return (...args) => this._session.emitEvent(eventName, ...args);
+    }
+
     this._eventListeners = [
       helper.on(this._pageTarget, PageTarget.Events.DialogOpened, this._onDialogOpened.bind(this)),
       helper.on(this._pageTarget, PageTarget.Events.DialogClosed, this._onDialogClosed.bind(this)),
@@ -135,30 +93,17 @@ class PageHandler {
       helper.on(this._frameTree, BFTEvents.WebSocketClosed, emitProtocolEvent('Page.webSocketClosed')),
       helper.on(this._frameTree, BFTEvents.WebSocketFrameReceived, emitProtocolEvent('Page.webSocketFrameReceived')),
       helper.on(this._frameTree, BFTEvents.WebSocketFrameSent, emitProtocolEvent('Page.webSocketFrameSent')),
+      helper.on(this._frameTree, BFTEvents.Console, emitProtocolEvent('Runtime.console')),
 
-      //TODO: move the rest.
-      // helper.on(this._frameTree, BFTEvents.WorkerCreated, this._onWorkerCreated.bind(this),
-      // helper.on(this._frameTree, BFTEvents.WorkerDesotryed, this._onWorkerDestroyed.bind(this),
-      /*
-      contentChannel.register('page', {
-        runtimeConsole: params => {
-          const consoleMessageHash = hashConsoleMessage(params);
-          for (const worker of this._workers) {
-            if (worker._workerConsoleMessages.has(consoleMessageHash)) {
-              worker._workerConsoleMessages.delete(consoleMessageHash);
-              return;
-            }
-          }
-          emitProtocolEvent('Runtime.console')(params);
-        },
-
-      }),
-      */
+      helper.on(this._frameTree, BFTEvents.WorkerCreated, emitProtocolEvent('Page.workerCreated')),
+      helper.on(this._frameTree, BFTEvents.WorkerDestroyed, emitProtocolEvent('Page.workerDestroyed')),
+      helper.on(this._frameTree, BFTEvents.WorkerExecutionContextCreated, emitWorkerEvent('Runtime.executionContextCreated')),
+      helper.on(this._frameTree, BFTEvents.WorkerExecutionContextDestroyed, emitWorkerEvent('Runtime.executionContextDestroyed')),
+      helper.on(this._frameTree, BFTEvents.WorkerConsole, emitWorkerEvent('Runtime.console')),
     ];
   }
 
   async dispose() {
-    this._contentPage.dispose();
     helper.removeListeners(this._eventListeners);
   }
 
@@ -193,21 +138,6 @@ class PageHandler {
     if (!this._isPageReady)
       return;
     this._session.emitEvent('Page.dialogClosed', { dialogId: dialog.id(), });
-  }
-
-  _onWorkerCreated({workerId, frameId, url}) {
-    const worker = new WorkerHandler(this._session, this._contentChannel, workerId);
-    this._workers.set(workerId, worker);
-    this._session.emitEvent('Page.workerCreated', {workerId, frameId, url});
-  }
-
-  _onWorkerDestroyed({workerId}) {
-    const worker = this._workers.get(workerId);
-    if (!worker)
-      return;
-    this._workers.delete(workerId);
-    worker.dispose();
-    this._session.emitEvent('Page.workerDestroyed', {workerId});
   }
 
   _handleNetworkEvent(protocolEventName, eventDetails, frameId) {
@@ -304,12 +234,13 @@ class PageHandler {
     this._pageNetwork.fulfillInterceptedRequest(requestId, status, statusText, headers, base64body);
   }
 
-  async ['Accessibility.getFullAXTree'](params) {
-    return await this._contentPage.send('getFullAXTree', params);
+  async ['Accessibility.getFullAXTree']({ objectId }) {
+    return await this._frameTree.getFullAXTree({ objectId });
   }
 
   async ['Page.setFileInputFiles'](options) {
-    return await this._contentPage.send('setFileInputFiles', options);
+    const frame = this._frameTree.frameIdToFrame(options.frameId);
+    return await frame.setFileInputFiles(options);
   }
 
   async ['Page.setEmulatedMedia']({colorScheme, type, reducedMotion, forcedColors}) {
@@ -323,84 +254,83 @@ class PageHandler {
     this._pageTarget._window.focus();
   }
 
-  async ['Page.setCacheDisabled'](options) {
-    return await this._contentPage.send('setCacheDisabled', options);
-  }
-
-  async ['Page.addBinding'](options) {
-    return await this._contentPage.send('addBinding', options);
+  async ['Page.addBinding']({ name, script, worldName }) {
+    return await this._frameTree.addBinding({ name, script, worldName });
   }
 
   async ['Page.adoptNode'](options) {
-    return await this._contentPage.send('adoptNode', options);
+    return await this._frameTree.adoptNode(options);
   }
 
   async ['Page.screenshot'](options) {
-    return await this._contentPage.send('screenshot', options);
+    return await this._frameTree.screenshot(options);
   }
 
-  async ['Page.getContentQuads'](options) {
-    return await this._contentPage.send('getContentQuads', options);
+  async ['Page.getContentQuads']({ frameId, objectId }) {
+    const frame = this._frameTree.frameIdToFrameOrDie(frameId);
+    return await frame.getContentQuads({ objectId });
   }
 
   async ['Page.navigate']({ frameId, url, referrer }) {
-    // return await this._contentPage.send('navigate', options);
-    const frame = this._frameTree.frameIdToFrame(frameId);
-    if (!frame)
-      throw new Error(`Failed to find frame with id ${frameId}`);
+    const frame = this._frameTree.frameIdToFrameOrDie(frameId);
     return await frame.navigate({ url, referrer, frameId });
   }
 
-  async ['Page.goBack'](options) {
-    return await this._contentPage.send('goBack', options);
+  async ['Page.goBack']({ frameId }) {
+    const frame = this._frameTree.frameIdToFrameOrDie(frameId);
+    return await frame.goBack();
   }
 
-  async ['Page.goForward'](options) {
-    return await this._contentPage.send('goForward', options);
+  async ['Page.goForward']({ frameId }) {
+    const frame = this._frameTree.frameIdToFrameOrDie(frameId);
+    return await frame.goForward();
   }
 
-  async ['Page.reload'](options) {
-    return await this._contentPage.send('reload', options);
+  async ['Page.reload']({ frameId }) {
+    const frame = this._frameTree.frameIdToFrameOrDie(frameId);
+    return await frame.reload();
   }
 
-  async ['Page.describeNode'](options) {
-    return await this._contentPage.send('describeNode', options);
+  async ['Page.describeNode']({ frameId, objectId }) {
+    const frame = this._frameTree.frameIdToFrameOrDie(frameId);
+    return await frame.describeNode(objectId);
   }
 
-  async ['Page.scrollIntoViewIfNeeded'](options) {
-    return await this._contentPage.send('scrollIntoViewIfNeeded', options);
+  async ['Page.scrollIntoViewIfNeeded']({ frameId, objectId, rect }) {
+    const frame = this._frameTree.frameIdToFrameOrDie(frameId);
+    return await frame.scrollIntoViewIfNeeded(objectId, rect);
   }
 
   async ['Page.setInitScripts']({ scripts }) {
-    return await this._pageTarget.setInitScripts(scripts);
+    return await this._frameTree.setInitScripts(scripts);
   }
 
   async ['Page.dispatchKeyEvent'](options) {
-    return await this._contentPage.send('dispatchKeyEvent', options);
+    return await this._frameTree.dispatchKeyEvent(options);
   }
 
   async ['Page.dispatchTouchEvent'](options) {
-    return await this._contentPage.send('dispatchTouchEvent', options);
+    return await this._frameTree.dispatchTouchEvent(options);
   }
 
   async ['Page.dispatchTapEvent'](options) {
-    return await this._contentPage.send('dispatchTapEvent', options);
+    return await this._frameTree.dispatchTapEvent(options);
   }
 
   async ['Page.dispatchMouseEvent'](options) {
-    return await this._contentPage.send('dispatchMouseEvent', options);
+    return await this._frameTree.dispatchMouseEvent(options);
   }
 
   async ['Page.dispatchWheelEvent'](options) {
-    return await this._contentPage.send('dispatchWheelEvent', options);
+    return await this._frameTree.dispatchWheelEvent(options);
   }
 
   async ['Page.insertText'](options) {
-    return await this._contentPage.send('insertText', options);
+    return await this._frameTree.insertText(options);
   }
 
-  async ['Page.crash'](options) {
-    return await this._contentPage.send('crash', options);
+  async ['Page.crash']() {
+    return await this._frameTree.forceRendererCrash();
   }
 
   async ['Page.handleDialog']({dialogId, accept, promptText}) {
@@ -413,8 +343,8 @@ class PageHandler {
       dialog.dismiss();
   }
 
-  async ['Page.setInterceptFileChooserDialog'](options) {
-    return await this._contentPage.send('setInterceptFileChooserDialog', options);
+  async ['Page.setInterceptFileChooserDialog']({ enabled }) {
+    return await this._frameTree.setInterceptFileChooserDialog(enabled);
   }
 
   async ['Page.startScreencast'](options) {
@@ -429,11 +359,9 @@ class PageHandler {
     await this._pageTarget.stopScreencast(options);
   }
 
-  async ['Page.sendMessageToWorker']({workerId, message}) {
-    const worker = this._workers.get(workerId);
-    if (!worker)
-      throw new Error('ERROR: cannot find worker with id ' + workerId);
-    return await worker.sendMessage(JSON.parse(message));
+  async ['Page.sendMessageToWorker']({ frameId, workerId, message }) {
+    const frame = this._frameTree.frameIdToFrameOrDie(frameId);
+    return await frame.sendMessageToWorker(workerId, message);
   }
 }
 

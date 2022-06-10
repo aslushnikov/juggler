@@ -784,11 +784,6 @@ const Page = {
         forcedColors: t.Optional(t.Enum(['active', 'none'])),
       },
     },
-    'setCacheDisabled': {
-      params: {
-        cacheDisabled: t.Boolean,
-      },
-    },
     'describeNode': {
       params: {
         frameId: t.String,

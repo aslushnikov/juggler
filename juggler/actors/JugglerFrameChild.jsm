@@ -85,29 +85,37 @@ class JugglerFrameChild extends JSWindowActorChild {
   }
 
   actorCreated() {
-    const frameTreeCookie = Services.cpmm.sharedData.get('juggler:frametree-cookie-' + this.browsingContext.browserId);
-    if (!frameTreeCookie)
+    const pageCrossProcessCookie = Services.cpmm.sharedData.get('juggler:frametree-cookie-' + this.browsingContext.browserId);
+    if (!pageCrossProcessCookie)
       return;
+    const userContextId = this.browsingContext.originAttributes.userContextId;
+    const contextCrossProcessCookie = Services.cpmm.sharedData.get('juggler:context-cookie-' + userContextId);
+
+    const cookie = {
+      bindings: new Map(...contextCrossProcessCookie.bindings, ...pageCrossProcessCookie.bindings),
+      initScripts: [...contextCrossProcessCookie.initScripts, ...pageCrossProcessCookie.initScripts],
+      interceptFileChooserDialog: pageCrossProcessCookie.interceptFileChooserDialog,
+      contextSettings: contextCrossProcessCookie.settings,
+    };
 
     this._channel = SimpleChannel.createForActor('content::frame', this);
-    const userContextId = this.browsingContext.originAttributes.userContextId;
-    const {
-      bindings = [],
-      settings = {}
-    } = Services.cpmm.sharedData.get('juggler:usercontextidcookie:' + userContextId);
+
     // Enforce focused state for all top level documents.
     this.docShell.overrideHasFocus = true;
     this.docShell.forceActiveState = true;
 
     this._frameTree = new FrameTree(this.docShell);
-    for (const [name, value] of Object.entries(settings)) {
+    for (const [name, value] of Object.entries(cookie.contextSettings)) {
       if (value !== undefined)
         this.applySetting[name](value);
     }
-    for (const { worldName, name, script } of bindings)
+    for (const { worldName, name, script } of cookie.bindings)
       this._frameTree.addBinding(worldName, name, script);
-    this._frameTree.setInitScripts(frameTreeCookie.initScripts);
+    this._frameTree.setInitScripts(cookie.initScripts);
     this._pageAgent = new PageAgent(this._channel, this._frameTree, this.contentWindow);
+    this._pageAgent._setInterceptFileChooserDialog({
+      enabled: cookie.interceptFileChooserDialog,
+    });
     const self = this;
     this._eventListeners = [
       helper.on(this._frameTree, FrameTree.Events.WillProcessSwap, () => false && this._dispose()),
