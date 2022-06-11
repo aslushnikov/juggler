@@ -82,7 +82,19 @@ class JugglerFrameChild extends JSWindowActorChild {
       this._pageAgent._onDOMContentLoaded(aEvent);
     } else if (aEvent.type === 'error') {
       this._pageAgent._onError(aEvent);
+    } else if (aEvent.type === 'unload') {
+      this._dispose();
     }
+  }
+
+  _log(title) {
+    dump(`
+      ${title}
+                bc.id: ${this.browsingContext.id}
+            isInitial: ${this.document.isInitialDocument}
+        innerWindowID: ${this.contentWindow.windowGlobalChild.innerWindowId}
+        innerWindowID: ${this.contentWindow.windowGlobalChild.outerWindowId}
+    `);
   }
 
   actorCreated() {

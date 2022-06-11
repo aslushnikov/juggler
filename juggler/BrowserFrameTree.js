@@ -692,6 +692,7 @@ ActorManagerParent.addJSWindowActors({
         DOMDocElementInserted: {},
         pageshow: {},
         pagehide: {},
+        unload: { capture: true, createActor: false },
       },
     },
     allFrames: true,
