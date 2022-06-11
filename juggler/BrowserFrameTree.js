@@ -165,7 +165,7 @@ class BrowserFrameTree {
   }
 
   async addBinding({ name, script, worldName }) {
-    this._crossProcessCookie.bindings.set(name, { script, worldName });
+    this._crossProcessCookie.bindings.set(name, { name, script, worldName });
     this._updateCrossProcessCookie();
 
     // Fan out to all existing frames.
@@ -360,7 +360,7 @@ class BrowserFrameTree {
 class BrowserFrame {
   static fromBrowsingContext(browsingContext) {
     const frameTree = gManager._browserIdToFrameTree.get(browsingContext.browserId);
-    return frameTree._browsingContextToBrowserFrame.get(browsingContext);
+    return frameTree ? frameTree._browsingContextToBrowserFrame.get(browsingContext) : null;
   }
 
   constructor(frameTree, frameId, browsingContext) {

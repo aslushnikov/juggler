@@ -13,6 +13,7 @@ class JugglerFrameChild extends JSWindowActorChild {
   constructor() {
     super();
 
+    this._eventListeners = [];
     this._failedToOverrideTimezone = false;
     this.applySetting = {
       geolocation: (geolocation) => {

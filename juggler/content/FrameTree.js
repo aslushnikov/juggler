@@ -198,6 +198,7 @@ class FrameTree {
 
   dispose() {
     this._wdm.removeListener(this._wdmListener);
+    this._mainFrame.dispose();
     this._runtime.dispose();
     try {
       helper.removeListeners(this._eventListeners);

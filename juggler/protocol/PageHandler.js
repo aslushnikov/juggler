@@ -271,9 +271,9 @@ class PageHandler {
     return await frame.getContentQuads({ objectId });
   }
 
-  async ['Page.navigate']({ frameId, url, referrer }) {
+  async ['Page.navigate']({ frameId, url, referer }) {
     const frame = this._frameTree.frameIdToFrameOrDie(frameId);
-    return await frame.navigate({ url, referrer, frameId });
+    return await frame.navigate({ url, referer, frameId });
   }
 
   async ['Page.goBack']({ frameId }) {
