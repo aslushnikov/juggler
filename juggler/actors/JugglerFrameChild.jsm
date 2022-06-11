@@ -78,26 +78,29 @@ class JugglerFrameChild extends JSWindowActorChild {
   handleEvent(aEvent) {
     if (!this._pageAgent)
       return;
+    if (aEvent.target !== this.document.defaultView)
+      return;
     if (aEvent.type === 'DOMContentLoaded') {
       this._pageAgent._onDOMContentLoaded(aEvent);
     } else if (aEvent.type === 'error') {
       this._pageAgent._onError(aEvent);
-    } else if (aEvent.type === 'unload') {
+    } else if (aEvent.type === 'pagehide') {
       this._dispose();
     }
   }
 
   _log(title) {
+    if (this.browsingContext.id < 35)
+      return;
     dump(`
       ${title}
                 bc.id: ${this.browsingContext.id}
             isInitial: ${this.document.isInitialDocument}
-        innerWindowID: ${this.contentWindow.windowGlobalChild.innerWindowId}
-        innerWindowID: ${this.contentWindow.windowGlobalChild.outerWindowId}
     `);
   }
 
   actorCreated() {
+    this._initialized = true;
     const userContextId = this.browsingContext.originAttributes.userContextId;
     const contextCrossProcessCookie = Services.cpmm.sharedData.get('juggler:context-cookie-' + userContextId);
     const pageCrossProcessCookie = Services.cpmm.sharedData.get('juggler:frametree-cookie-' + this.browsingContext.browserId);
@@ -185,8 +188,9 @@ class JugglerFrameChild extends JSWindowActorChild {
   }
 
   _dispose() {
-    if (!this._pageAgent)
+    if (!this._initialized)
       return;
+    this._initialized = false;
     // Reset transport so that all messages
     // will be pending and will not throw any errors.
     this._channel.resetTransport();
