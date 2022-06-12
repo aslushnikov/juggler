@@ -144,7 +144,11 @@ class JugglerFrameChild extends JSWindowActorChild {
 
     const self = this;
     this._eventListeners = [
-      helper.on(this._frameTree, FrameTree.Events.WillProcessSwap, () => false && this._dispose()),
+      helper.on(this._frameTree, FrameTree.Events.FrameDetached, frame => {
+        // if the main frame got detached, then we should dispose everything.
+        if (frame === this._frameTree.mainFrame())
+          this._dispose();
+      }),
       this._channel.register('', {
         setInitScripts(scripts) {
           self._frameTree.setInitScripts(scripts);
