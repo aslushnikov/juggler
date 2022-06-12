@@ -689,7 +689,7 @@ ActorManagerParent.addJSWindowActors({
       moduleURI: 'chrome://juggler/content/actors/JugglerFrameChild.jsm',
       events: {
         DOMWindowCreated: {},
-        // DOMDocElementInserted: {},
+        DOMDocElementInserted: {},
         // DOMContentLoaded: {},
         // pagehide: { createActor: false, },
         // error: {},
