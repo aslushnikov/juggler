@@ -15,7 +15,7 @@ const {Runtime} = ChromeUtils.import('chrome://juggler/content/content/Runtime.j
 const helper = new Helper();
 
 class FrameTree {
-  constructor(rootDocShell, contentWindow) {
+  constructor(rootDocShell) {
     EventEmitter.decorate(this);
 
     this._isolatedWorlds = new Map();
@@ -30,7 +30,7 @@ class FrameTree {
     this._frameIdToFrame = new Map();
     this._pageReady = false;
 
-    this._mainFrame = this._createFrame(rootDocShell, contentWindow);
+    this._mainFrame = this._createFrame(rootDocShell);
 
     const webProgress = rootDocShell.QueryInterface(Ci.nsIInterfaceRequestor)
                                 .getInterface(Ci.nsIWebProgress);
@@ -57,6 +57,7 @@ class FrameTree {
     this._eventListeners = [
       helper.addObserver(this._onDOMWindowCreated.bind(this), 'content-document-global-created'),
       helper.addObserver(this._onDOMWindowCreated.bind(this), 'juggler-dom-window-reused'),
+      helper.addObserver(subject => this._onDocShellDestroyed(subject.QueryInterface(Ci.nsIDocShell)), 'webnavigation-destroy'),
       helper.addProgressListener(webProgress, this, flags),
     ];
   }
@@ -198,13 +199,8 @@ class FrameTree {
 
   dispose() {
     this._wdm.removeListener(this._wdmListener);
-    this._mainFrame.dispose();
     this._runtime.dispose();
-    try {
-      helper.removeListeners(this._eventListeners);
-    } catch (e) {
-      // webProgress could be already destroyed at this point.
-    }
+    helper.removeListeners(this._eventListeners);
   }
 
   onStateChange(progress, request, flag, status) {
@@ -223,7 +219,6 @@ class FrameTree {
     }
 
     const isStart = flag & Ci.nsIWebProgressListener.STATE_START;
-    const isRedirect = flag & Ci.nsIWebProgressListener.STATE_REDIRECTING;
     const isTransferring = flag & Ci.nsIWebProgressListener.STATE_TRANSFERRING;
     const isStop = flag & Ci.nsIWebProgressListener.STATE_STOP;
     const isDocument = flag & Ci.nsIWebProgressListener.STATE_IS_DOCUMENT;
@@ -271,9 +266,9 @@ class FrameTree {
     }
   }
 
-  _createFrame(docShell, domWindow) {
+  _createFrame(docShell) {
     const parentFrame = this._docShellToFrame.get(docShell.parent) || null;
-    const frame = new Frame(this, this._runtime, docShell, parentFrame, domWindow);
+    const frame = new Frame(this, this._runtime, docShell, parentFrame);
     this._docShellToFrame.set(docShell, frame);
     this._frameIdToFrame.set(frame.id(), frame);
     this.emit(FrameTree.Events.FrameAttached, frame);
@@ -282,6 +277,25 @@ class FrameTree {
     if (frame.domWindow())
       frame._onGlobalObjectCleared();
     return frame;
+  }
+
+  _onDocShellDestroyed(docShell) {
+    const frame = this._docShellToFrame.get(docShell);
+    if (frame)
+      this._detachFrame(frame);
+  }
+
+  _detachFrame(frame) {
+    // Detach all children first
+    for (const subframe of frame._children)
+      this._detachFrame(subframe);
+    this._docShellToFrame.delete(frame._docShell);
+    this._frameIdToFrame.delete(frame.id());
+    if (frame._parentFrame)
+      frame._parentFrame._children.delete(frame);
+    frame._parentFrame = null;
+    frame.dispose();
+    this.emit(FrameTree.Events.FrameDetached, frame);
   }
 }
 
@@ -312,11 +326,10 @@ class IsolatedWorld {
 }
 
 class Frame {
-  constructor(frameTree, runtime, docShell, parentFrame, domWindow) {
+  constructor(frameTree, runtime, docShell, parentFrame) {
     this._frameTree = frameTree;
     this._runtime = runtime;
     this._docShell = docShell;
-    this._domWindow = domWindow;
     this._children = new Set();
     this._frameId = helper.browsingContextToFrameId(this._docShell.browsingContext);
     this._parentFrame = null;
@@ -517,7 +530,7 @@ class Frame {
   }
 
   domWindow() {
-    return this._domWindow;
+    return this._docShell.domWindow;
   }
 
   name() {

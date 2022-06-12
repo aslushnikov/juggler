@@ -76,16 +76,18 @@ class JugglerFrameChild extends JSWindowActorChild {
   }
 
   handleEvent(aEvent) {
-    if (!this._pageAgent)
+    if (!this._initialized)
       return;
-    if (aEvent.target !== this.document.defaultView)
+    if (aEvent.target !== this.document)
       return;
     if (aEvent.type === 'DOMContentLoaded') {
       this._pageAgent._onDOMContentLoaded(aEvent);
+    } else if (aEvent.type === 'DOMDocElementInserted') {
+      // this._frameTree._mainFrame._onGlobalObjectCreated();
     } else if (aEvent.type === 'error') {
       this._pageAgent._onError(aEvent);
     } else if (aEvent.type === 'pagehide') {
-      this._dispose();
+      // this._frameTree._mainFrame._onGlobalObjectDestroyed();
     }
   }
 
@@ -100,6 +102,8 @@ class JugglerFrameChild extends JSWindowActorChild {
   }
 
   actorCreated() {
+    if (this.document.documentURI.startsWith('moz-extension://'))
+      return;
     this._initialized = true;
     const userContextId = this.browsingContext.originAttributes.userContextId;
     const contextCrossProcessCookie = Services.cpmm.sharedData.get('juggler:context-cookie-' + userContextId);
@@ -206,6 +210,14 @@ class JugglerFrameChild extends JSWindowActorChild {
   }
 
   receiveMessage() { }
+}
+
+function channelId(channel) {
+  if (channel instanceof Ci.nsIIdentChannel) {
+    const identChannel = channel.QueryInterface(Ci.nsIIdentChannel);
+    return String(identChannel.channelId);
+  }
+  return helper.generateId();
 }
 
 var EXPORTED_SYMBOLS = ['JugglerFrameChild'];

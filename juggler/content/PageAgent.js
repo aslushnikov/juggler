@@ -30,9 +30,7 @@ class WorkerData {
     this._eventListeners = [
       worker.channel().register('runtime', {
         runtimeConsole: emit('runtimeConsole'),
-        runtimeExecutionContextCreated: (...args) => {
-          emit('runtimeExecutionContextCreated')(...args);
-        },
+        runtimeExecutionContextCreated: emit('runtimeExecutionContextCreated'),
         runtimeExecutionContextDestroyed: emit('runtimeExecutionContextDestroyed'),
       }),
       browserChannel.register(worker.id(), {
@@ -101,7 +99,9 @@ class PageAgent {
       helper.addObserver(this._linkClicked.bind(this, true), 'juggler-link-click-sync'),
       helper.addObserver(this._onWindowOpenInNewContext.bind(this), 'juggler-window-open-in-new-context'),
       helper.addObserver(this._filePickerShown.bind(this), 'juggler-file-picker-shown'),
+      helper.addEventListener(this._contentWindow, 'DOMContentLoaded', this._onDOMContentLoaded.bind(this)),
       helper.addObserver(this._onDocumentOpenLoad.bind(this), 'juggler-document-open-loaded'),
+      helper.addEventListener(this._contentWindow, 'error', this._onError.bind(this)),
       helper.on(this._frameTree, 'load', this._onLoad.bind(this)),
       // helper.on(this._frameTree, 'frameattached', this._onFrameAttached.bind(this)),
       // helper.on(this._frameTree, 'framedetached', this._onFrameDetached.bind(this)),
@@ -216,7 +216,7 @@ class PageAgent {
       this._emitAllEvents(this._frameTree.mainFrame());
   }
 
-  _setInterceptFileChooserDialog({ enabled }) {
+  _setInterceptFileChooserDialog({enabled}) {
     this._docShell.fileInputInterceptionEnabled = !!enabled;
   }
 
@@ -299,7 +299,6 @@ class PageAgent {
       frameId: frame.id(),
       navigationId: frame.pendingNavigationId(),
       url: frame.pendingNavigationURL(),
-      name: frame.name(),
     });
   }
 
@@ -416,7 +415,7 @@ class PageAgent {
     return {success: true};
   }
 
-  async _adoptNode({ frameId, objectId, executionContextId }) {
+  async _adoptNode({frameId, objectId, executionContextId}) {
     const frame = this._frameTree.frame(frameId);
     if (!frame)
       throw new Error('Failed to find frame with id = ' + frameId);
@@ -459,7 +458,7 @@ class PageAgent {
     return {quads};
   }
 
-  _describeNode({ objectId, frameId }) {
+  _describeNode({objectId, frameId}) {
     const frame = this._frameTree.frame(frameId);
     if (!frame)
       throw new Error('Failed to find frame with id = ' + frameId);

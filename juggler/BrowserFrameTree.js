@@ -35,6 +35,8 @@ class BrowserFrameTreeManager {
       // We do not want to attach to any chrome-level browsing contexts.
       if (!browsingContext.isContent)
         return;
+      if (browsingContext.currentURI.spec.startsWith('moz-extension://'))
+        return;
       callback(browsingContext, ...args);
     }, topic);
   }
@@ -687,12 +689,12 @@ ActorManagerParent.addJSWindowActors({
       moduleURI: 'chrome://juggler/content/actors/JugglerFrameChild.jsm',
       events: {
         DOMWindowCreated: {},
-        DOMContentLoaded: {},
-        error: {},
-        DOMDocElementInserted: {},
-        pageshow: {},
-        pagehide: {},
-        unload: { capture: true, createActor: false },
+        // DOMDocElementInserted: {},
+        // DOMContentLoaded: {},
+        // pagehide: { createActor: false, },
+        // error: {},
+        // pageshow: {},
+        // unload: { capture: true, createActor: false },
       },
     },
     allFrames: true,
