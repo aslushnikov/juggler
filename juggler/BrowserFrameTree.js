@@ -688,7 +688,11 @@ ActorManagerParent.addJSWindowActors({
     child: {
       moduleURI: 'chrome://juggler/content/actors/JugglerFrameChild.jsm',
       events: {
+        // Normally, we instantiate an actor when a new window is created.
         DOMWindowCreated: {},
+        // However, for same-origin iframes, the navigation from about:blank
+        // to the URL will share the same window, so we need to also create
+        // an actor for a new document via DOMDocElementInserted.
         DOMDocElementInserted: {},
         // DOMContentLoaded: {},
         // pagehide: { createActor: false, },
