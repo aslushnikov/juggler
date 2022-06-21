@@ -469,11 +469,11 @@ class BrowserFrame {
     });
   }
 
-  async sendMessageToWorker(workerId, methodName, params) {
+  async sendMessageToWorker(workerId, message) {
     const worker = this._workers.get(workerId);
     if (!worker)
       throw new Error(`Failed to find worker with id "${workerId}"`);
-    return await worker.sendMessageToWorker(methodName, params);
+    return await worker.sendMessageToWorker(message);
   }
 
   _setWindowActor(actor) {
@@ -620,19 +620,22 @@ class DedicatedWorker {
           this._workerConsoleMessages.add(hashConsoleMessage(params));
           this._frameTree.emit(BrowserFrameTree.Events.WorkerConsole, workerId, params);
         },
-        runtimeExecutionContextCreated: params => {
-          emitWorkerEvent(BrowserFrameTree.WorkerExecutionContextCreated)(params);
-        },
-        runtimeExecutionContextDestroyed: emitWorkerEvent(BrowserFrameTree.WorkerExecutionContextDestroyed),
+        runtimeExecutionContextCreated: emitWorkerEvent(BrowserFrameTree.Events.WorkerExecutionContextCreated),
+        runtimeExecutionContextDestroyed: emitWorkerEvent(BrowserFrameTree.Events.WorkerExecutionContextDestroyed),
       }),
     ];
   }
 
-  async sendMessageToWorker(methodName, params) {
-    const [domain] = methodName.split('.');
+  async sendMessageToWorker(message) {
+    const { id, method, params } = JSON.parse(message);
+    const [domain, methodName] = method.split('.');
     if (domain !== 'Runtime')
       throw new Error('ERROR: can only dispatch to Runtime domain inside worker');
-    return await this._contentWorker.send(methodName, params);
+    const result = await this._contentWorker.send(methodName, params);
+    this._frameTree.emit(BrowserFrameTree.Events.MessageFromWorker, {
+      workerId: this._workerId,
+      message: JSON.stringify({ result, id }),
+    });
   }
 
   dispose() {
