@@ -55,8 +55,8 @@ class FrameTree {
     const flags = Ci.nsIWebProgress.NOTIFY_STATE_DOCUMENT |
                   Ci.nsIWebProgress.NOTIFY_LOCATION;
     this._eventListeners = [
-      helper.addObserver(this._onDOMWindowCreated.bind(this), 'content-document-global-created'),
-      helper.addObserver(this._onDOMWindowCreated.bind(this), 'juggler-dom-window-reused'),
+      // helper.addObserver(this._onDOMWindowCreated.bind(this), 'content-document-global-created'),
+      // helper.addObserver(this._onDOMWindowCreated.bind(this), 'juggler-dom-window-reused'),
       helper.addObserver(subject => this._onDocShellDestroyed(subject.QueryInterface(Ci.nsIDocShell)), 'webnavigation-destroy'),
       helper.addProgressListener(webProgress, this, flags),
     ];

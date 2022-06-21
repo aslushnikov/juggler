@@ -208,6 +208,7 @@ class Runtime {
   }
 
   dispose() {
+    this._debugger.removeAllDebuggees();
     for (const tearDown of this._eventListeners)
       tearDown.call(null);
     this._eventListeners = [];

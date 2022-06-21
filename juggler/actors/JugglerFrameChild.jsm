@@ -9,6 +9,9 @@ const { SimpleChannel } = ChromeUtils.import('chrome://juggler/content/SimpleCha
 const Ci = Components.interfaces;
 const helper = new Helper();
 
+
+let sameProcessInstanceNumber = 0;
+
 class JugglerFrameChild extends JSWindowActorChild {
   constructor() {
     super();
@@ -91,19 +94,11 @@ class JugglerFrameChild extends JSWindowActorChild {
     }
   }
 
-  _log(title) {
-    if (this.browsingContext.id < 35)
-      return;
-    dump(`
-      ${title}
-                bc.id: ${this.browsingContext.id}
-            isInitial: ${this.document.isInitialDocument}
-    `);
-  }
-
   actorCreated() {
     if (this.document.documentURI.startsWith('moz-extension://'))
       return;
+    this._debugName = this.browsingContext.id + '-' + (++sameProcessInstanceNumber);
+
     this._initialized = true;
     const userContextId = this.browsingContext.originAttributes.userContextId;
     const contextCrossProcessCookie = Services.cpmm.sharedData.get('juggler:context-cookie-' + userContextId);
@@ -129,6 +124,7 @@ class JugglerFrameChild extends JSWindowActorChild {
     this.docShell.forceActiveState = true;
 
     this._frameTree = new FrameTree(this.docShell, this.contentWindow);
+    this._frameTree._runtime._actor = this;
     this._pageAgent = new PageAgent(this._channel, this._frameTree, this.contentWindow);
 
     for (const [name, value] of Object.entries(cookie.contextSettings)) {
@@ -193,6 +189,8 @@ class JugglerFrameChild extends JSWindowActorChild {
         },
       }),
     ];
+
+    this._frameTree._onDOMWindowCreated(this.contentWindow);
   }
 
   _dispose() {
