@@ -14,7 +14,7 @@ if (!this.Debugger) {
 
 let lastId = 0;
 function generateId() {
-  return 'id-' + (++lastId);
+  return 'ec-' + (++lastId);
 }
 
 const consoleLevelToProtocolType = {

@@ -155,7 +155,7 @@ class BrowserFrameTree {
     // Settings that are stored in a shared memory.
     this._crossProcessCookie = {
       initScripts: [],
-      interceptFileChooserDialog: [],
+      interceptFileChooserDialog: false,
       bindings: new Map(),
     };
     this._initScripts = [];
@@ -257,7 +257,7 @@ class BrowserFrameTree {
   }
 
   _parseRuntimeCommandOptions(options) {
-    const [frameId, rendererExecutionContextId] = fromPageLevelUniqueId(options.executionContextId);
+    const [frameId, rendererExecutionContextId] = fromPageLevelExecutionContextId(options.executionContextId);
     const frame = this._frameIdToFrame.get(frameId);
     if (!frame)
       throw new Error('Failed to find execution context id ' + options.executionContextId);
@@ -396,7 +396,7 @@ class BrowserFrame {
       this._channel.register('page', {
         pageDispatchMessageFromWorker: emitEvent(BFTEvents.MessageFromWorker),
         pageEventFired: emitEventWithFrameId(BFTEvents.EventFired),
-        pageFileChooserOpened: emitEvent(BFTEvents.FileChooserOpened),
+        pageFileChooserOpened: this._onFileChooserOpened.bind(this), 
         pageLinkClicked: emitEvent(BFTEvents.LinkClicked),
         pageWillOpenNewWindowAsynchronously: emitEvent(BFTEvents.WillOpenNewWindowAsynchronously),
         pageReady: () => {
@@ -490,6 +490,13 @@ class BrowserFrame {
       this._channel.resetTransport();
   }
 
+  _onFileChooserOpened(options) {
+    this._frameTree.emit(BrowserFrameTree.Events.FileChooserOpened, {
+      ...options,
+      executionContextId: toPageLevelExecutionContextId(this.frameId(), options.executionContextId),
+    });
+  }
+
   _onDedicatedWorkerCreated({ frameId, url, workerId }) {
     const worker = new DedicatedWorker(this._frameTree, this._channel, workerId);
     this._workers.set(workerId, worker);
@@ -519,7 +526,7 @@ class BrowserFrame {
     }
     this._frameTree.emit(BrowserFrameTree.Events.Console, {
       ...options,
-      executionContextId: toPageLevelUniqueId(this.frameId(), options.executionContextId),
+      executionContextId: toPageLevelExecutionContextId(this.frameId(), options.executionContextId),
     });
   }
 
@@ -527,7 +534,7 @@ class BrowserFrame {
     this._executionContextIds.add(executionContextId);
     auxData.frameId = this.frameId();
     this._frameTree.emit(BrowserFrameTree.Events.ExecutionContextCreated, {
-      executionContextId: toPageLevelUniqueId(this.frameId(), executionContextId),
+      executionContextId: toPageLevelExecutionContextId(this.frameId(), executionContextId),
       auxData
     });
   }
@@ -535,13 +542,13 @@ class BrowserFrame {
   _onRuntimeExecutionContextDestroyed({ executionContextId }) {
     this._executionContextIds.delete(executionContextId);
     this._frameTree.emit(BrowserFrameTree.Events.ExecutionContextDestroyed, {
-      executionContextId: toPageLevelUniqueId(this.frameId(), executionContextId),
+      executionContextId: toPageLevelExecutionContextId(this.frameId(), executionContextId),
     });
   }
 
   _onBindingCalled({ executionContextId, name, payload }) {
     this._frameTree.emit(BrowserFrameTree.Events.BindingCalled, {
-      executionContextId: toPageLevelUniqueId(this.frameId(), executionContextId),
+      executionContextId: toPageLevelExecutionContextId(this.frameId(), executionContextId),
       name,
       payload,
     });
@@ -666,12 +673,12 @@ BrowserFrameTree.Events = {
   WebSocketFrameSent: 'websocketframesent',
 };
 
-function toPageLevelUniqueId(frameId, rendererId) {
-  return frameId + '===' + rendererId;
+function toPageLevelExecutionContextId(frameId, rendererId) {
+  return frameId + ',' + rendererId;
 }
 
-function fromPageLevelUniqueId(pageUniqueId) {
-  return pageUniqueId.split('===');
+function fromPageLevelExecutionContextId(pageUniqueId) {
+  return pageUniqueId.split(',');
 }
 
 var EXPORTED_SYMBOLS = ['BrowserFrameTree', 'BrowserFrame'];

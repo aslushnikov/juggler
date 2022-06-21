@@ -175,7 +175,7 @@ class PageHandler {
   }
 
   _onFrameDetached(frame) {
-    this._session.emitEvent('Page.frameAttached', {
+    this._session.emitEvent('Page.frameDetached', {
       frameId: frame.frameId(),
     });
   }
