@@ -142,6 +142,7 @@ class PageAgent {
         dispatchWheelEvent: this._dispatchWheelEvent.bind(this),
         dispatchTouchEvent: this._dispatchTouchEvent.bind(this),
         dispatchTapEvent: this._dispatchTapEvent.bind(this),
+        getDocumentElementOffset: this._getDocumentElementOffset.bind(this),
         getContentQuads: this._getContentQuads.bind(this),
         getFullAXTree: this._getFullAXTree.bind(this),
         goBack: this._goBack.bind(this),
@@ -440,22 +441,30 @@ class PageAgent {
     unsafeObject.mozSetFileArray(nsFiles);
   }
 
-  _getContentQuads({objectId, frameId}) {
+  _getDocumentElementOffset() {
+    const quad = this._contentWindow.document.getBoxQuadsFromWindowOrigin()[0];
+    return {
+      x: quad.p1.x,
+      y: quad.p1.y,
+    };
+  }
+
+  _getContentQuads({objectId, frameId, offsetX, offsetY}) {
     const frame = this._frameTree.frame(frameId);
     if (!frame)
       throw new Error('Failed to find frame with id = ' + frameId);
     const unsafeObject = frame.unsafeObject(objectId);
-    if (!unsafeObject.getBoxQuads)
+    if (!unsafeObject.getBoxQuadsFromWindowOrigin)
       throw new Error('RemoteObject is not a node');
-    const quads = unsafeObject.getBoxQuads({relativeTo: this._frameTree.mainFrame().domWindow().document}).map(quad => {
+    const quads = unsafeObject.getBoxQuadsFromWindowOrigin().map(quad => {
       return {
-        p1: {x: quad.p1.x, y: quad.p1.y},
-        p2: {x: quad.p2.x, y: quad.p2.y},
-        p3: {x: quad.p3.x, y: quad.p3.y},
-        p4: {x: quad.p4.x, y: quad.p4.y},
+        p1: {x: quad.p1.x - offsetX, y: quad.p1.y - offsetY},
+        p2: {x: quad.p2.x - offsetX, y: quad.p2.y - offsetY},
+        p3: {x: quad.p3.x - offsetX, y: quad.p3.y - offsetY},
+        p4: {x: quad.p4.x - offsetX, y: quad.p4.y - offsetY},
       };
     });
-    return {quads};
+    return { quads };
   }
 
   _describeNode({objectId, frameId}) {

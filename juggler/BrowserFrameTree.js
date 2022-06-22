@@ -487,9 +487,12 @@ class BrowserFrame {
   }
 
   async getContentQuads(options) {
+    const offset = await this._frameTree._mainFrame._channel.connect('page').send('getDocumentElementOffset');
     return await this._channel.connect('page').send('getContentQuads', {
       ...options,
       frameId: this._rendererFrameId,
+      offsetX: offset.x,
+      offsetY: offset.y,
     });
   }
 
