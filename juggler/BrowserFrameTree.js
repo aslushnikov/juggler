@@ -300,8 +300,58 @@ class BrowserFrameTree {
     return await frame._channel.connect('page').send('disposeObject', options);
   }
 
-  async screenshot(options) {
-    return await this._mainFrame._channel.connect('page').send('screenshot', options);
+  async screenshot({ mimeType, clip, omitDeviceScaleFactor }) {
+    let lastError = null;
+    for (let i = 0; i < 3; ++i) {
+      try {
+        // This might occasionally throw if called during navigation.
+        // So attempt screenshot at least 3 times.
+        return await this._screenshotInternal({ mimeType, clip, omitDeviceScaleFactor });
+      } catch (error) {
+        lastError = error;
+      }
+    }
+    throw lastError;
+  }
+
+  async _screenshotInternal({ mimeType, clip, omitDeviceScaleFactor }) {
+    const windowInfo = await this._mainFrame._channel.connect('page').send('getWindowInfo');
+    const rect = clip ?
+        new DOMRect(clip.x, clip.y, clip.width, clip.height) :
+        new DOMRect(windowInfo.scrollX, windowInfo.scrollY, windowInfo.innerWidth, windowInfo.innerHeight);
+
+    // `win.devicePixelRatio` returns a non-overriden value to priveleged code.
+    // See https://bugzilla.mozilla.org/show_bug.cgi?id=1761032
+    // See https://phabricator.services.mozilla.com/D141323
+    const devicePixelRatio = this._mainFrame._browsingContext.overrideDPPX || windowInfo.devicePixelRatio;
+    const scale = omitDeviceScaleFactor ? 1 : devicePixelRatio;
+    const canvasWidth = rect.width * scale;
+    const canvasHeight = rect.height * scale;
+
+    const MAX_CANVAS_DIMENSIONS = 32767;
+    const MAX_CANVAS_AREA = 472907776;
+    if (canvasWidth > MAX_CANVAS_DIMENSIONS || canvasHeight > MAX_CANVAS_DIMENSIONS)
+      throw new Error('Cannot take screenshot larger than ' + MAX_CANVAS_DIMENSIONS);
+    if (canvasWidth * canvasHeight > MAX_CANVAS_AREA)
+      throw new Error('Cannot take screenshot with more than ' + MAX_CANVAS_AREA + ' pixels');
+
+    // The currentWindowGlobal.drawSnapshot might throw
+    // NS_ERROR_LOSS_OF_SIGNIFICANT_DATA if called during navigation.
+    const snapshot = await this._mainFrame._browsingContext.currentWindowGlobal.drawSnapshot(
+      rect,
+      scale,
+      "rgb(255,255,255)"
+    );
+
+    const win = this._mainFrame._browsingContext.topChromeWindow.ownerGlobal;
+    const canvas = win.document.createElementNS('http://www.w3.org/1999/xhtml', 'canvas');
+    canvas.width = canvasWidth;
+    canvas.height = canvasHeight;
+    let ctx = canvas.getContext('2d');
+    ctx.drawImage(snapshot, 0, 0);
+    snapshot.close();
+    const dataURL = canvas.toDataURL(mimeType);
+    return { data: dataURL.substring(dataURL.indexOf(',') + 1) };
   }
 
   async describeNode(frameId, objectId) {

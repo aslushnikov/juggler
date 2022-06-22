@@ -75,7 +75,7 @@ class Dispatcher {
       this._connection.send(JSON.stringify({id, sessionId, result}));
     } catch (e) {
       this._connection.send(JSON.stringify({id, sessionId, error: {
-        message: e.message,
+        message: e.message || (e + ''),
         data: e.stack
       }}));
     }
