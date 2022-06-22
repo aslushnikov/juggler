@@ -797,7 +797,8 @@ auto DocumentLoadListener::Open(nsDocShellLoadState* aLoadState,
   if (mIsDocumentLoad) {
     nsCOMPtr<nsIObserverService> observerService =
         mozilla::services::GetObserverService();
-    if (observerService) {
+    // Browser-initiated loads do not have document channel.
+    if (observerService && mDocumentChannelId.isSome()) {
       observerService->NotifyObservers(ToSupports(loadingContext), "juggler-navigation-started", NS_ConvertASCIItoUTF16(nsPrintfCString("%llu", mDocumentChannelId.value())).get());
     }
   }
