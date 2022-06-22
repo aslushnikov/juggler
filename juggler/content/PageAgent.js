@@ -473,6 +473,7 @@ class PageAgent {
       throw new Error('Failed to find frame with id = ' + frameId);
     const unsafeObject = frame.unsafeObject(objectId);
     return {
+      ownerFrameId: helper.browsingContextToFrameId((unsafeObject.ownerDocument ?? unsafeObject).defaultView.browsingContext),
       contentFrameId: helper.browsingContextToFrameId(unsafeObject.contentWindow?.browsingContext),
     };
   }

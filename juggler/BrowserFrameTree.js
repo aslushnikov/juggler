@@ -29,6 +29,10 @@ class BrowserFrameTreeManager {
     ];
   }
 
+  frameTrees() {
+    return [...this._browserIdToFrameTree.values()];
+  }
+
   // Filter out some suspicious browing contexts we are not interested in.
   _observeBC(callback, topic) {
     return helper.addObserver((browsingContext, ...args) => {
@@ -356,14 +360,25 @@ class BrowserFrameTree {
 
   async describeNode(frameId, objectId) {
     const frame = this._frameIdToFrame.get(frameId);
-    const { contentFrameId } = await frame._channel.connect('page').send('describeNode', {
+    const { contentFrameId, ownerFrameId } = await frame._channel.connect('page').send('describeNode', {
       frameId: frame._rendererFrameId,
       objectId,
     });
-    const contentFrame = contentFrameId ? this.allFrames().find(frame => frame._rendererFrameId === contentFrameId) : undefined;
+    let contentFrame, ownerFrame;
+
+    // We have to search owner & content frames across
+    // all frame trees: element might be owned by a popup.
+    for (const frameTree of gManager.frameTrees()) {
+      for (const frame of frameTree.allFrames()) {
+        if (frame._rendererFrameId === contentFrameId)
+          contentFrame = frame;
+        if (frame._rendererFrameId === ownerFrameId)
+          ownerFrame = frame;
+      }
+    }
     return {
       contentFrameId: contentFrame?.frameId(),
-      ownerFrameId: frame.frameId(),
+      ownerFrameId: ownerFrame?.frameId(),
     };
   }
 
@@ -391,8 +406,10 @@ class BrowserFrameTree {
   }
 
   _attachBrowsingContext(browsingContext) {
+    // FrameId has to be unique.
+    const frameId = `frame-${this._browserId}.${++this._lastFrameId}`;
     // Frame will register itself in our maps.
-    const frame = new BrowserFrame(this, 'frame-' + (++this._lastFrameId), browsingContext);
+    const frame = new BrowserFrame(this, frameId, browsingContext);
     return frame;
   }
 
