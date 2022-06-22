@@ -444,21 +444,21 @@ class BrowserFrame {
   }
 
   async goBack() {
-    return await this._channel.connect('page').send('goBack', {
-      frameId: this._rendererFrameId,
-    });
+    if (!this._browsingContext.embedderElement?.canGoBack)
+      return { success: false };
+    this._browsingContext.goBack();
+    return { success: true };
   }
 
   async goForward() {
-    return await this._channel.connect('page').send('goForward', {
-      frameId: this._rendererFrameId,
-    });
+    if (!this._browsingContext.embedderElement?.canGoForward)
+      return { success: false };
+    this._browsingContext.goForward();
+    return { success: true };
   }
 
   async reload() {
-    return await this._channel.connect('page').send('reload', {
-      frameId: this._rendererFrameId,
-    });
+    this._browsingContext.reload(Ci.nsIWebNavigation.LOAD_FLAGS_NONE);
   }
 
   async scrollIntoViewIfNeeded(objectId, rect) {
