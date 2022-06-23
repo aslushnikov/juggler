@@ -120,8 +120,10 @@ class JugglerFrameChild extends JSWindowActorChild {
     this._channel = SimpleChannel.createForActor('content::frame', this);
 
     // Enforce focused state for all top level documents.
-    this.docShell.overrideHasFocus = true;
-    this.docShell.forceActiveState = true;
+    if (!this.browsingContext.parent) {
+      this.docShell.overrideHasFocus = true;
+      this.docShell.forceActiveState = true;
+    }
 
     this._frameTree = new FrameTree(this.docShell, this.contentWindow);
     this._frameTree._runtime._actor = this;
