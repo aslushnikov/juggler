@@ -1146,8 +1146,8 @@ void DocumentLoadListener::DisconnectListeners(nsresult aStatus,
   if (mIsDocumentLoad && !aContinueNavigating) {
     nsCOMPtr<nsIObserverService> observerService =
         mozilla::services::GetObserverService();
-    if (observerService) {
-      auto* loadingContext = GetLoadingBrowsingContext();
+    auto* loadingContext = GetLoadingBrowsingContext();
+    if (observerService && loadingContext) {
       observerService->NotifyObservers(ToSupports(loadingContext), "juggler-navigation-aborted", NS_ConvertASCIItoUTF16(nsPrintfCString("%u", aStatus)).get());
     }
   }
@@ -2441,7 +2441,7 @@ DocumentLoadListener::OnStartRequest(nsIRequest* aRequest) {
   if (mIsDocumentLoad) {
     nsCOMPtr<nsIObserverService> observerService =
         mozilla::services::GetObserverService();
-    if (observerService) {
+    if (observerService && loadingContext) {
       if (status == NS_OK)
         observerService->NotifyObservers(ToSupports(loadingContext), "juggler-navigation-committed", NS_ConvertASCIItoUTF16(GetChannelCreationURI()->GetSpecOrDefault()).get());
       else
