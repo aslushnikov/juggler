@@ -168,6 +168,11 @@ class BrowserFrameTree {
   async setInitScripts(initScripts) {
     this._crossProcessCookie.initScripts = initScripts;
     this._updateCrossProcessCookie();
+
+    // Fan out to all existing frames.
+    await Promise.all(this.allFrames().map(async frame => {
+      await frame._channel.connect('').send('setInitScripts', initScripts);
+    }));
   }
 
   async addBinding({ name, script, worldName }) {

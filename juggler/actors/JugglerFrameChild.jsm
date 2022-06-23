@@ -97,7 +97,7 @@ class JugglerFrameChild extends JSWindowActorChild {
   actorCreated() {
     if (this.document.documentURI.startsWith('moz-extension://'))
       return;
-    this._debugName = this.browsingContext.id + '-' + (++sameProcessInstanceNumber);
+    this._debugName = 'browserId=' + this.browsingContext.browserId + ', bc.id=' + this.browsingContext.id + ', process instance=' + (++sameProcessInstanceNumber);
 
     this._initialized = true;
     const userContextId = this.browsingContext.originAttributes.userContextId;
