@@ -274,8 +274,8 @@ class FrameTree {
     this.emit(FrameTree.Events.FrameAttached, frame);
     // Create execution context **after** reporting frame.
     // This is our protocol contract.
-    if (frame.domWindow())
-      frame._onGlobalObjectCleared();
+    // if (frame.domWindow())
+    //   frame._onGlobalObjectCleared();
     return frame;
   }
 
