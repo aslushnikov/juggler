@@ -10,6 +10,8 @@ const Cu = Components.utils;
 
 const {Helper} = ChromeUtils.import('chrome://juggler/content/Helper.js');
 const {NetUtil} = ChromeUtils.import('resource://gre/modules/NetUtil.jsm');
+;
+const { ContentDOMReference } = ChromeUtils.import('resource://gre/modules/ContentDOMReference.jsm');
 const dragService = Cc["@mozilla.org/widget/dragservice;1"].getService(
   Ci.nsIDragService
 );
@@ -135,6 +137,7 @@ class PageAgent {
       browserChannel.register('page', {
         addBinding: ({ worldName, name, script }) => this._frameTree.addBinding(worldName, name, script),
         adoptNode: this._adoptNode.bind(this),
+        nodeToDOMReference: this._nodeToDOMReference.bind(this),
         crash: this._crash.bind(this),
         describeNode: this._describeNode.bind(this),
         dispatchKeyEvent: this._dispatchKeyEvent.bind(this),
@@ -416,11 +419,22 @@ class PageAgent {
     return {success: true};
   }
 
-  async _adoptNode({frameId, objectId, executionContextId}) {
+  async _nodeToDOMReference({ frameId, objectId }) {
     const frame = this._frameTree.frame(frameId);
     if (!frame)
       throw new Error('Failed to find frame with id = ' + frameId);
     const unsafeObject = frame.unsafeObject(objectId);
+    return ContentDOMReference.get(unsafeObject);
+  }
+
+  async _adoptNode({frameId, domReference, executionContextId}) {
+    const frame = this._frameTree.frame(frameId);
+    if (!frame)
+      throw new Error('Failed to find frame with id = ' + frameId);
+    const unsafeObject = ContentDOMReference.resolve(domReference);
+    if (!unsafeObject)
+      return { remoteObject: null };
+
     const context = this._runtime.findExecutionContext(executionContextId);
     const fromPrincipal = unsafeObject.nodePrincipal;
     const toFrame = this._frameTree.frame(context.auxData().frameId);

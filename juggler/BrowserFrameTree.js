@@ -275,12 +275,16 @@ class BrowserFrameTree {
   }
 
   async adoptNode(opts) {
+    const fromFrame = this.frameIdToFrameOrDie(opts.frameId);
+    const domReference = await fromFrame._channel.connect('page').send('nodeToDOMReference', {
+      frameId: fromFrame._rendererFrameId,
+      objectId: opts.objectId,
+    });
     const { frame, options } = this._parseRuntimeCommandOptions(opts);
-    if (frame.frameId() !== opts.frameId)
-      throw new Error(`ERROR: failed to find execution context "${executionContextId}" in frame "${this._frameId}"`);
     return await frame._channel.connect('page').send('adoptNode', {
-      ...options,
       frameId: frame._rendererFrameId,
+      domReference,
+      executionContextId: options.executionContextId,
     });
   }
 
