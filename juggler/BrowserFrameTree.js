@@ -7,8 +7,6 @@ const { EventEmitter } = ChromeUtils.import('resource://gre/modules/EventEmitter
 const { NetUtil } = ChromeUtils.import('resource://gre/modules/NetUtil.jsm');
 
 const Ci = Components.interfaces;
-const Cu = Components.utils;
-
 const helper = new Helper();
 
 function collectAllBrowsingContexts(browsingContext, allBrowsingContexts = []) {
@@ -216,200 +214,34 @@ class BrowserFrameTree {
     }));
   }
 
-  async dispatchKeyEvent({ type, keyCode, code, key, repeat, location, text }) {
-    const win = this._mainFrame.getWindow();
-    if (!this._mainFrame._tip) {
-      this._mainFrame._tip = Cc["@mozilla.org/text-input-processor;1"].createInstance(Ci.nsITextInputProcessor);
-      this._mainFrame._tip.beginInputTransactionForTests(win);
-    }
-    const tip = this._mainFrame.textInputProcessor();
-
-    if (key === 'Meta' && Services.appinfo.OS !== 'Darwin')
-      key = 'OS';
-    else if (key === 'OS' && Services.appinfo.OS === 'Darwin')
-      key = 'Meta';
-    let keyEvent = new (win.KeyboardEvent)("", {
-      key,
-      code,
-      location,
-      repeat,
-      keyCode
-    });
-    if (type === 'keydown') {
-      if (text && text !== key) {
-        tip.commitCompositionWith(text, keyEvent);
-      } else {
-        const flags = 0;
-        tip.keydown(keyEvent, flags);
-      }
-    } else if (type === 'keyup') {
-      if (text)
-        throw new Error(`keyup does not support text option`);
-      const flags = 0;
-      tip.keyup(keyEvent, flags);
-    } else {
-      throw new Error(`Unknown type ${type}`);
-    }
+  async dispatchKeyEvent(options) {
+    //TODO: this does not work with OOPIF
+    return await this._mainFrame._channel.connect('page').send('dispatchKeyEvent', options);
   }
 
-  async dispatchTouchEvent({ type, touchPoints, modifiers }) {
-    const win = this._mainFrame.getWindow();
-    const offset = await this._mainFrame._channel.connect('page').send('getDocumentElementOffset');
-    const defaultPrevented = win.windowUtils.sendTouchEvent(
-      type.toLowerCase(),
-      touchPoints.map((point, id) => id),
-      touchPoints.map(point => point.x + offset.x),
-      touchPoints.map(point => point.y + offset.y),
-      touchPoints.map(point => point.radiusX === undefined ? 1.0 : point.radiusX),
-      touchPoints.map(point => point.radiusY === undefined ? 1.0 : point.radiusY),
-      touchPoints.map(point => point.rotationAngle === undefined ? 0.0 : point.rotationAngle),
-      touchPoints.map(point => point.force === undefined ? 1.0 : point.force),
-      touchPoints.length,
-      modifiers);
-    return { defaultPrevented };
+  async dispatchTouchEvent(options) {
+    //TODO: this does not work with OOPIF
+    return await this._mainFrame._channel.connect('page').send('dispatchTouchEvent', options);
   }
 
-  async dispatchTapEvent({ x, y, modifiers }) {
-    // Force a layout at the point in question, because touch events
-    // do not seem to trigger one like mouse events.
-    // TODO: shall we force layout here as well?
-    // win.windowUtils.elementFromPoint(
-    //   x,
-    //   y,
-    //   false /* aIgnoreRootScrollFrame */,
-    //   true /* aFlushLayout */);
-
-    const { defaultPrevented: startPrevented } = await this.dispatchTouchEvent({
-      type: 'touchstart',
-      modifiers,
-      touchPoints: [{x, y}]
-    });
-    const { defaultPrevented: endPrevented } = await this.dispatchTouchEvent({
-      type: 'touchend',
-      modifiers,
-      touchPoints: [{x, y}]
-    });
-    if (startPrevented || endPrevented)
-      return;
-
-    const win = this._mainFrame.getWindow();
-    const offset = await this._mainFrame._channel.connect('page').send('getDocumentElementOffset');
-    x += offset.x;
-    y += offset.y;
-
-    const frame = this._frameTree.mainFrame();
-    win.windowUtils.sendMouseEvent(
-      'mousemove',
-      x,
-      y,
-      0 /*button*/,
-      0 /*clickCount*/,
-      modifiers,
-      false /*aIgnoreRootScrollFrame*/,
-      undefined /*pressure*/,
-      5 /*inputSource*/,
-      undefined /*isDOMEventSynthesized*/,
-      false /*isWidgetEventSynthesized*/,
-      0 /*buttons*/,
-      undefined /*pointerIdentifier*/,
-      true /*disablePointerEvent*/);
-
-    win.windowUtils.sendMouseEvent(
-      'mousedown',
-      x,
-      y,
-      0 /*button*/,
-      1 /*clickCount*/,
-      modifiers,
-      false /*aIgnoreRootScrollFrame*/,
-      undefined /*pressure*/,
-      5 /*inputSource*/,
-      undefined /*isDOMEventSynthesized*/,
-      false /*isWidgetEventSynthesized*/,
-      1 /*buttons*/,
-      undefined /*pointerIdentifier*/,
-      true /*disablePointerEvent*/);
-
-    win.windowUtils.sendMouseEvent(
-      'mouseup',
-      x,
-      y,
-      0 /*button*/,
-      1 /*clickCount*/,
-      modifiers,
-      false /*aIgnoreRootScrollFrame*/,
-      undefined /*pressure*/,
-      5 /*inputSource*/,
-      undefined /*isDOMEventSynthesized*/,
-      false /*isWidgetEventSynthesized*/,
-      0 /*buttons*/,
-      undefined /*pointerIdentifier*/,
-      true /*disablePointerEvent*/);
+  async dispatchTapEvent(options) {
+    //TODO: this does not work with OOPIF
+    return await this._mainFrame._channel.connect('page').send('dispatchTapEvent', options);
   }
 
-  async dispatchMouseEvent({ type, x, y, button, clickCount, modifiers, buttons }) {
-    const offset = await this._mainFrame._channel.connect('page').send('getDocumentElementOffset');
-    x += offset.x;
-    y += offset.y;
-
-    const win = this._mainFrame.getWindow();
-
-    win.windowUtils.sendMouseEvent(
-      type,
-      x,
-      y,
-      button,
-      clickCount,
-      modifiers,
-      false /*aIgnoreRootScrollFrame*/,
-      undefined /*pressure*/,
-      undefined /*inputSource*/,
-      undefined /*isDOMEventSynthesized*/,
-      undefined /*isWidgetEventSynthesized*/,
-      buttons
-    );
-
-    if (type === 'mousedown' && button === 2) {
-      win.windowUtils.sendMouseEvent(
-        'contextmenu',
-        x,
-        y,
-        button,
-        clickCount,
-        modifiers,
-        false /*aIgnoreRootScrollFrame*/,
-        undefined /*pressure*/,
-        undefined /*inputSource*/,
-        undefined /*isDOMEventSynthesized*/,
-        undefined /*isWidgetEventSynthesized*/,
-        buttons);
-    }
+  async dispatchMouseEvent(options) {
+    //TODO: this does not work with OOPIF
+    return await this._mainFrame._channel.connect('page').send('dispatchMouseEvent', options);
   }
 
-  async dispatchWheelEvent({ x, y, button, deltaX, deltaY, deltaZ, modifiers }) {
-    const offset = await this._mainFrame._channel.connect('page').send('getDocumentElementOffset');
-    x += offset.x;
-    y += offset.y;
-    const deltaMode = 0; // WheelEvent.DOM_DELTA_PIXEL
-    const lineOrPageDeltaX = deltaX > 0 ? Math.floor(deltaX) : Math.ceil(deltaX);
-    const lineOrPageDeltaY = deltaY > 0 ? Math.floor(deltaY) : Math.ceil(deltaY);
-
-    const win = this._mainFrame.getWindow();
-    win.windowUtils.sendWheelEvent(
-      x,
-      y,
-      deltaX,
-      deltaY,
-      deltaZ,
-      deltaMode,
-      modifiers,
-      lineOrPageDeltaX,
-      lineOrPageDeltaY,
-      0 /* options */);
+  async dispatchWheelEvent(options) {
+    //TODO: this does not work with OOPIF
+    return await this._mainFrame._channel.connect('page').send('dispatchWheelEvent', options);
   }
 
-  async insertText({ text }) {
-    this._mainFrame.textInputProcessor().commitCompositionWith(text);
+  async insertText(options) {
+    //TODO: this does not work with OOPIF
+    return await this._mainFrame._channel.connect('page').send('insertText', options);
   }
 
   async getFullAXTree({ objectId }) {
@@ -524,7 +356,7 @@ class BrowserFrameTree {
       "rgb(255,255,255)"
     );
 
-    const win = this._mainFrame.getWindow();
+    const win = this._mainFrame._browsingContext.topChromeWindow.ownerGlobal;
     const canvas = win.document.createElementNS('http://www.w3.org/1999/xhtml', 'canvas');
     canvas.width = canvasWidth;
     canvas.height = canvasHeight;
@@ -617,8 +449,6 @@ class BrowserFrame {
     this._children = new Set();
     this._browsingContext = null;
 
-    this._textInputProcessor = null;
-
     // This is assigned from BrowserFrameTree.
     this._pendingNavigationId = null;
 
@@ -673,18 +503,6 @@ class BrowserFrame {
     ];
 
     this._frameTree.emit(BFTEvents.FrameAttached, this);
-  }
-
-  getWindow() {
-    return this._browsingContext.embedderElement.ownerGlobal;
-  }
-
-  textInputProcessor() {
-    if (!this._textInputProcessor) {
-      this._textInputProcessor = Cc["@mozilla.org/text-input-processor;1"].createInstance(Ci.nsITextInputProcessor);
-    }
-    this._textInputProcessor.beginInputTransactionForTests(this.getWindow());
-    return this._textInputProcessor;
   }
 
   async setFileInputFiles(options) {
@@ -822,10 +640,8 @@ class BrowserFrame {
     });
   }
 
-  // This might happen due to cross-group navigation.
+  // This might happen due to cross-process navigation.
   _setBrowsingContext(browsingContext) {
-    // This has to be re-created for new window.
-    this._textInputProcessor = null;
     // Tear down navigation listeners and global maps.
     if (this._browsingContext) {
       this._frameTree._browsingContextToBrowserFrame.delete(this._browsingContext);
