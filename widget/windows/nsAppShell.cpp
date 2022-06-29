@@ -17,7 +17,9 @@
 #include "WinIMEHandler.h"
 #include "mozilla/widget/AudioSession.h"
 #include "mozilla/BackgroundHangMonitor.h"
-#include "mozilla/BackgroundTasks.h"
+#ifdef MOZ_BACKGROUNDTASKS
+#  include "mozilla/BackgroundTasks.h"
+#endif
 #include "mozilla/Hal.h"
 #include "nsIDOMWakeLockListener.h"
 #include "nsIPowerManagerService.h"
