@@ -389,9 +389,13 @@ void Navigator::GetLanguage(nsAString& aLanguage) {
 }
 
 void Navigator::GetLanguages(nsTArray<nsString>& aLanguages) {
-  nsString languageOverride;
-  mWindow->GetDocShell()->GetLanguageOverride(languageOverride);
-  GetAcceptLanguages(&languageOverride, aLanguages);
+  if (mWindow && mWindow->GetDocShell()) {
+    nsString languageOverride;
+    mWindow->GetDocShell()->GetLanguageOverride(languageOverride);
+    GetAcceptLanguages(&languageOverride, aLanguages);
+  } else {
+    GetAcceptLanguages(nullptr, aLanguages);
+  }
 
   // The returned value is cached by the binding code. The window listens to the
   // accept languages change and will clear the cache when needed. It has to
