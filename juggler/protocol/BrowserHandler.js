@@ -53,7 +53,7 @@ class BrowserHandler {
     // since browser shutdown can be initiated when the last tab is closed, e.g.
     // with persistent context.
     await Promise.all([
-      waitForAddonManager(),
+      // waitForAddonManager(),
       waitForSearchService(),
     ]);
   }
@@ -149,7 +149,7 @@ class BrowserHandler {
     // Try to fully initialize browser before closing.
     // See comment in `Browser.enable`.
     await Promise.all([
-      waitForAddonManager(),
+      // waitForAddonManager(),
       waitForSearchService(),
     ]);
     this._onclose();
@@ -284,8 +284,9 @@ class BrowserHandler {
 }
 
 async function waitForSearchService() {
-  const searchService = Components.classes["@mozilla.org/browser/search-service;1"].getService(Components.interfaces.nsISearchService);
-  await searchService.init();
+  // await Services.search.init();
+  // const searchService = Components.classes["@mozilla.org/browser/search-service;1"].getService(Components.interfaces.nsISearchService);
+  // await searchService.init();
 }
 
 async function waitForAddonManager() {
