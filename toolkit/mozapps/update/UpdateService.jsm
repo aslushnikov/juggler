@@ -3591,6 +3591,8 @@ UpdateService.prototype = {
   },
 
   get disabledForTesting() {
+    /* for playwright */
+    return true;
     return (
       (Cu.isInAutomation || Marionette.running || RemoteAgent.running) &&
       Services.prefs.getBoolPref(PREF_APP_UPDATE_DISABLEDFORTESTING, false)

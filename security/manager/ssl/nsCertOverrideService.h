@@ -132,10 +132,23 @@ class nsCertOverrideService final : public nsICertOverrideService,
  private:
   ~nsCertOverrideService();
 
+<<<<<<< HEAD
   mozilla::Mutex mMutex;
   bool mDisableAllSecurityCheck GUARDED_BY(mMutex);
   nsCOMPtr<nsIFile> mSettingsFile GUARDED_BY(mMutex);
   nsTHashtable<nsCertOverrideEntry> mSettingsTable GUARDED_BY(mMutex);
+||||||| parent of 083e70359a86 (chore(ff): bootstrap build #1332)
+  mozilla::Mutex mMutex MOZ_UNANNOTATED;
+  bool mDisableAllSecurityCheck;
+  nsCOMPtr<nsIFile> mSettingsFile;
+  nsTHashtable<nsCertOverrideEntry> mSettingsTable;
+=======
+  mozilla::Mutex mMutex MOZ_UNANNOTATED;
+  mozilla::HashSet<uint32_t> mUserContextIdsWithDisabledSecurityChecks;
+  bool mDisableAllSecurityCheck;
+  nsCOMPtr<nsIFile> mSettingsFile;
+  nsTHashtable<nsCertOverrideEntry> mSettingsTable;
+>>>>>>> 083e70359a86 (chore(ff): bootstrap build #1332)
 
   void CountPermanentOverrideTelemetry(
       const mozilla::MutexAutoLock& aProofOfLock);

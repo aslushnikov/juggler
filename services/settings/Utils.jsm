@@ -101,7 +101,7 @@ function _isUndefined(value) {
 
 var Utils = {
   get SERVER_URL() {
-    return allowServerURLOverride
+    return true || allowServerURLOverride
       ? gServerURL
       : AppConstants.REMOTE_SETTINGS_SERVER_URL;
   },

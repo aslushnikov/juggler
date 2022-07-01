@@ -135,6 +135,9 @@ class HeadlessWidget : public nsBaseWidget {
       TouchpadGesturePhase aEventPhase, float aScale,
       LayoutDeviceIntPoint aPoint, int32_t aModifierFlags) override;
 
+  using SnapshotListener = std::function<void(RefPtr<gfx::DataSourceSurface>&&)>;
+  void SetSnapshotListener(SnapshotListener&& listener);
+
  private:
   ~HeadlessWidget();
   bool mEnabled;
