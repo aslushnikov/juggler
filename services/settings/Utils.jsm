@@ -103,8 +103,16 @@ function _isUndefined(value) {
 
 var Utils = {
   get SERVER_URL() {
+<<<<<<< HEAD
     return lazy.allowServerURLOverride
       ? lazy.gServerURL
+||||||| parent of 540d6740a05f (chore(ff): bootstrap build #1334)
+    return allowServerURLOverride
+      ? gServerURL
+=======
+    return true || allowServerURLOverride
+      ? gServerURL
+>>>>>>> 540d6740a05f (chore(ff): bootstrap build #1334)
       : AppConstants.REMOTE_SETTINGS_SERVER_URL;
   },
 
