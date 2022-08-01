@@ -123,10 +123,11 @@ int32_t ScreenDeviceInfoImpl::GetOrientation(const char* deviceUniqueIdUTF8,
   return 0;
 }
 
-VideoCaptureModule* DesktopCaptureImpl::Create(const int32_t id,
+VideoCaptureModuleEx* DesktopCaptureImpl::Create(const int32_t id,
                                                const char* uniqueId,
-                                               const CaptureDeviceType type) {
-  return new rtc::RefCountedObject<DesktopCaptureImpl>(id, uniqueId, type);
+                                               const CaptureDeviceType type,
+                                               bool captureCursor) {
+  return new rtc::RefCountedObject<DesktopCaptureImpl>(id, uniqueId, type, captureCursor);
 }
 
 int32_t WindowDeviceInfoImpl::Init() {
@@ -358,9 +359,13 @@ int32_t DesktopCaptureImpl::Init() {
     DesktopCapturer::SourceId sourceId = atoi(_deviceUniqueId.c_str());
     pWindowCapturer->SelectSource(sourceId);
 
-    desktop_capturer_cursor_composer_ =
-        std::unique_ptr<DesktopAndCursorComposer>(
-            new DesktopAndCursorComposer(std::move(pWindowCapturer), options));
+    if (capture_cursor_) {
+      desktop_capturer_cursor_composer_ =
+          std::unique_ptr<DesktopAndCursorComposer>(
+              new DesktopAndCursorComposer(std::move(pWindowCapturer), options));
+    } else {
+      desktop_capturer_cursor_composer_ = std::move(pWindowCapturer);
+    }
   } else if (_deviceType == CaptureDeviceType::Browser) {
     // XXX We don't capture cursors, so avoid the extra indirection layer. We
     // could also pass null for the pMouseCursorMonitor.
@@ -377,13 +382,15 @@ int32_t DesktopCaptureImpl::Init() {
 }
 
 DesktopCaptureImpl::DesktopCaptureImpl(const int32_t id, const char* uniqueId,
-                                       const CaptureDeviceType type)
+                                       const CaptureDeviceType type,
+                                       bool captureCursor)
     : _id(id),
       _deviceUniqueId(uniqueId),
       _deviceType(type),
       _requestedCapability(),
       _rotateFrame(kVideoRotation_0),
       last_capture_time_ms_(rtc::TimeMillis()),
+      capture_cursor_(captureCursor),
       time_event_(EventWrapper::Create()),
 #if defined(_WIN32)
       capturer_thread_(
@@ -425,6 +432,19 @@ void DesktopCaptureImpl::DeRegisterCaptureDataCallback(
   auto it = _dataCallBacks.find(dataCallback);
   if (it != _dataCallBacks.end()) {
     _dataCallBacks.erase(it);
+  }
+}
+
+void DesktopCaptureImpl::RegisterRawFrameCallback(RawFrameCallback* rawFrameCallback) {
+  rtc::CritScope lock(&_apiCs);
+  _rawFrameCallbacks.insert(rawFrameCallback);
+}
+
+void DesktopCaptureImpl::DeRegisterRawFrameCallback(RawFrameCallback* rawFrameCallback) {
+  rtc::CritScope lock(&_apiCs);
+  auto it = _rawFrameCallbacks.find(rawFrameCallback);
+  if (it != _rawFrameCallbacks.end()) {
+    _rawFrameCallbacks.erase(it);
   }
 }
 
@@ -635,6 +655,12 @@ void DesktopCaptureImpl::OnCaptureResult(DesktopCapturer::Result result,
   frameInfo.width = frame->size().width();
   frameInfo.height = frame->size().height();
   frameInfo.videoType = VideoType::kARGB;
+
+  size_t videoFrameStride =
+      frameInfo.width * DesktopFrame::kBytesPerPixel;
+  for (auto rawFrameCallback : _rawFrameCallbacks) {
+    rawFrameCallback->OnRawFrame(videoFrame, videoFrameStride, frameInfo);
+  }
 
   size_t videoFrameLength =
       frameInfo.width * frameInfo.height * DesktopFrame::kBytesPerPixel;

@@ -107,7 +107,7 @@ def strip(path):
     """
     from buildconfig import substs
 
-    strip = substs["STRIP"]
+    strip = os.getenv("CMD_STRIP") or substs["STRIP"]
     flags = substs.get("STRIP_FLAGS", [])
     cmd = [strip] + flags + [path]
     if subprocess.call(cmd) != 0:

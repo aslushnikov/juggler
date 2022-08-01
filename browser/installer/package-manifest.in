@@ -192,6 +192,35 @@
 @RESPATH@/chrome/remote.manifest
 #endif
 
+<<<<<<< HEAD
+||||||| parent of 5620cfb2cb2c (chore(ff-beta): bootstrap build #1338)
+#if defined(ENABLE_TESTS) && defined(MOZ_DEBUG)
+@RESPATH@/components/TestInterfaceJS.js
+@RESPATH@/components/TestInterfaceJS.manifest
+#endif
+
+#if defined(MOZ_DEBUG) || defined(MOZ_DEV_EDITION) || defined(NIGHTLY_BUILD)
+@RESPATH@/browser/components/testComponents.manifest
+@RESPATH@/browser/components/startupRecorder.js
+#endif
+
+=======
+@RESPATH@/chrome/juggler@JAREXT@
+@RESPATH@/chrome/juggler.manifest
+@RESPATH@/components/juggler.manifest
+@RESPATH@/components/juggler.js
+
+#if defined(ENABLE_TESTS) && defined(MOZ_DEBUG)
+@RESPATH@/components/TestInterfaceJS.js
+@RESPATH@/components/TestInterfaceJS.manifest
+#endif
+
+#if defined(MOZ_DEBUG) || defined(MOZ_DEV_EDITION) || defined(NIGHTLY_BUILD)
+@RESPATH@/browser/components/testComponents.manifest
+@RESPATH@/browser/components/startupRecorder.js
+#endif
+
+>>>>>>> 5620cfb2cb2c (chore(ff-beta): bootstrap build #1338)
 ; [Extensions]
 @RESPATH@/components/extensions-toolkit.manifest
 @RESPATH@/browser/components/extensions-browser.manifest
