@@ -16,6 +16,8 @@ dictionary BoxQuadOptions {
   GeometryNode relativeTo;
   [ChromeOnly]
   boolean createFramesForSuppressedWhitespace = true;
+  [ChromeOnly]
+  boolean recurseWhenNoFrame = false;
 };
 
 dictionary ConvertCoordinateOptions {

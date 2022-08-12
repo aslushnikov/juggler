@@ -1324,6 +1324,22 @@ void nsINode::GetBoxQuadsFromWindowOrigin(const BoxQuadOptions& aOptions,
   mozilla::GetBoxQuadsFromWindowOrigin(this, aOptions, aResult, aRv);
 }
 
+static nsIFrame* GetFirstFrame(nsINode* aNode) {
+  if (!aNode->IsContent())
+    return nullptr;
+  nsIFrame* frame = aNode->AsContent()->GetPrimaryFrame(FlushType::Frames);
+  if (!frame) {
+    FlattenedChildIterator iter(aNode->AsContent());
+    for (nsIContent* child = iter.GetNextChild(); child; child = iter.GetNextChild()) {
+      frame = child->GetPrimaryFrame(FlushType::Frames);
+      if (frame) {
+        break;
+      }
+    }
+  }
+  return frame;
+}
+
 void nsINode::ScrollRectIntoViewIfNeeded(int32_t x, int32_t y,
                                          int32_t w, int32_t h,
                                          ErrorResult& aRv) {
@@ -1336,14 +1352,11 @@ void nsINode::ScrollRectIntoViewIfNeeded(int32_t x, int32_t y,
   if (!presShell) {
     return aRv.ThrowNotFoundError("Node is detached from document");
   }
-  if (!IsContent()) {
-    return aRv.ThrowNotFoundError("Node does not have a layout object");
-  }
-  aRv = NS_OK;
-  nsIFrame* primaryFrame = AsContent()->GetPrimaryFrame(FlushType::Frames);
+  nsIFrame* primaryFrame = GetFirstFrame(this);
   if (!primaryFrame) {
     return aRv.ThrowNotFoundError("Node does not have a layout object");
   }
+  aRv = NS_OK;
   nsRect rect;
   if (x == -1 && y == -1 && w == -1 && h == -1) {
     rect = primaryFrame->GetRectRelativeToSelf();
