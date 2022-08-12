@@ -8505,7 +8505,8 @@ nsresult nsContentUtils::SendMouseEvent(
     bool aIgnoreRootScrollFrame, float aPressure,
     unsigned short aInputSourceArg, uint32_t aIdentifier, bool aToWindow,
     PreventDefaultResult* aPreventDefault, bool aIsDOMEventSynthesized,
-    bool aIsWidgetEventSynthesized) {
+    bool aIsWidgetEventSynthesized,
+    bool convertToPointer) {
   nsPoint offset;
   nsCOMPtr<nsIWidget> widget = GetWidget(aPresShell, &offset);
   if (!widget) return NS_ERROR_FAILURE;
@@ -8564,6 +8565,7 @@ nsresult nsContentUtils::SendMouseEvent(
   event.mTime = PR_IntervalNow();
   event.mFlags.mIsSynthesizedForTests = aIsDOMEventSynthesized;
   event.mExitFrom = exitFrom;
+  event.convertToPointer = convertToPointer;
 
   nsPresContext* presContext = aPresShell->GetPresContext();
   if (!presContext) return NS_ERROR_FAILURE;
