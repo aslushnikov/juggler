@@ -4357,7 +4357,9 @@ pref("devtools.experiment.f12.shortcut_disabled", false);
 // doesn't provide a way to lock the pref
 pref("dom.postMessage.sharedArrayBuffer.bypassCOOP_COEP.insecure.enabled", false);
 #else
-pref("dom.postMessage.sharedArrayBuffer.bypassCOOP_COEP.insecure.enabled", false, locked);
+// Playwright: DO NOT make preference locked so that we can overwrite it
+// later in our playwright.cfg file.
+pref("dom.postMessage.sharedArrayBuffer.bypassCOOP_COEP.insecure.enabled", false);
 #endif
 
 // Whether to start the private browsing mode at application startup

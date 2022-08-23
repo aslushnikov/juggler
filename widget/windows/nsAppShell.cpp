@@ -17,6 +17,14 @@
 #include "WinIMEHandler.h"
 #include "mozilla/widget/AudioSession.h"
 #include "mozilla/BackgroundHangMonitor.h"
+<<<<<<< HEAD
+||||||| parent of 8260aa80946b... chore(ff-beta): bootstrap build #1348
+#include "mozilla/BackgroundTasks.h"
+=======
+#ifdef MOZ_BACKGROUNDTASKS
+#  include "mozilla/BackgroundTasks.h"
+#endif
+>>>>>>> 8260aa80946b... chore(ff-beta): bootstrap build #1348
 #include "mozilla/Hal.h"
 #include "nsIDOMWakeLockListener.h"
 #include "nsIPowerManagerService.h"
