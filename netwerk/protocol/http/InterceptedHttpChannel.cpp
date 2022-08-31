@@ -663,6 +663,14 @@ void InterceptedHttpChannel::DoAsyncAbort(nsresult aStatus) {
 }
 
 NS_IMETHODIMP
+InterceptedHttpChannel::ResetInterceptionWithURI(nsIURI* aURI) {
+  if (aURI) {
+    mURI = aURI;
+  }
+  return ResetInterception(true);
+}
+
+NS_IMETHODIMP
 InterceptedHttpChannel::ResetInterception(bool aBypass) {
   if (mCanceled) {
     return mStatus;
