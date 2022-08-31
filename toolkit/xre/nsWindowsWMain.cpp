@@ -133,8 +133,7 @@ int wmain(int argc, WCHAR** argv) {
   SanitizeEnvironmentVariables();
   SetDllDirectoryW(L"");
   bool hasJugglerPipe =
-      mozilla::CheckArg(argc, argv, L"juggler-pipe",
-                        static_cast<const wchar_t**>(nullptr),
+      mozilla::CheckArg(argc, argv, "juggler-pipe", nullptr,
                         mozilla::CheckArgFlag::None) == mozilla::ARG_FOUND;
   if (hasJugglerPipe && !mozilla::EnvHasValue("PW_PIPE_READ")) {
     intptr_t stdio3 = _get_osfhandle(3);
