@@ -110,6 +110,8 @@ void HeadlessWidget::Destroy() {
     }
   }
 
+  SetSnapshotListener(nullptr);
+
   nsBaseWidget::OnDestroy();
 
   nsBaseWidget::Destroy();
@@ -566,6 +568,7 @@ nsresult HeadlessWidget::SynthesizeNativeTouchPadPinch(
   DispatchPinchGestureInput(inputToDispatch);
   return NS_OK;
 }
+<<<<<<< HEAD
 
 nsresult HeadlessWidget::SynthesizeNativeTouchpadPan(
     TouchpadGesturePhase aEventPhase, LayoutDeviceIntPoint aPoint,
@@ -608,5 +611,18 @@ nsresult HeadlessWidget::SynthesizeNativeTouchpadPan(
   return NS_OK;
 }
 
+||||||| parent of 89cb2943ffde... chore(ff-beta): bootstrap build #1356
+=======
+
+void HeadlessWidget::SetSnapshotListener(SnapshotListener&& listener) {
+  if (!mCompositorWidget) {
+    if (listener)
+      fprintf(stderr, "Trying to set SnapshotListener without compositor widget\n");
+    return;
+  }
+  mCompositorWidget->SetSnapshotListener(std::move(listener));
+}
+
+>>>>>>> 89cb2943ffde... chore(ff-beta): bootstrap build #1356
 }  // namespace widget
 }  // namespace mozilla

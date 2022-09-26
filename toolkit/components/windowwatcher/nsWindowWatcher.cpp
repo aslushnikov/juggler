@@ -1815,7 +1815,11 @@ uint32_t nsWindowWatcher::CalculateChromeFlagsForContent(
 
   // Open a minimal popup.
   *aIsPopupRequested = true;
-  return nsIWebBrowserChrome::CHROME_MINIMAL_POPUP;
+  uint32_t chromeFlags = 0;
+  if (aFeatures.Exists("width") || aFeatures.Exists("height")) {
+    chromeFlags |= nsIWebBrowserChrome::JUGGLER_WINDOW_EXPLICIT_SIZE;
+  }
+  return chromeFlags | nsIWebBrowserChrome::CHROME_MINIMAL_POPUP;
 }
 
 /**

@@ -23,6 +23,7 @@
 #include "nsContentUtils.h"
 #include "nsCSSFrameConstructor.h"
 #include "nsLayoutUtils.h"
+#include "ChildIterator.h"
 
 using namespace mozilla;
 using namespace mozilla::dom;
@@ -261,11 +262,27 @@ static bool CheckFramesInSameTopLevelBrowsingContext(nsIFrame* aFrame1,
   return false;
 }
 
+static nsIFrame* GetFrameForNode(nsINode* aNode,
+                                 bool aCreateFramesForSuppressedWhitespace,
+                                 bool aRecurseWhenNoFrame) {
+  nsIFrame* frame = GetFrameForNode(aNode, aCreateFramesForSuppressedWhitespace);
+  if (!frame && aRecurseWhenNoFrame && aNode->IsContent()) {
+    dom::FlattenedChildIterator iter(aNode->AsContent());
+    for (nsIContent* child = iter.GetNextChild(); child; child = iter.GetNextChild()) {
+      frame = GetFrameForNode(child, aCreateFramesForSuppressedWhitespace, aRecurseWhenNoFrame);
+      if (frame) {
+        break;
+      }
+    }
+  }
+  return frame;
+}
+
 void GetBoxQuads(nsINode* aNode, const dom::BoxQuadOptions& aOptions,
                  nsTArray<RefPtr<DOMQuad> >& aResult, CallerType aCallerType,
                  ErrorResult& aRv) {
   nsIFrame* frame =
-      GetFrameForNode(aNode, aOptions.mCreateFramesForSuppressedWhitespace);
+      GetFrameForNode(aNode, aOptions.mCreateFramesForSuppressedWhitespace, aOptions.mRecurseWhenNoFrame);
   if (!frame) {
     // No boxes to return
     return;
@@ -280,7 +297,7 @@ void GetBoxQuads(nsINode* aNode, const dom::BoxQuadOptions& aOptions,
   // when that happens and re-check it.
   if (!weakFrame.IsAlive()) {
     frame =
-        GetFrameForNode(aNode, aOptions.mCreateFramesForSuppressedWhitespace);
+        GetFrameForNode(aNode, aOptions.mCreateFramesForSuppressedWhitespace, aOptions.mRecurseWhenNoFrame);
     if (!frame) {
       // No boxes to return
       return;

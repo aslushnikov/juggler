@@ -372,7 +372,8 @@ interface nsIDOMWindowUtils : nsISupports {
                          [optional] in boolean aIsDOMEventSynthesized,
                          [optional] in boolean aIsWidgetEventSynthesized,
                          [optional] in long aButtons,
-                         [optional] in unsigned long aIdentifier);
+                         [optional] in unsigned long aIdentifier,
+                         [optional] in boolean aDisablePointerEvent);
 
   /** Synthesize a touch event. The event types supported are:
    *    touchstart, touchend, touchmove, and touchcancel
