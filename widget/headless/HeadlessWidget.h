@@ -135,19 +135,15 @@ class HeadlessWidget : public nsBaseWidget {
       TouchpadGesturePhase aEventPhase, float aScale,
       LayoutDeviceIntPoint aPoint, int32_t aModifierFlags) override;
 
-<<<<<<< HEAD
   virtual nsresult SynthesizeNativeTouchpadPan(TouchpadGesturePhase aEventPhase,
                                                LayoutDeviceIntPoint aPoint,
                                                double aDeltaX, double aDeltaY,
                                                int32_t aModifierFlags,
                                                nsIObserver* aObserver) override;
 
-||||||| parent of 89cb2943ffde... chore(ff-beta): bootstrap build #1356
-=======
   using SnapshotListener = std::function<void(RefPtr<gfx::DataSourceSurface>&&)>;
   void SetSnapshotListener(SnapshotListener&& listener);
 
->>>>>>> 89cb2943ffde... chore(ff-beta): bootstrap build #1356
  private:
   ~HeadlessWidget();
   bool mEnabled;
