@@ -450,7 +450,7 @@ class ExecutionContext {
         subtype = 'array';
       else if (Object.is(rawObj, null))
         subtype = 'null';
-      else if (this._instanceOf(debuggerObj, rawObj, 'Node'))
+      else if (typeof Node !== 'undefined' && Node.isInstance(rawObj))
         subtype = 'node';
       else if (this._instanceOf(debuggerObj, rawObj, 'RegExp'))
         subtype = 'regexp';
