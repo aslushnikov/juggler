@@ -23,7 +23,9 @@
 #include "nsIObserverService.h"
 #include "nsISizeOf.h"
 #include "mozilla/net/MozURL.h"
-#include "mozilla/BackgroundTasksRunner.h"
+#if defined(MOZ_BACKGROUNDTASKS)
+  #include "mozilla/BackgroundTasksRunner.h"
+#endif
 #include "mozilla/Telemetry.h"
 #include "mozilla/DebugOnly.h"
 #include "mozilla/Services.h"
@@ -4082,7 +4084,7 @@ nsresult CacheFileIOManager::DispatchPurgeTask(
 #if !defined(MOZ_BACKGROUNDTASKS)
   // If background tasks are disabled, then we should just bail out early.
   return NS_ERROR_NOT_IMPLEMENTED;
-#endif
+#else
 
   nsCOMPtr<nsIFile> cacheDir;
   rv = mCacheDirectory->Clone(getter_AddRefs(cacheDir));
@@ -4106,6 +4108,7 @@ nsresult CacheFileIOManager::DispatchPurgeTask(
 
   return BackgroundTasksRunner::RemoveDirectoryInDetachedProcess(
       path, aCacheDirName, aSecondsToWait, aPurgeExtension);
+#endif // if !defined(MOZ_BACKGROUNDTASKS)
 }
 
 void CacheFileIOManager::SyncRemoveAllCacheFiles() {

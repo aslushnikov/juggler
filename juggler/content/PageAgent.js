@@ -532,7 +532,9 @@ class PageAgent {
       touchPoints.map(point => point.radiusY === undefined ? 1.0 : point.radiusY),
       touchPoints.map(point => point.rotationAngle === undefined ? 0.0 : point.rotationAngle),
       touchPoints.map(point => point.force === undefined ? 1.0 : point.force),
-      touchPoints.length,
+      touchPoints.map(point => 0),
+      touchPoints.map(point => 0),
+      touchPoints.map(point => 0),
       modifiers);
     return {defaultPrevented};
   }

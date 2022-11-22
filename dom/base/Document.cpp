@@ -17910,7 +17910,7 @@ bool Document::PrefersReducedMotion() const {
     }
   }
 
-  if (nsContentUtils::ShouldResistFingerprinting(this)) {
+  if (ShouldResistFingerprinting()) {
     return false;
   }
   return LookAndFeel::GetInt(LookAndFeel::IntID::PrefersReducedMotion, 0) == 1;

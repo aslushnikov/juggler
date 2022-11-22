@@ -264,23 +264,11 @@ bool Gecko_MediaFeatures_MatchesPlatform(StylePlatform aPlatform) {
 }
 
 bool Gecko_MediaFeatures_PrefersReducedMotion(const Document* aDocument) {
-<<<<<<< HEAD
-  if (aDocument->ShouldResistFingerprinting()) {
-    return false;
-  }
-  return LookAndFeel::GetInt(LookAndFeel::IntID::PrefersReducedMotion, 0) == 1;
-||||||| parent of 8a77660c882d... chore(ff-beta): bootstrap build #1367
-  if (nsContentUtils::ShouldResistFingerprinting(aDocument)) {
-    return false;
-  }
-  return LookAndFeel::GetInt(LookAndFeel::IntID::PrefersReducedMotion, 0) == 1;
-=======
   return aDocument->PrefersReducedMotion();
 }
 
 bool Gecko_MediaFeatures_ForcedColors(const Document* aDocument) {
   return aDocument->ForcedColors();
->>>>>>> 8a77660c882d... chore(ff-beta): bootstrap build #1367
 }
 
 StylePrefersColorScheme Gecko_MediaFeatures_PrefersColorScheme(
