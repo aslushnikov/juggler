@@ -8363,7 +8363,8 @@ nsresult nsContentUtils::SendMouseEvent(
     bool aIgnoreRootScrollFrame, float aPressure,
     unsigned short aInputSourceArg, uint32_t aIdentifier, bool aToWindow,
     PreventDefaultResult* aPreventDefault, bool aIsDOMEventSynthesized,
-    bool aIsWidgetEventSynthesized) {
+    bool aIsWidgetEventSynthesized,
+    bool convertToPointer) {
   nsPoint offset;
   nsCOMPtr<nsIWidget> widget = GetWidget(aPresShell, &offset);
   if (!widget) return NS_ERROR_FAILURE;
@@ -8371,6 +8372,7 @@ nsresult nsContentUtils::SendMouseEvent(
   EventMessage msg;
   Maybe<WidgetMouseEvent::ExitFrom> exitFrom;
   bool contextMenuKey = false;
+  bool isDragEvent = false;
   if (aType.EqualsLiteral("mousedown")) {
     msg = eMouseDown;
   } else if (aType.EqualsLiteral("mouseup")) {
@@ -8395,6 +8397,12 @@ nsresult nsContentUtils::SendMouseEvent(
     msg = eMouseHitTest;
   } else if (aType.EqualsLiteral("MozMouseExploreByTouch")) {
     msg = eMouseExploreByTouch;
+  } else if (aType.EqualsLiteral("dragover")) {
+    msg = eDragOver;
+    isDragEvent = true;
+  } else if (aType.EqualsLiteral("drop")) {
+    msg = eDrop;
+    isDragEvent = true;
   } else {
     return NS_ERROR_FAILURE;
   }
@@ -8403,12 +8411,21 @@ nsresult nsContentUtils::SendMouseEvent(
     aInputSourceArg = MouseEvent_Binding::MOZ_SOURCE_MOUSE;
   }
 
-  WidgetMouseEvent event(true, msg, widget,
+  std::unique_ptr<WidgetMouseEvent> eventOwner;
+  if (isDragEvent) {
+    eventOwner.reset(new WidgetDragEvent(true, msg, widget));
+    eventOwner->mReason = aIsWidgetEventSynthesized
+                             ? WidgetMouseEvent::eSynthesized
+                             : WidgetMouseEvent::eReal;
+  } else {
+    eventOwner.reset(new WidgetMouseEvent(true, msg, widget,
                          aIsWidgetEventSynthesized
                              ? WidgetMouseEvent::eSynthesized
                              : WidgetMouseEvent::eReal,
                          contextMenuKey ? WidgetMouseEvent::eContextMenuKey
-                                        : WidgetMouseEvent::eNormal);
+                                        : WidgetMouseEvent::eNormal));
+  }
+  WidgetMouseEvent& event = *eventOwner.get();
   event.pointerId = aIdentifier;
   event.mModifiers = GetWidgetModifiers(aModifiers);
   event.mButton = aButton;
@@ -8422,6 +8439,7 @@ nsresult nsContentUtils::SendMouseEvent(
   event.mTime = PR_IntervalNow();
   event.mFlags.mIsSynthesizedForTests = aIsDOMEventSynthesized;
   event.mExitFrom = exitFrom;
+  event.convertToPointer = convertToPointer;
 
   nsPresContext* presContext = aPresShell->GetPresContext();
   if (!presContext) return NS_ERROR_FAILURE;

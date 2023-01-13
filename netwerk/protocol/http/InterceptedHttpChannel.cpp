@@ -729,6 +729,14 @@ NS_IMPL_ISUPPORTS(ResetInterceptionHeaderVisitor, nsIHttpHeaderVisitor)
 }  // anonymous namespace
 
 NS_IMETHODIMP
+InterceptedHttpChannel::ResetInterceptionWithURI(nsIURI* aURI) {
+  if (aURI) {
+    mURI = aURI;
+  }
+  return ResetInterception(true);
+}
+
+NS_IMETHODIMP
 InterceptedHttpChannel::ResetInterception(bool aBypass) {
   INTERCEPTED_LOG(("InterceptedHttpChannel::ResetInterception [%p] bypass: %s",
                    this, aBypass ? "true" : "false"));
