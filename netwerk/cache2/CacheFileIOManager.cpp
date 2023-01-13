@@ -23,14 +23,6 @@
 #include "nsIObserverService.h"
 #include "nsISizeOf.h"
 #include "mozilla/net/MozURL.h"
-<<<<<<< HEAD
-||||||| parent of bb0c3ddffec6... chore(ff-beta): bootstrap build #1373
-#include "mozilla/BackgroundTasksRunner.h"
-=======
-#if defined(MOZ_BACKGROUNDTASKS)
-  #include "mozilla/BackgroundTasksRunner.h"
-#endif
->>>>>>> bb0c3ddffec6... chore(ff-beta): bootstrap build #1373
 #include "mozilla/Telemetry.h"
 #include "mozilla/DebugOnly.h"
 #include "mozilla/Services.h"
@@ -4091,15 +4083,7 @@ nsresult CacheFileIOManager::DispatchPurgeTask(
 #if !defined(MOZ_BACKGROUNDTASKS)
   // If background tasks are disabled, then we should just bail out early.
   return NS_ERROR_NOT_IMPLEMENTED;
-<<<<<<< HEAD
 #else
-||||||| parent of bb0c3ddffec6... chore(ff-beta): bootstrap build #1373
-#endif
-
-=======
-#else
-
->>>>>>> bb0c3ddffec6... chore(ff-beta): bootstrap build #1373
   nsCOMPtr<nsIFile> cacheDir;
   nsresult rv = mCacheDirectory->Clone(getter_AddRefs(cacheDir));
   NS_ENSURE_SUCCESS(rv, rv);
@@ -4122,12 +4106,6 @@ nsresult CacheFileIOManager::DispatchPurgeTask(
 
   return BackgroundTasksRunner::RemoveDirectoryInDetachedProcess(
       path, aCacheDirName, aSecondsToWait, aPurgeExtension);
-<<<<<<< HEAD
-#endif
-||||||| parent of bb0c3ddffec6... chore(ff-beta): bootstrap build #1373
-=======
-#endif // if !defined(MOZ_BACKGROUNDTASKS)
->>>>>>> bb0c3ddffec6... chore(ff-beta): bootstrap build #1373
 }
 
 void CacheFileIOManager::SyncRemoveAllCacheFiles() {
