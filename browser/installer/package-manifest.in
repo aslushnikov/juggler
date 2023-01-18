@@ -196,6 +196,9 @@
 @RESPATH@/chrome/remote.manifest
 #endif
 
+@RESPATH@/chrome/juggler@JAREXT@
+@RESPATH@/chrome/juggler.manifest
+
 ; [Extensions]
 @RESPATH@/components/extensions-toolkit.manifest
 @RESPATH@/browser/components/extensions-browser.manifest
