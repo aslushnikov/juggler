@@ -4106,7 +4106,7 @@ nsresult CacheFileIOManager::DispatchPurgeTask(
 
   return BackgroundTasksRunner::RemoveDirectoryInDetachedProcess(
       path, aCacheDirName, aSecondsToWait, aPurgeExtension);
-#endif
+#  endif
 }
 
 void CacheFileIOManager::SyncRemoveAllCacheFiles() {
