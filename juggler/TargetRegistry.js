@@ -141,15 +141,6 @@ class TargetRegistry {
       }
     }, 'oop-frameloader-crashed');
 
-    helper.addObserver((browsingContext, topic, why) => {
-      if (why === 'replace') {
-        // Top-level browsingContext is replaced on cross-process navigations.
-        const target = this._browserIdToTarget.get(browsingContext.browserId);
-        if (target)
-          target.replaceTopBrowsingContext(browsingContext);
-      }
-    }, 'browsing-context-attached');
-
     const onTabOpenListener = (appWindow, window, event) => {
       const tab = event.target;
       const userContextId = tab.userContextId;
@@ -379,6 +370,7 @@ class PageTarget {
       helper.addObserver(this._updateModalDialogs.bind(this), 'tabmodal-dialog-loaded'),
       helper.addProgressListener(tab.linkedBrowser, navigationListener, Ci.nsIWebProgress.NOTIFY_LOCATION),
       helper.addEventListener(this._linkedBrowser, 'DOMModalDialogClosed', event => this._updateModalDialogs()),
+      helper.addEventListener(this._linkedBrowser, 'WillChangeBrowserRemoteness', event => this._willChangeBrowserRemoteness()),
     ];
 
     this._disposed = false;
@@ -387,6 +379,10 @@ class PageTarget {
     this._registry._browserIdToTarget.set(this._linkedBrowser.browsingContext.browserId, this);
 
     this._registry.emit(TargetRegistry.Events.TargetCreated, this);
+  }
+
+  frameIdToBrowsingContext(frameId) {
+    return helper.collectAllBrowsingContexts(this._linkedBrowser.browsingContext).find(bc => helper.browsingContextToFrameId(bc) === frameId);
   }
 
   nextActorSequenceNumber() {
@@ -407,13 +403,8 @@ class PageTarget {
     this._channel.resetTransport();
   }
 
-  replaceTopBrowsingContext(browsingContext) {
-    if (this._actor && this._actor.browsingContext !== browsingContext) {
-      // Disconnect early to avoid receiving protocol messages from the old actor.
-      this.removeActor(this._actor);
-    }
-    this.emit(PageTarget.Events.TopBrowsingContextReplaced);
-    this.updateOverridesForBrowsingContext(browsingContext);
+  _willChangeBrowserRemoteness() {
+    this.removeActor(this._actor);
   }
 
   dialog(dialogId) {
@@ -721,7 +712,6 @@ PageTarget.Events = {
   Crashed: Symbol('PageTarget.Crashed'),
   DialogOpened: Symbol('PageTarget.DialogOpened'),
   DialogClosed: Symbol('PageTarget.DialogClosed'),
-  TopBrowsingContextReplaced: Symbol('PageTarget.TopBrowsingContextReplaced'),
 };
 
 function fromProtocolColorScheme(colorScheme) {

@@ -268,6 +268,8 @@ interface BrowsingContext {
   undefined resetLocationChangeRateLimit();
 
   readonly attribute long childOffset;
+
+  readonly attribute unsigned long long jugglerCurrentLoadIdentifier;
 };
 
 BrowsingContext includes LoadContextMixin;

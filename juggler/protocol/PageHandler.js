@@ -6,6 +6,7 @@
 
 const {Helper} = ChromeUtils.import('chrome://juggler/content/Helper.js');
 const {Services} = ChromeUtils.import("resource://gre/modules/Services.jsm");
+const {NetUtil} = ChromeUtils.import('resource://gre/modules/NetUtil.jsm');
 const {NetworkObserver, PageNetwork} = ChromeUtils.import('chrome://juggler/content/NetworkObserver.js');
 const {PageTarget} = ChromeUtils.import('chrome://juggler/content/TargetRegistry.js');
 const {setTimeout} = ChromeUtils.import('resource://gre/modules/Timer.jsm');
@@ -89,11 +90,6 @@ class PageHandler {
     // to be ignored by the protocol clients.
     this._isPageReady = false;
 
-    // Whether the page is about to go cross-process after navigation.
-    this._isTransferringCrossProcessNavigation = false;
-    this._mainFrameId = undefined;
-    this._lastMainFrameNavigationId = undefined;
-
     if (this._pageTarget.videoRecordingInfo())
       this._onVideoRecordingStarted();
 
@@ -105,7 +101,6 @@ class PageHandler {
       }),
       helper.on(this._pageTarget, PageTarget.Events.ScreencastStarted, this._onVideoRecordingStarted.bind(this)),
       helper.on(this._pageTarget, PageTarget.Events.ScreencastFrame, this._onScreencastFrame.bind(this)),
-      helper.on(this._pageTarget, PageTarget.Events.TopBrowsingContextReplaced, this._onTopBrowsingContextReplaced.bind(this)),
       helper.on(this._pageNetwork, PageNetwork.Events.Request, this._handleNetworkEvent.bind(this, 'Network.requestWillBeSent')),
       helper.on(this._pageNetwork, PageNetwork.Events.Response, this._handleNetworkEvent.bind(this, 'Network.responseReceived')),
       helper.on(this._pageNetwork, PageNetwork.Events.RequestFinished, this._handleNetworkEvent.bind(this, 'Network.requestFinished')),
@@ -119,9 +114,9 @@ class PageHandler {
         pageFrameDetached: emitProtocolEvent('Page.frameDetached'),
         pageLinkClicked: emitProtocolEvent('Page.linkClicked'),
         pageWillOpenNewWindowAsynchronously: emitProtocolEvent('Page.willOpenNewWindowAsynchronously'),
-        pageNavigationAborted: params => this._handleNavigationEvent('Page.navigationAborted', params),
-        pageNavigationCommitted: params => this._handleNavigationEvent('Page.navigationCommitted', params),
-        pageNavigationStarted: params => this._handleNavigationEvent('Page.navigationStarted', params),
+        pageNavigationAborted: emitProtocolEvent('Page.navigationAborted'),
+        pageNavigationCommitted: emitProtocolEvent('Page.navigationCommitted'),
+        pageNavigationStarted: emitProtocolEvent('Page.navigationStarted'),
         pageReady: this._onPageReady.bind(this),
         pageSameDocumentNavigation: emitProtocolEvent('Page.sameDocumentNavigation'),
         pageUncaughtError: emitProtocolEvent('Page.uncaughtError'),
@@ -162,10 +157,6 @@ class PageHandler {
 
   _onScreencastFrame(params) {
     this._session.emitEvent('Page.screencastFrame', params);
-  }
-
-  _onTopBrowsingContextReplaced() {
-    this._isTransferringCrossProcessNavigation = true;
   }
 
   _handleNavigationEvent(event, params) {
@@ -239,8 +230,6 @@ class PageHandler {
   }
 
   _onFrameAttached({frameId, parentFrameId}) {
-    if (!parentFrameId)
-      this._mainFrameId = frameId;
     this._session.emitEvent('Page.frameAttached', {frameId, parentFrameId});
     this._reportedFrameIds.add(frameId);
     const events = this._networkEventsForUnreportedFrameIds.get(frameId) || [];
@@ -385,8 +374,51 @@ class PageHandler {
     return await this._contentPage.send('getContentQuads', options);
   }
 
-  async ['Page.navigate'](options) {
-    return await this._contentPage.send('navigate', options);
+  async ['Page.navigate']({frameId, url, referer}) {
+    const browsingContext = this._pageTarget.frameIdToBrowsingContext(frameId);
+    let sameDocumentNavigation = false;
+    try {
+      const uri = NetUtil.newURI(url);
+      // This is the same check that verifes browser-side if this is the same-document navigation.
+      // See CanonicalBrowsingContext::SupportsLoadingInParent.
+      sameDocumentNavigation = browsingContext.currentURI && uri.hasRef && uri.equalsExceptRef(browsingContext.currentURI);
+    } catch (e) {
+      throw new Error(`Invalid url: "${url}"`);
+    }
+    let referrerURI = null;
+    let referrerInfo = null;
+    if (referer) {
+      try {
+        referrerURI = NetUtil.newURI(referer);
+        const ReferrerInfo = Components.Constructor(
+          '@mozilla.org/referrer-info;1',
+          'nsIReferrerInfo',
+          'init'
+        );
+        referrerInfo = new ReferrerInfo(Ci.nsIHttpChannel.REFERRER_POLICY_UNSET, true, referrerURI);
+      } catch (e) {
+        throw new Error(`Invalid referer: "${referer}"`);
+      }
+    }
+
+    let navigationId;;
+    const unsubscribe = helper.addObserver((browsingContext, topic, loadIdentifier) => {
+      navigationId = helper.toProtocolNavigationId(loadIdentifier);
+    }, 'juggler-navigation-started-browser');
+    browsingContext.loadURI(url, {
+      triggeringPrincipal: Services.scriptSecurityManager.getSystemPrincipal(),
+      loadFlags: Ci.nsIWebNavigation.LOAD_FLAGS_IS_LINK,
+      referrerInfo,
+      // postData: null,
+      // headers: null,
+      // Fake user activation.
+      hasValidUserGestureActivation: true,
+    });
+    unsubscribe();
+
+    return {
+      navigationId: sameDocumentNavigation ? null : navigationId,
+    };
   }
 
   async ['Page.goBack']({}) {

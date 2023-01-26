@@ -57,6 +57,13 @@ class FrameTree {
     const flags = Ci.nsIWebProgress.NOTIFY_STATE_DOCUMENT |
                   Ci.nsIWebProgress.NOTIFY_LOCATION;
     this._eventListeners = [
+      helper.addObserver((docShell, topic, loadIdentifier) => {
+        const frame = this._docShellToFrame.get(docShell);
+        if (!frame)
+          return;
+        frame._pendingNavigationId = helper.toProtocolNavigationId(loadIdentifier);
+        this.emit(FrameTree.Events.NavigationStarted, frame);
+      }, 'juggler-navigation-started-renderer'),
       helper.addObserver(this._onDOMWindowCreated.bind(this), 'content-document-global-created'),
       helper.addObserver(this._onDOMWindowCreated.bind(this), 'juggler-dom-window-reused'),
       helper.addObserver(subject => this._onDocShellCreated(subject.QueryInterface(Ci.nsIDocShell)), 'webnavigation-create'),
@@ -244,7 +251,6 @@ class FrameTree {
       this._detachFrame(subframe);
     const navigationId = frame._pendingNavigationId;
     frame._pendingNavigationId = null;
-    frame._pendingNavigationURL = null;
     frame._lastCommittedNavigationId = navigationId;
     frame._url = url;
     this.emit(FrameTree.Events.NavigationCommitted, frame);
@@ -267,19 +273,11 @@ class FrameTree {
       return;
     }
 
-    const isStart = flag & Ci.nsIWebProgressListener.STATE_START;
     const isStop = flag & Ci.nsIWebProgressListener.STATE_STOP;
-
-    if (isStart) {
-      // Starting a new navigation.
-      frame._pendingNavigationId = channelId(channel);
-      frame._pendingNavigationURL = channel.URI.spec;
-      this.emit(FrameTree.Events.NavigationStarted, frame);
-    } else if (isStop && frame._pendingNavigationId && status) {
+    if (isStop && frame._pendingNavigationId && status) {
       // Navigation is aborted.
       const navigationId = frame._pendingNavigationId;
       frame._pendingNavigationId = null;
-      frame._pendingNavigationURL = null;
       // Always report download navigation as failure to match other browsers.
       const errorText = helper.getNetworkErrorStatusText(status);
       this.emit(FrameTree.Events.NavigationAborted, frame, navigationId, errorText);
@@ -396,7 +394,6 @@ class Frame {
 
     this._lastCommittedNavigationId = null;
     this._pendingNavigationId = null;
-    this._pendingNavigationURL = null;
 
     this._textInputProcessor = null;
 
@@ -582,10 +579,6 @@ class Frame {
 
   pendingNavigationId() {
     return this._pendingNavigationId;
-  }
-
-  pendingNavigationURL() {
-    return this._pendingNavigationURL;
   }
 
   lastCommittedNavigationId() {

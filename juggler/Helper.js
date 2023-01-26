@@ -17,6 +17,17 @@ class Helper {
     objectToDecorate.emit = emitter.emit.bind(emitter);
   }
 
+  collectAllBrowsingContexts(rootBrowsingContext, allBrowsingContexts = []) {
+    allBrowsingContexts.push(rootBrowsingContext);
+    for (const child of rootBrowsingContext.children)
+      this.collectAllBrowsingContexts(child, allBrowsingContexts);
+    return allBrowsingContexts;
+  }
+
+  toProtocolNavigationId(loadIdentifier) {
+    return `nav-${loadIdentifier}`;
+  }
+
   addObserver(handler, topic) {
     Services.obs.addObserver(handler, topic);
     return () => Services.obs.removeObserver(handler, topic);
@@ -144,7 +155,9 @@ class Helper {
   browsingContextToFrameId(browsingContext) {
     if (!browsingContext)
       return undefined;
-    return 'frame-' + browsingContext.id;
+    if (!browsingContext.parent)
+      return 'mainframe-' + browsingContext.browserId;
+    return 'subframe-' + browsingContext.id;
   }
 }
 

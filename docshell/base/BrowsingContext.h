@@ -347,6 +347,10 @@ class BrowsingContext : public nsILoadContext, public nsWrapperCache {
 
   bool IsOwnedByProcess() const;
 
+  uint64_t JugglerCurrentLoadIdentifier() const {
+    return GetCurrentLoadIdentifier() ? GetCurrentLoadIdentifier().value() : 0;
+  }
+
   bool CanHaveRemoteOuterProxies() const {
     return !mIsInProcess || mDanglingRemoteOuterProxies;
   }
