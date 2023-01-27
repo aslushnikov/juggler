@@ -3,6 +3,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
+#include "mozilla/layers/CompositorThread.h"
 #include "mozilla/widget/PlatformWidgetTypes.h"
 #include "HeadlessCompositorWidget.h"
 #include "VsyncDispatcher.h"
@@ -13,10 +14,42 @@ namespace widget {
 HeadlessCompositorWidget::HeadlessCompositorWidget(
     const HeadlessCompositorWidgetInitData& aInitData,
     const layers::CompositorOptions& aOptions, HeadlessWidget* aWindow)
+<<<<<<< HEAD
     : CompositorWidget(aOptions),
       mWidget(aWindow),
       mClientSize(LayoutDeviceIntSize(aInitData.InitialClientSize()),
                   "HeadlessCompositorWidget::mClientSize") {}
+||||||| parent of 8da4779b29aa (conflicts)
+    : CompositorWidget(aOptions), mWidget(aWindow) {
+  mClientSize = aInitData.InitialClientSize();
+}
+=======
+    : CompositorWidget(aOptions), mWidget(aWindow), mMon("snapshotListener") {
+  mClientSize = aInitData.InitialClientSize();
+}
+>>>>>>> 8da4779b29aa (conflicts)
+
+void HeadlessCompositorWidget::SetSnapshotListener(HeadlessWidget::SnapshotListener&& listener) {
+  MOZ_ASSERT(NS_IsMainThread());
+
+  ReentrantMonitorAutoEnter lock(mMon);
+  mSnapshotListener = std::move(listener);
+  layers::CompositorThread()->Dispatch(NewRunnableMethod(
+      "HeadlessCompositorWidget::PeriodicSnapshot", this,
+      &HeadlessCompositorWidget::PeriodicSnapshot
+  ));
+}
+
+already_AddRefed<gfx::DrawTarget> HeadlessCompositorWidget::StartRemoteDrawingInRegion(
+    const LayoutDeviceIntRegion& aInvalidRegion,
+    layers::BufferMode* aBufferMode) {
+  if (!mDrawTarget)
+    return nullptr;
+
+  *aBufferMode = layers::BufferMode::BUFFER_NONE;
+  RefPtr<gfx::DrawTarget> result = mDrawTarget;
+  return result.forget();
+}
 
 void HeadlessCompositorWidget::ObserveVsync(VsyncObserver* aObserver) {
   if (RefPtr<CompositorVsyncDispatcher> cvd =
@@ -29,8 +62,67 @@ nsIWidget* HeadlessCompositorWidget::RealWidget() { return mWidget; }
 
 void HeadlessCompositorWidget::NotifyClientSizeChanged(
     const LayoutDeviceIntSize& aClientSize) {
+<<<<<<< HEAD
   auto size = mClientSize.Lock();
   *size = aClientSize;
+||||||| parent of 8da4779b29aa (conflicts)
+  mClientSize = aClientSize;
+=======
+  mClientSize = aClientSize;
+  layers::CompositorThread()->Dispatch(NewRunnableMethod<LayoutDeviceIntSize>(
+      "HeadlessCompositorWidget::UpdateDrawTarget", this,
+      &HeadlessCompositorWidget::UpdateDrawTarget,
+      aClientSize));
+}
+
+void HeadlessCompositorWidget::UpdateDrawTarget(const LayoutDeviceIntSize& aClientSize) {
+  MOZ_ASSERT(NS_IsInCompositorThread());
+  if (aClientSize.IsEmpty()) {
+    mDrawTarget = nullptr;
+    return;
+  }
+
+  RefPtr<gfx::DrawTarget> old = std::move(mDrawTarget);
+  gfx::SurfaceFormat format = gfx::SurfaceFormat::B8G8R8A8;
+  gfx::IntSize size = aClientSize.ToUnknownSize();
+  mDrawTarget = mozilla::gfx::Factory::CreateDrawTarget(
+      mozilla::gfx::BackendType::SKIA, size, format);
+  if (old) {
+    RefPtr<gfx::SourceSurface> snapshot = old->Snapshot();
+    if (snapshot)
+      mDrawTarget->CopySurface(snapshot.get(), old->GetRect(), gfx::IntPoint(0, 0));
+  }
+}
+
+void HeadlessCompositorWidget::PeriodicSnapshot() {
+  ReentrantMonitorAutoEnter lock(mMon);
+  if (!mSnapshotListener)
+    return;
+
+  TakeSnapshot();
+  NS_DelayedDispatchToCurrentThread(NewRunnableMethod(
+      "HeadlessCompositorWidget::PeriodicSnapshot", this,
+      &HeadlessCompositorWidget::PeriodicSnapshot), 40);
+}
+
+void HeadlessCompositorWidget::TakeSnapshot() {
+  if (!mDrawTarget)
+    return;
+
+  RefPtr<gfx::SourceSurface> snapshot = mDrawTarget->Snapshot();
+  if (!snapshot) {
+    fprintf(stderr, "Failed to get snapshot of draw target\n");
+    return;
+  }
+
+  RefPtr<gfx::DataSourceSurface> dataSurface = snapshot->GetDataSurface();
+  if (!dataSurface) {
+    fprintf(stderr, "Failed to get data surface from snapshot\n");
+    return;
+  }
+
+  mSnapshotListener(std::move(dataSurface));
+>>>>>>> 8da4779b29aa (conflicts)
 }
 
 LayoutDeviceIntSize HeadlessCompositorWidget::GetClientSize() {

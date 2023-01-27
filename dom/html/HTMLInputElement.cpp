@@ -55,8 +55,13 @@
 #include "nsMappedAttributes.h"
 #include "nsIFormControl.h"
 #include "mozilla/dom/Document.h"
+<<<<<<< HEAD
 #include "mozilla/dom/HTMLDataListElement.h"
 #include "mozilla/dom/HTMLOptionElement.h"
+||||||| parent of 8da4779b29aa (conflicts)
+=======
+#include "nsDocShell.h"
+>>>>>>> 8da4779b29aa (conflicts)
 #include "nsIFormControlFrame.h"
 #include "nsITextControlFrame.h"
 #include "nsIFrame.h"
@@ -776,6 +781,12 @@ nsresult HTMLInputElement::InitFilePicker(FilePickerType aType) {
   nsCOMPtr<nsPIDOMWindowOuter> win = doc->GetWindow();
   if (!win) {
     return NS_ERROR_FAILURE;
+  }
+
+  nsDocShell* docShell = static_cast<nsDocShell*>(win->GetDocShell());
+  if (docShell && docShell->IsFileInputInterceptionEnabled()) {
+    docShell->FilePickerShown(this);
+    return NS_OK;
   }
 
   if (IsPopupBlocked(doc)) {
