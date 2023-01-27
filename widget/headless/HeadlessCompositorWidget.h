@@ -54,17 +54,11 @@ class HeadlessCompositorWidget final : public CompositorWidget,
   HeadlessWidget* mWidget;
   mozilla::ReentrantMonitor mMon;
 
-<<<<<<< HEAD
   // See GtkCompositorWidget for the justification for this mutex.
   DataMutex<LayoutDeviceIntSize> mClientSize;
-||||||| parent of 8da4779b29aa (conflicts)
-  LayoutDeviceIntSize mClientSize;
-=======
-  LayoutDeviceIntSize mClientSize;
 
   HeadlessWidget::SnapshotListener mSnapshotListener;
   RefPtr<gfx::DrawTarget> mDrawTarget;
->>>>>>> 8da4779b29aa (conflicts)
 };
 
 }  // namespace widget

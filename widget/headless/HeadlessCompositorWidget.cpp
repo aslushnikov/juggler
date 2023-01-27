@@ -14,20 +14,11 @@ namespace widget {
 HeadlessCompositorWidget::HeadlessCompositorWidget(
     const HeadlessCompositorWidgetInitData& aInitData,
     const layers::CompositorOptions& aOptions, HeadlessWidget* aWindow)
-<<<<<<< HEAD
     : CompositorWidget(aOptions),
       mWidget(aWindow),
       mClientSize(LayoutDeviceIntSize(aInitData.InitialClientSize()),
-                  "HeadlessCompositorWidget::mClientSize") {}
-||||||| parent of 8da4779b29aa (conflicts)
-    : CompositorWidget(aOptions), mWidget(aWindow) {
-  mClientSize = aInitData.InitialClientSize();
-}
-=======
-    : CompositorWidget(aOptions), mWidget(aWindow), mMon("snapshotListener") {
-  mClientSize = aInitData.InitialClientSize();
-}
->>>>>>> 8da4779b29aa (conflicts)
+                  "HeadlessCompositorWidget::mClientSize"),
+      mMon("snapshotListener") {}
 
 void HeadlessCompositorWidget::SetSnapshotListener(HeadlessWidget::SnapshotListener&& listener) {
   MOZ_ASSERT(NS_IsMainThread());
@@ -62,13 +53,8 @@ nsIWidget* HeadlessCompositorWidget::RealWidget() { return mWidget; }
 
 void HeadlessCompositorWidget::NotifyClientSizeChanged(
     const LayoutDeviceIntSize& aClientSize) {
-<<<<<<< HEAD
   auto size = mClientSize.Lock();
   *size = aClientSize;
-||||||| parent of 8da4779b29aa (conflicts)
-  mClientSize = aClientSize;
-=======
-  mClientSize = aClientSize;
   layers::CompositorThread()->Dispatch(NewRunnableMethod<LayoutDeviceIntSize>(
       "HeadlessCompositorWidget::UpdateDrawTarget", this,
       &HeadlessCompositorWidget::UpdateDrawTarget,
@@ -122,7 +108,6 @@ void HeadlessCompositorWidget::TakeSnapshot() {
   }
 
   mSnapshotListener(std::move(dataSurface));
->>>>>>> 8da4779b29aa (conflicts)
 }
 
 LayoutDeviceIntSize HeadlessCompositorWidget::GetClientSize() {
