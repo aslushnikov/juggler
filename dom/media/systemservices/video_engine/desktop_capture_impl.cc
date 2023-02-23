@@ -129,11 +129,24 @@ int32_t ScreenDeviceInfoImpl::GetOrientation(const char* aDeviceUniqueIdUTF8,
   return 0;
 }
 
+<<<<<<< HEAD
 VideoCaptureModule* DesktopCaptureImpl::Create(const int32_t aModuleId,
                                                const char* aUniqueId,
                                                const CaptureDeviceType aType) {
   return new rtc::RefCountedObject<DesktopCaptureImpl>(aModuleId, aUniqueId,
                                                        aType);
+||||||| parent of 069746bbc22f... chore(ff-beta): bootstrap build #1384
+VideoCaptureModule* DesktopCaptureImpl::Create(const int32_t id,
+                                               const char* uniqueId,
+                                               const CaptureDeviceType type) {
+  return new rtc::RefCountedObject<DesktopCaptureImpl>(id, uniqueId, type);
+=======
+VideoCaptureModuleEx* DesktopCaptureImpl::Create(const int32_t id,
+                                               const char* uniqueId,
+                                               const CaptureDeviceType type,
+                                               bool captureCursor) {
+  return new rtc::RefCountedObject<DesktopCaptureImpl>(id, uniqueId, type, captureCursor);
+>>>>>>> 069746bbc22f... chore(ff-beta): bootstrap build #1384
 }
 
 int32_t WindowDeviceInfoImpl::Init() {
@@ -413,9 +426,25 @@ int32_t DesktopCaptureImpl::LazyInitDesktopCapturer() {
     DesktopCapturer::SourceId sourceId = atoi(mDeviceUniqueId.c_str());
     windowCapturer->SelectSource(sourceId);
 
+<<<<<<< HEAD
     mCapturer = std::make_unique<DesktopAndCursorComposer>(
         std::move(windowCapturer), options);
   } else if (mDeviceType == CaptureDeviceType::Browser) {
+||||||| parent of 069746bbc22f... chore(ff-beta): bootstrap build #1384
+    desktop_capturer_cursor_composer_ =
+        std::unique_ptr<DesktopAndCursorComposer>(
+            new DesktopAndCursorComposer(std::move(pWindowCapturer), options));
+  } else if (_deviceType == CaptureDeviceType::Browser) {
+=======
+    if (capture_cursor_) {
+      desktop_capturer_cursor_composer_ =
+          std::unique_ptr<DesktopAndCursorComposer>(
+              new DesktopAndCursorComposer(std::move(pWindowCapturer), options));
+    } else {
+      desktop_capturer_cursor_composer_ = std::move(pWindowCapturer);
+    }
+  } else if (_deviceType == CaptureDeviceType::Browser) {
+>>>>>>> 069746bbc22f... chore(ff-beta): bootstrap build #1384
     // XXX We don't capture cursors, so avoid the extra indirection layer. We
     // could also pass null for the pMouseCursorMonitor.
     mCapturer = DesktopCapturer::CreateTabCapturer(options);
@@ -429,6 +458,7 @@ int32_t DesktopCaptureImpl::LazyInitDesktopCapturer() {
   return 0;
 }
 
+<<<<<<< HEAD
 DesktopCaptureImpl::DesktopCaptureImpl(const int32_t aId, const char* aUniqueId,
                                        const CaptureDeviceType aType)
     : mModuleId(aId),
@@ -451,6 +481,75 @@ DesktopCaptureImpl::DesktopCaptureImpl(const int32_t aId, const char* aUniqueId,
       mLastFrameTimeMs(rtc::TimeMillis()),
       mRunning(false),
       mCallbacks("DesktopCaptureImpl::mCallbacks") {}
+||||||| parent of 069746bbc22f... chore(ff-beta): bootstrap build #1384
+DesktopCaptureImpl::DesktopCaptureImpl(const int32_t id, const char* uniqueId,
+                                       const CaptureDeviceType type)
+    : _id(id),
+      _tracking_id(
+          mozilla::TrackingId(CaptureEngineToTrackingSourceStr([&] {
+                                switch (type) {
+                                  case CaptureDeviceType::Screen:
+                                    return CaptureEngine::ScreenEngine;
+                                  case CaptureDeviceType::Window:
+                                    return CaptureEngine::WinEngine;
+                                  case CaptureDeviceType::Browser:
+                                    return CaptureEngine::BrowserEngine;
+                                  default:
+                                    return CaptureEngine::InvalidEngine;
+                                }
+                              }()),
+                              id)),
+      _deviceUniqueId(uniqueId),
+      _deviceType(type),
+      _requestedCapability(),
+      _rotateFrame(kVideoRotation_0),
+      last_capture_time_ms_(rtc::TimeMillis()),
+      time_event_(EventWrapper::Create()),
+      capturer_thread_(nullptr),
+      started_(false) {
+  _requestedCapability.width = kDefaultWidth;
+  _requestedCapability.height = kDefaultHeight;
+  _requestedCapability.maxFPS = 30;
+  _requestedCapability.videoType = VideoType::kI420;
+  _maxFPSNeeded = 1000 / _requestedCapability.maxFPS;
+  memset(_incomingFrameTimesNanos, 0, sizeof(_incomingFrameTimesNanos));
+}
+=======
+DesktopCaptureImpl::DesktopCaptureImpl(const int32_t id, const char* uniqueId,
+                                       const CaptureDeviceType type,
+                                       bool captureCursor)
+    : _id(id),
+      _tracking_id(
+          mozilla::TrackingId(CaptureEngineToTrackingSourceStr([&] {
+                                switch (type) {
+                                  case CaptureDeviceType::Screen:
+                                    return CaptureEngine::ScreenEngine;
+                                  case CaptureDeviceType::Window:
+                                    return CaptureEngine::WinEngine;
+                                  case CaptureDeviceType::Browser:
+                                    return CaptureEngine::BrowserEngine;
+                                  default:
+                                    return CaptureEngine::InvalidEngine;
+                                }
+                              }()),
+                              id)),
+      _deviceUniqueId(uniqueId),
+      _deviceType(type),
+      _requestedCapability(),
+      _rotateFrame(kVideoRotation_0),
+      last_capture_time_ms_(rtc::TimeMillis()),
+      capture_cursor_(captureCursor),
+      time_event_(EventWrapper::Create()),
+      capturer_thread_(nullptr),
+      started_(false) {
+  _requestedCapability.width = kDefaultWidth;
+  _requestedCapability.height = kDefaultHeight;
+  _requestedCapability.maxFPS = 30;
+  _requestedCapability.videoType = VideoType::kI420;
+  _maxFPSNeeded = 1000 / _requestedCapability.maxFPS;
+  memset(_incomingFrameTimesNanos, 0, sizeof(_incomingFrameTimesNanos));
+}
+>>>>>>> 069746bbc22f... chore(ff-beta): bootstrap build #1384
 
 DesktopCaptureImpl::~DesktopCaptureImpl() {
   mTimeEvent->Set();
@@ -475,6 +574,19 @@ void DesktopCaptureImpl::DeRegisterCaptureDataCallback(
   auto it = callbacks->find(aDataCallback);
   if (it != callbacks->end()) {
     callbacks->erase(it);
+  }
+}
+
+void DesktopCaptureImpl::RegisterRawFrameCallback(RawFrameCallback* rawFrameCallback) {
+  rtc::CritScope lock(&_apiCs);
+  _rawFrameCallbacks.insert(rawFrameCallback);
+}
+
+void DesktopCaptureImpl::DeRegisterRawFrameCallback(RawFrameCallback* rawFrameCallback) {
+  rtc::CritScope lock(&_apiCs);
+  auto it = _rawFrameCallbacks.find(rawFrameCallback);
+  if (it != _rawFrameCallbacks.end()) {
+    _rawFrameCallbacks.erase(it);
   }
 }
 
@@ -662,6 +774,15 @@ void DesktopCaptureImpl::OnCaptureResult(DesktopCapturer::Result aResult,
   frameInfo.width = aFrame->size().width();
   frameInfo.height = aFrame->size().height();
   frameInfo.videoType = VideoType::kARGB;
+
+  size_t videoFrameStride =
+      frameInfo.width * DesktopFrame::kBytesPerPixel;
+  {
+    rtc::CritScope cs(&_apiCs);
+    for (auto rawFrameCallback : _rawFrameCallbacks) {
+      rawFrameCallback->OnRawFrame(videoFrame, videoFrameStride, frameInfo);
+    }
+  }
 
   size_t videoFrameLength =
       frameInfo.width * frameInfo.height * DesktopFrame::kBytesPerPixel;
