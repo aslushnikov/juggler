@@ -16,14 +16,7 @@
 /* #undef D_ARITH_CODING_SUPPORTED */
 
 /* Support in-memory source/destination managers */
-<<<<<<< HEAD
 #define MEM_SRCDST_SUPPORTED 1
-||||||| parent of 069746bbc22f... chore(ff-beta): bootstrap build #1384
-/* #undef MEM_SRCDST_SUPPORTED */
-=======
-#define MEM_SRCDST_SUPPORTED 1
-/* #undef MEM_SRCDST_SUPPORTED */
->>>>>>> 069746bbc22f... chore(ff-beta): bootstrap build #1384
 
 /* Use accelerated SIMD routines. */
 #define WITH_SIMD 1
