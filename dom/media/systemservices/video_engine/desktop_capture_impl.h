@@ -179,26 +179,13 @@ class DesktopCaptureImpl : public DesktopCapturer::Callback,
  public:
   /* Create a screen capture modules object
    */
-<<<<<<< HEAD
-  static VideoCaptureModule* Create(
+  static VideoCaptureModuleEx* Create(
       const int32_t aModuleId, const char* aUniqueId,
-      const mozilla::camera::CaptureDeviceType aType);
+      const mozilla::camera::CaptureDeviceType aType, bool aCaptureCursor = true);
 
   [[nodiscard]] static std::shared_ptr<VideoCaptureModule::DeviceInfo>
   CreateDeviceInfo(const int32_t aId,
                    const mozilla::camera::CaptureDeviceType aType);
-||||||| parent of 069746bbc22f... chore(ff-beta): bootstrap build #1384
-  static VideoCaptureModule* Create(const int32_t id, const char* uniqueId,
-                                    const CaptureDeviceType type);
-  static VideoCaptureModule::DeviceInfo* CreateDeviceInfo(
-      const int32_t id, const CaptureDeviceType type);
-=======
-  static VideoCaptureModuleEx* Create(const int32_t id, const char* uniqueId,
-                                    const CaptureDeviceType type,
-                                    bool captureCursor = true);
-  static VideoCaptureModule::DeviceInfo* CreateDeviceInfo(
-      const int32_t id, const CaptureDeviceType type);
->>>>>>> 069746bbc22f... chore(ff-beta): bootstrap build #1384
 
   // Call backs
   void RegisterCaptureDataCallback(
@@ -227,16 +214,9 @@ class DesktopCaptureImpl : public DesktopCapturer::Callback,
   int32_t CaptureSettings(VideoCaptureCapability& aSettings) override;
 
  protected:
-<<<<<<< HEAD
   DesktopCaptureImpl(const int32_t aId, const char* aUniqueId,
-                     const mozilla::camera::CaptureDeviceType aType);
-||||||| parent of 069746bbc22f... chore(ff-beta): bootstrap build #1384
-  DesktopCaptureImpl(const int32_t id, const char* uniqueId,
-                     const CaptureDeviceType type);
-=======
-  DesktopCaptureImpl(const int32_t id, const char* uniqueId,
-                     const CaptureDeviceType type, bool captureCursor);
->>>>>>> 069746bbc22f... chore(ff-beta): bootstrap build #1384
+                     const mozilla::camera::CaptureDeviceType aType,
+                     bool aCaptureCusor);
   virtual ~DesktopCaptureImpl();
   int32_t DeliverCapturedFrame(webrtc::VideoFrame& aCaptureFrame);
 
@@ -252,41 +232,8 @@ class DesktopCaptureImpl : public DesktopCapturer::Callback,
  private:
   void LazyInitCaptureThread();
   int32_t LazyInitDesktopCapturer();
-<<<<<<< HEAD
-||||||| parent of 069746bbc22f... chore(ff-beta): bootstrap build #1384
-  void UpdateFrameCount();
-  uint32_t CalculateFrameRate(int64_t now_ns);
 
-  rtc::RecursiveCriticalSection _apiCs;
-
-  std::set<rtc::VideoSinkInterface<VideoFrame>*> _dataCallBacks;
-
-  int64_t _incomingFrameTimesNanos
-      [kFrameRateCountHistorySize];  // timestamp for local captured frames
-  VideoRotation _rotateFrame;  // Set if the frame should be rotated by the
-                               // capture module.
-  std::atomic<uint32_t> _maxFPSNeeded;
-
-  // Used to make sure incoming timestamp is increasing for every frame.
-  int64_t last_capture_time_ms_;
-=======
-  void UpdateFrameCount();
-  uint32_t CalculateFrameRate(int64_t now_ns);
-
-  rtc::RecursiveCriticalSection _apiCs;
-
-  std::set<rtc::VideoSinkInterface<VideoFrame>*> _dataCallBacks;
   std::set<RawFrameCallback*> _rawFrameCallbacks;
-
-  int64_t _incomingFrameTimesNanos
-      [kFrameRateCountHistorySize];  // timestamp for local captured frames
-  VideoRotation _rotateFrame;  // Set if the frame should be rotated by the
-                               // capture module.
-  std::atomic<uint32_t> _maxFPSNeeded;
-
-  // Used to make sure incoming timestamp is increasing for every frame.
-  int64_t last_capture_time_ms_;
->>>>>>> 069746bbc22f... chore(ff-beta): bootstrap build #1384
 
   // DesktopCapturer::Callback interface.
   void OnCaptureResult(DesktopCapturer::Result result,
@@ -300,15 +247,11 @@ class DesktopCaptureImpl : public DesktopCapturer::Callback,
   void ProcessIter();
 
  private:
-<<<<<<< HEAD
   rtc::RecursiveCriticalSection mApiCs;
   std::atomic<uint32_t> mMaxFPSNeeded = {0};
   // Set in StartCapture.
   VideoCaptureCapability mRequestedCapability;
-||||||| parent of 069746bbc22f... chore(ff-beta): bootstrap build #1384
-=======
   bool capture_cursor_ = true;
->>>>>>> 069746bbc22f... chore(ff-beta): bootstrap build #1384
   // This is created on the main thread and accessed on both the main thread
   // and the capturer thread. It is created prior to the capturer thread
   // starting and is destroyed after it is stopped.
