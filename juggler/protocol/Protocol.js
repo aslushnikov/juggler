@@ -282,6 +282,7 @@ const Browser = {
         headers: t.Array(networkTypes.HTTPHeader),
       },
     },
+    'clearCache': {},
     'setBrowserProxy': {
       params: {
         type: t.Enum(['http', 'https', 'socks', 'socks4']),

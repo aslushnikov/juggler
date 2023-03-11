@@ -185,7 +185,13 @@ class Runtime {
         if (context._isIsolatedWorldContext())
           return false;
         const domWindow = context._domWindow;
-        return domWindow && domWindow.windowGlobalChild.innerWindowId === wrappedJSObject.innerID;
+        try {
+          // `windowGlobalChild` might be dead already; accessing it will throw an error, message in a console,
+          // and infinite recursion.
+          return domWindow && domWindow.windowGlobalChild.innerWindowId === wrappedJSObject.innerID;
+        } catch (e) {
+          return false;
+        }
       });
       if (!executionContext)
         return;
@@ -311,8 +317,9 @@ class ExecutionContext {
     this._id = generateId();
     this._auxData = auxData;
     this._jsonStringifyObject = this._debuggee.executeInGlobal(`((stringify, object) => {
-      const oldToJSON = Date.prototype.toJSON;
-      Date.prototype.toJSON = undefined;
+      const oldToJSON = Date.prototype?.toJSON;
+      if (oldToJSON)
+        Date.prototype.toJSON = undefined;
       const oldArrayToJSON = Array.prototype.toJSON;
       const oldArrayHadToJSON = Array.prototype.hasOwnProperty('toJSON');
       if (oldArrayHadToJSON)
@@ -325,7 +332,8 @@ class ExecutionContext {
         return value;
       });
 
-      Date.prototype.toJSON = oldToJSON;
+      if (oldToJSON)
+        Date.prototype.toJSON = oldToJSON;
       if (oldArrayHadToJSON)
         Array.prototype.toJSON = oldArrayToJSON;
 
