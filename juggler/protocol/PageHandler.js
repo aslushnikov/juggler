@@ -394,7 +394,7 @@ class PageHandler {
     const unsubscribe = helper.addObserver((browsingContext, topic, loadIdentifier) => {
       navigationId = helper.toProtocolNavigationId(loadIdentifier);
     }, 'juggler-navigation-started-browser');
-    browsingContext.loadURI(url, {
+    browsingContext.loadURI(Services.io.newURI(url), {
       triggeringPrincipal: Services.scriptSecurityManager.getSystemPrincipal(),
       loadFlags: Ci.nsIWebNavigation.LOAD_FLAGS_IS_LINK,
       referrerInfo,

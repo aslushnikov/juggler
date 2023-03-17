@@ -476,17 +476,9 @@ DesktopCaptureImpl::DesktopCaptureImpl(const int32_t aId, const char* aUniqueId,
                                       aId)),
       mDeviceUniqueId(aUniqueId),
       mDeviceType(aType),
-<<<<<<< HEAD
       mControlThread(mozilla::GetCurrentSerialEventTarget()),
       mNextFrameMinimumTime(Timestamp::Zero()),
-||||||| parent of 89565b2ba8f6... chore(ff): bootstrap build #1391
-      mTimeEvent(EventWrapper::Create()),
-      mLastFrameTimeMs(rtc::TimeMillis()),
-=======
       capture_cursor_(aCaptureCursor),
-      mTimeEvent(EventWrapper::Create()),
-      mLastFrameTimeMs(rtc::TimeMillis()),
->>>>>>> 89565b2ba8f6... chore(ff): bootstrap build #1391
       mRunning(false),
       mCallbacks("DesktopCaptureImpl::mCallbacks") {}
 

@@ -24,6 +24,8 @@
 #include "modules/video_capture/video_capture.h"
 #include "mozilla/widget/PlatformWidgetTypes.h"
 #include "video_engine/desktop_capture_impl.h"
+#include "VideoEngine.h"
+
 extern "C" {
 #include "jpeglib.h"
 }
@@ -55,7 +57,7 @@ rtc::scoped_refptr<webrtc::VideoCaptureModuleEx> CreateWindowCapturer(nsIWidget*
   windowId.AppendPrintf("%" PRIuPTR, rawWindowId);
   bool captureCursor = false;
   static int moduleId = 0;
-  return rtc::scoped_refptr<webrtc::VideoCaptureModuleEx>(webrtc::DesktopCaptureImpl::Create(++moduleId, windowId.get(), CaptureDeviceType::Window, captureCursor));
+  return rtc::scoped_refptr<webrtc::VideoCaptureModuleEx>(webrtc::DesktopCaptureImpl::Create(++moduleId, windowId.get(), camera::CaptureDeviceType::Window, captureCursor));
 }
 
 nsresult generateUid(nsString& uid) {

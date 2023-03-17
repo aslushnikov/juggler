@@ -1447,6 +1447,12 @@ void CanonicalBrowsingContext::LoadURI(nsIURI* aURI,
     return;
   }
 
+  {
+    nsCOMPtr<nsIObserverService> observerService = mozilla::services::GetObserverService();
+    if (observerService) {
+      observerService->NotifyObservers(ToSupports(this), "juggler-navigation-started-browser", NS_ConvertASCIItoUTF16(nsPrintfCString("%lu", loadState->GetLoadIdentifier())).get());
+    }
+  }
   LoadURI(loadState, true);
 }
 
@@ -1467,12 +1473,6 @@ void CanonicalBrowsingContext::FixupAndLoadURIString(
     return;
   }
 
-  {
-    nsCOMPtr<nsIObserverService> observerService = mozilla::services::GetObserverService();
-    if (observerService) {
-      observerService->NotifyObservers(ToSupports(this), "juggler-navigation-started-browser", NS_ConvertASCIItoUTF16(nsPrintfCString("%llu", loadState->GetLoadIdentifier())).get());
-    }
-  }
   LoadURI(loadState, true);
 }
 

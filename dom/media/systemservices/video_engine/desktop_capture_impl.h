@@ -24,6 +24,7 @@
 #include "api/video/video_sink_interface.h"
 #include "modules/desktop_capture/desktop_capturer.h"
 #include "modules/video_capture/video_capture.h"
+#include "rtc_base/deprecated/recursive_critical_section.h"
 
 #include "desktop_device_info.h"
 #include "mozilla/DataMutex.h"
@@ -217,23 +218,14 @@ class DesktopCaptureImpl : public DesktopCapturer::Callback,
   virtual ~DesktopCaptureImpl();
 
  private:
-<<<<<<< HEAD
   // Maximum CPU usage in %.
   static constexpr uint32_t kMaxDesktopCaptureCpuUsage = 50;
   int32_t EnsureCapturer();
   void InitOnThread(int aFramerate);
   void ShutdownOnThread();
-||||||| parent of 89565b2ba8f6... chore(ff): bootstrap build #1391
-  void LazyInitCaptureThread();
-  int32_t LazyInitDesktopCapturer();
 
-=======
-  void LazyInitCaptureThread();
-  int32_t LazyInitDesktopCapturer();
-
+  rtc::RecursiveCriticalSection mApiCs;
   std::set<RawFrameCallback*> _rawFrameCallbacks;
-
->>>>>>> 89565b2ba8f6... chore(ff): bootstrap build #1391
   // DesktopCapturer::Callback interface.
   void OnCaptureResult(DesktopCapturer::Result aResult,
                        std::unique_ptr<DesktopFrame> aFrame) override;
@@ -245,20 +237,10 @@ class DesktopCaptureImpl : public DesktopCapturer::Callback,
   const nsCOMPtr<nsISerialEventTarget> mControlThread;
   // Set in StartCapture. mControlThread only.
   VideoCaptureCapability mRequestedCapability;
-<<<<<<< HEAD
+  bool capture_cursor_ = true;
   // This is created on mControlThread and accessed on both mControlThread and
   // mCaptureThread. It is created prior to mCaptureThread starting and is
   // destroyed after it is stopped.
-||||||| parent of 89565b2ba8f6... chore(ff): bootstrap build #1391
-  // This is created on the main thread and accessed on both the main thread
-  // and the capturer thread. It is created prior to the capturer thread
-  // starting and is destroyed after it is stopped.
-=======
-  bool capture_cursor_ = true;
-  // This is created on the main thread and accessed on both the main thread
-  // and the capturer thread. It is created prior to the capturer thread
-  // starting and is destroyed after it is stopped.
->>>>>>> 89565b2ba8f6... chore(ff): bootstrap build #1391
   std::unique_ptr<DesktopCapturer> mCapturer;
   // Dedicated thread that does the capturing. Only used on mControlThread.
   nsCOMPtr<nsIThread> mCaptureThread;

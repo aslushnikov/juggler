@@ -9953,7 +9953,7 @@ nsresult nsDocShell::InternalLoad(nsDocShellLoadState* aLoadState,
     nsCOMPtr<nsIObserverService> observerService =
         mozilla::services::GetObserverService();
     if (observerService) {
-      observerService->NotifyObservers(GetAsSupports(this), "juggler-navigation-started-renderer", NS_ConvertASCIItoUTF16(nsPrintfCString("%llu", aLoadState->GetLoadIdentifier())).get());
+      observerService->NotifyObservers(GetAsSupports(this), "juggler-navigation-started-renderer", NS_ConvertASCIItoUTF16(nsPrintfCString("%lu", aLoadState->GetLoadIdentifier())).get());
     }
   }
   rv = DoURILoad(aLoadState, aCacheKey, getter_AddRefs(req));
