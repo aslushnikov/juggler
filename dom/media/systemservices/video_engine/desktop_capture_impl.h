@@ -48,6 +48,21 @@ namespace webrtc {
 
 class VideoCaptureEncodeInterface;
 
+class RawFrameCallback {
+ public:
+  virtual ~RawFrameCallback() {}
+
+  virtual void OnRawFrame(uint8_t* videoFrame, size_t videoFrameLength, const VideoCaptureCapability& frameInfo) = 0;
+};
+
+class VideoCaptureModuleEx : public VideoCaptureModule {
+ public:
+  virtual ~VideoCaptureModuleEx() {}
+
+  virtual void RegisterRawFrameCallback(RawFrameCallback* rawFrameCallback) = 0;
+  virtual void DeRegisterRawFrameCallback(RawFrameCallback* rawFrameCallback) = 0;
+};
+
 // simulate deviceInfo interface for video engine, bridge screen/application and
 // real screen/application device info
 
@@ -160,13 +175,13 @@ class BrowserDeviceInfoImpl : public VideoCaptureModule::DeviceInfo {
 // As with video, DesktopCaptureImpl is a proxy for screen sharing
 // and follows the video pipeline design
 class DesktopCaptureImpl : public DesktopCapturer::Callback,
-                           public VideoCaptureModule {
+                           public VideoCaptureModuleEx {
  public:
   /* Create a screen capture modules object
    */
-  static VideoCaptureModule* Create(
+  static VideoCaptureModuleEx* Create(
       const int32_t aModuleId, const char* aUniqueId,
-      const mozilla::camera::CaptureDeviceType aType);
+      const mozilla::camera::CaptureDeviceType aType, bool aCaptureCursor = true);
 
   [[nodiscard]] static std::shared_ptr<VideoCaptureModule::DeviceInfo>
   CreateDeviceInfo(const int32_t aId,
@@ -178,6 +193,8 @@ class DesktopCaptureImpl : public DesktopCapturer::Callback,
   void DeRegisterCaptureDataCallback(
       rtc::VideoSinkInterface<VideoFrame>* aCallback) override;
   int32_t StopCaptureIfAllClientsClose() override;
+  void RegisterRawFrameCallback(RawFrameCallback* rawFrameCallback) override;
+  void DeRegisterRawFrameCallback(RawFrameCallback* rawFrameCallback) override;
 
   int32_t SetCaptureRotation(VideoRotation aRotation) override;
   bool SetApplyRotation(bool aEnable) override;
@@ -198,7 +215,8 @@ class DesktopCaptureImpl : public DesktopCapturer::Callback,
 
  protected:
   DesktopCaptureImpl(const int32_t aId, const char* aUniqueId,
-                     const mozilla::camera::CaptureDeviceType aType);
+                     const mozilla::camera::CaptureDeviceType aType,
+                     bool aCaptureCusor);
   virtual ~DesktopCaptureImpl();
   int32_t DeliverCapturedFrame(webrtc::VideoFrame& aCaptureFrame);
 
@@ -214,6 +232,8 @@ class DesktopCaptureImpl : public DesktopCapturer::Callback,
  private:
   void LazyInitCaptureThread();
   int32_t LazyInitDesktopCapturer();
+
+  std::set<RawFrameCallback*> _rawFrameCallbacks;
 
   // DesktopCapturer::Callback interface.
   void OnCaptureResult(DesktopCapturer::Result result,
@@ -231,6 +251,7 @@ class DesktopCaptureImpl : public DesktopCapturer::Callback,
   std::atomic<uint32_t> mMaxFPSNeeded = {0};
   // Set in StartCapture.
   VideoCaptureCapability mRequestedCapability;
+  bool capture_cursor_ = true;
   // This is created on the main thread and accessed on both the main thread
   // and the capturer thread. It is created prior to the capturer thread
   // starting and is destroyed after it is stopped.
