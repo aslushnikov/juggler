@@ -136,4 +136,7 @@ partial interface MouseEvent
    */
   [ChromeOnly]
   boolean clickEventPrevented();
+
+  [ChromeOnly]
+  unsigned long jugglerId();
 };

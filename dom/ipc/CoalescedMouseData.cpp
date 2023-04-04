@@ -67,6 +67,7 @@ bool CoalescedMouseData::CanCoalesce(const WidgetMouseEvent& aEvent,
           mCoalescedInputEvent->pointerId == aEvent.pointerId &&
           mCoalescedInputEvent->mButton == aEvent.mButton &&
           mCoalescedInputEvent->mButtons == aEvent.mButtons && mGuid == aGuid &&
+          mCoalescedInputEvent->mJugglerId == aEvent.mJugglerId &&
           mInputBlockId == aInputBlockId);
 }
 

@@ -8383,7 +8383,7 @@ nsresult nsContentUtils::SendMouseEvent(
     unsigned short aInputSourceArg, uint32_t aIdentifier, bool aToWindow,
     PreventDefaultResult* aPreventDefault, bool aIsDOMEventSynthesized,
     bool aIsWidgetEventSynthesized,
-    bool convertToPointer) {
+    bool convertToPointer, uint32_t aJugglerId) {
   nsPoint offset;
   nsCOMPtr<nsIWidget> widget = GetWidget(aPresShell, &offset);
   if (!widget) return NS_ERROR_FAILURE;
@@ -8455,6 +8455,7 @@ nsresult nsContentUtils::SendMouseEvent(
   event.mPressure = aPressure;
   event.mInputSource = aInputSourceArg;
   event.mClickCount = aClickCount;
+  event.mJugglerId = aJugglerId;
   event.mFlags.mIsSynthesizedForTests = aIsDOMEventSynthesized;
   event.mExitFrom = exitFrom;
   event.convertToPointer = convertToPointer;

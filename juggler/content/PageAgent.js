@@ -116,9 +116,9 @@ class PageAgent {
       helper.on(this._frameTree, 'websocketframesent', event => this._browserPage.emit('webSocketFrameSent', event)),
       helper.on(this._frameTree, 'websocketframereceived', event => this._browserPage.emit('webSocketFrameReceived', event)),
       helper.on(this._frameTree, 'websocketclosed', event => this._browserPage.emit('webSocketClosed', event)),
-      helper.on(this._frameTree, 'mouseevent', event => {
-        this._browserPage.emit('pageInputEvent', { type: event.type });
-        if (event.type === 'dragstart') {
+      helper.on(this._frameTree, 'inputevent', inputEvent => {
+        this._browserPage.emit('pageInputEvent', inputEvent);
+        if (inputEvent.type === 'dragstart') {
           // After the dragStart event is dispatched and handled by Web,
           // it might or might not create a new drag session, depending on its preventing default.
           setTimeout(() => {

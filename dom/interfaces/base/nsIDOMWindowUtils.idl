@@ -375,6 +375,20 @@ interface nsIDOMWindowUtils : nsISupports {
                          [optional] in unsigned long aIdentifier,
                          [optional] in boolean aDisablePointerEvent);
 
+  /* We have to have a separate method to not bump the maximum number of arguments in WEBIDL generated methods. */
+  [can_run_script]
+  boolean jugglerSendMouseEvent(in AString aType,
+                         in float aX,
+                         in float aY,
+                         in long aButton,
+                         in long aClickCount,
+                         in long aModifiers,
+                         in boolean aIgnoreRootScrollFrame,
+                         in boolean aIsDOMEventSynthesized,
+                         in boolean aIsWidgetEventSynthesized,
+                         in long aButtons,
+                         in unsigned long aJugglerId);
+
   /** Synthesize a touch event. The event types supported are:
    *    touchstart, touchend, touchmove, and touchcancel
    *

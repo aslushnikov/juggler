@@ -1438,7 +1438,7 @@ void CanonicalBrowsingContext::LoadURI(const nsAString& aURI,
   {
     nsCOMPtr<nsIObserverService> observerService = mozilla::services::GetObserverService();
     if (observerService) {
-      observerService->NotifyObservers(ToSupports(this), "juggler-navigation-started-browser", NS_ConvertASCIItoUTF16(nsPrintfCString("%llu", loadState->GetLoadIdentifier())).get());
+      observerService->NotifyObservers(ToSupports(this), "juggler-navigation-started-browser", NS_ConvertASCIItoUTF16(nsPrintfCString("%" PRIu64, loadState->GetLoadIdentifier())).get());
     }
   }
   LoadURI(loadState, true);

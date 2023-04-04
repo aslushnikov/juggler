@@ -154,6 +154,13 @@ void MouseEvent::InitNSMouseEvent(const nsAString& aType, bool aCanBubble,
   mouseEventBase->mInputSource = aInputSource;
 }
 
+uint32_t MouseEvent::JugglerId() {
+  if (WidgetMouseEvent* mouseEvent = mEvent->AsMouseEvent()) {
+    return mouseEvent->mJugglerId;
+  }
+  return 0;
+}
+
 void MouseEvent::PreventClickEvent() {
   if (WidgetMouseEvent* mouseEvent = mEvent->AsMouseEvent()) {
     mouseEvent->mClickEventPrevented = true;
