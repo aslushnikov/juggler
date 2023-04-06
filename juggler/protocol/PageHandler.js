@@ -99,6 +99,7 @@ class PageHandler {
     this._pageEventSink = {};
     helper.decorateAsEventEmitter(this._pageEventSink);
 
+    this._pendingEventWatchers = new Set();
     this._eventListeners = [
       helper.on(this._pageTarget, PageTarget.Events.DialogOpened, this._onDialogOpened.bind(this)),
       helper.on(this._pageTarget, PageTarget.Events.DialogClosed, this._onDialogClosed.bind(this)),
@@ -154,6 +155,8 @@ class PageHandler {
 
   async dispose() {
     this._contentPage.dispose();
+    for (const watcher of this._pendingEventWatchers)
+      watcher.dispose();
     helper.removeListeners(this._eventListeners);
   }
 
@@ -477,9 +480,11 @@ class PageHandler {
     const boundingBox = this._pageTarget._linkedBrowser.getBoundingClientRect();
     const win = this._pageTarget._window;
     const sendEvents = async (types) => {
+      const watcher = new EventWatcher(this._pageEventSink, types, this._pendingEventWatchers);
+      const promises = [];
       for (const type of types) {
         // This dispatches to the renderer synchronously.
-        win.windowUtils.sendMouseEvent(
+        const jugglerEventId = win.windowUtils.jugglerSendMouseEvent(
           type,
           x + boundingBox.left,
           y + boundingBox.top,
@@ -487,12 +492,18 @@ class PageHandler {
           clickCount,
           modifiers,
           false /* aIgnoreRootScrollFrame */,
-          undefined /* pressure */,
-          undefined /* inputSource */,
+          0.0 /* pressure */,
+          0 /* inputSource */,
           true /* isDOMEventSynthesized */,
-          undefined /* isWidgetEventSynthesized */,
-          buttons);
+          false /* isWidgetEventSynthesized */,
+          buttons,
+          win.windowUtils.DEFAULT_MOUSE_POINTER_ID /* pointerIdentifier */,
+          false /* disablePointerEvent */
+        );
+        promises.push(watcher.ensureEvent(type, eventObject => eventObject.jugglerEventId === jugglerEventId));
       }
+      await Promise.all(promises);
+      await watcher.dispose();
     };
 
     // We must switch to proper tab in the tabbed browser so that
@@ -504,30 +515,27 @@ class PageHandler {
           return;
 
         const eventNames = button === 2 ? ['mousedown', 'contextmenu'] : ['mousedown'];
-        const watcher = new EventWatcher(this._pageEventSink, eventNames);
         await sendEvents(eventNames);
-        await watcher.ensureEventsAndDispose(eventNames);
         return;
       }
 
       if (type === 'mousemove') {
         this._lastMousePosition = { x, y };
         if (this._isDragging) {
-          const watcher = new EventWatcher(this._pageEventSink, ['dragover']);
+          const watcher = new EventWatcher(this._pageEventSink, ['dragover'], this._pendingEventWatchers);
           await this._contentPage.send('dispatchDragEvent', {type:'dragover', x, y, modifiers});
           await watcher.ensureEventsAndDispose(['dragover']);
           return;
         }
 
-        const watcher = new EventWatcher(this._pageEventSink, ['dragstart', 'mousemove', 'juggler-drag-finalized']);
+        const watcher = new EventWatcher(this._pageEventSink, ['dragstart', 'juggler-drag-finalized'], this._pendingEventWatchers);
         await sendEvents(['mousemove']);
 
         // The order of events after 'mousemove' is sent:
         // 1. [dragstart] - might or might NOT be emitted
-        // 2. [mousemove] - always emitted
+        // 2. [mousemove] - always emitted. This was awaited as part of `sendEvents` call.
         // 3. [juggler-drag-finalized] - only emitted if dragstart was emitted.
 
-        await watcher.ensureEvent('mousemove');
         if (watcher.hasEvent('dragstart')) {
           const eventObject = await watcher.ensureEvent('juggler-drag-finalized');
           this._isDragging = eventObject.dragSessionStarted;
@@ -538,7 +546,7 @@ class PageHandler {
 
       if (type === 'mouseup') {
         if (this._isDragging) {
-          const watcher = new EventWatcher(this._pageEventSink, ['dragover']);
+          const watcher = new EventWatcher(this._pageEventSink, ['dragover'], this._pendingEventWatchers);
           await this._contentPage.send('dispatchDragEvent', {type: 'dragover', x, y, modifiers});
           await this._contentPage.send('dispatchDragEvent', {type: 'drop', x, y, modifiers});
           await this._contentPage.send('dispatchDragEvent', {type: 'dragend', x, y, modifiers});
@@ -549,9 +557,7 @@ class PageHandler {
           await watcher.ensureEventsAndDispose(['dragover']);
           this._isDragging = false;
         } else {
-          const watcher = new EventWatcher(this._pageEventSink, ['mouseup']);
           await sendEvents(['mouseup']);
-          await watcher.ensureEventsAndDispose(['mouseup']);
         }
         return;
       }

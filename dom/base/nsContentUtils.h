@@ -2912,7 +2912,7 @@ class nsContentUtils {
       unsigned short aInputSourceArg, uint32_t aIdentifier, bool aToWindow,
       mozilla::PreventDefaultResult* aPreventDefault,
       bool aIsDOMEventSynthesized, bool aIsWidgetEventSynthesized,
-      bool convertToPointer = true);
+      bool convertToPointer = true, uint32_t aJugglerEventId = 0);
 
   static void FirePageShowEventForFrameLoaderSwap(
       nsIDocShellTreeItem* aItem,
