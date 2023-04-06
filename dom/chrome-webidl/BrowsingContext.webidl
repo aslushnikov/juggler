@@ -53,6 +53,24 @@ enum PrefersColorSchemeOverride {
 };
 
 /**
+ * CSS prefers-reduced-motion values.
+ */
+enum PrefersReducedMotionOverride {
+  "none",
+  "reduce",
+  "no-preference",
+};
+
+/**
+ * CSS forced-colors values.
+ */
+enum ForcedColorsOverride {
+  "none",
+  "active",
+  "no-override",  /* This clears the override. */
+};
+
+/**
  * Allowed overrides of platform/pref default behaviour for touch events.
  */
 enum TouchEventsOverride {
@@ -188,6 +206,12 @@ interface BrowsingContext {
   // Color-scheme simulation, for DevTools.
   [SetterThrows] attribute PrefersColorSchemeOverride prefersColorSchemeOverride;
 
+  // Reduced-Motion simulation, for DevTools.
+  [SetterThrows] attribute PrefersReducedMotionOverride prefersReducedMotionOverride;
+
+  // Forced-Colors simulation, for DevTools.
+  [SetterThrows] attribute ForcedColorsOverride forcedColorsOverride;
+
   /**
    * A unique identifier for the browser element that is hosting this
    * BrowsingContext tree. Every BrowsingContext in the element's tree will
@@ -246,6 +270,8 @@ interface BrowsingContext {
   undefined resetLocationChangeRateLimit();
 
   readonly attribute long childOffset;
+
+  readonly attribute unsigned long long jugglerCurrentLoadIdentifier;
 };
 
 BrowsingContext includes LoadContextMixin;
