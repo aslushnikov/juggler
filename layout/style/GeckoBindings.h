@@ -630,13 +630,9 @@ void Gecko_MediaFeatures_GetDeviceSize(const mozilla::dom::Document*,
 
 float Gecko_MediaFeatures_GetResolution(const mozilla::dom::Document*);
 bool Gecko_MediaFeatures_PrefersReducedMotion(const mozilla::dom::Document*);
-<<<<<<< HEAD
 bool Gecko_MediaFeatures_PrefersReducedTransparency(
     const mozilla::dom::Document*);
-||||||| parent of 582a65a908d6... chore(ff-beta): bootstrap build #1398
-=======
 bool Gecko_MediaFeatures_ForcedColors(const mozilla::dom::Document*);
->>>>>>> 582a65a908d6... chore(ff-beta): bootstrap build #1398
 mozilla::StylePrefersContrast Gecko_MediaFeatures_PrefersContrast(
     const mozilla::dom::Document*);
 mozilla::StylePrefersColorScheme Gecko_MediaFeatures_PrefersColorScheme(

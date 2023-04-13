@@ -507,7 +507,6 @@ class PageTarget {
     await this._channel.connect('').send('awaitViewportDimensions', {
       width: actualSize.width,
       height: actualSize.height,
-      deviceSizeIsPageSize: !!this._browserContext.deviceScaleFactor,
     });
   }
 
@@ -1124,15 +1123,15 @@ async function setViewportSizeForBrowser(viewportSize, browser, window) {
     const {width, height} = viewportSize;
     const rect = browser.getBoundingClientRect();
     window.resizeBy(width - rect.width, height - rect.height);
-    browser.style.setProperty('min-width', width + 'px');
-    browser.style.setProperty('min-height', height + 'px');
-    browser.style.setProperty('max-width', width + 'px');
-    browser.style.setProperty('max-height', height + 'px');
+    browser.style.setProperty('width', width + 'px');
+    browser.style.setProperty('height', height + 'px');
+    browser.style.setProperty('box-sizing', 'content-size');
+    browser.browsingContext.inRDMPane = true;
   } else {
-    browser.style.removeProperty('min-width');
-    browser.style.removeProperty('min-height');
-    browser.style.removeProperty('max-width');
-    browser.style.removeProperty('max-height');
+    browser.style.removeProperty('width');
+    browser.style.removeProperty('height');
+    browser.style.removeProperty('box-sizing');
+    browser.browsingContext.inRDMPane = false;
   }
   const rect = browser.getBoundingClientRect();
   return { width: rect.width, height: rect.height };

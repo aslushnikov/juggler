@@ -228,13 +228,7 @@ class DateTimeInfo {
  private:
   // The method below should only be called via js::ResetTimeZoneInternal().
   friend void js::ResetTimeZoneInternal(ResetTimeZoneMode);
-<<<<<<< HEAD
-||||||| parent of 582a65a908d6... chore(ff-beta): bootstrap build #1398
-  friend void js::ResyncICUDefaultTimeZone();
-=======
-  friend void js::ResyncICUDefaultTimeZone();
   friend void js::SetTimeZoneOverrideInternal(std::string);
->>>>>>> 582a65a908d6... chore(ff-beta): bootstrap build #1398
 
   static void resetTimeZone(ResetTimeZoneMode mode) {
     {

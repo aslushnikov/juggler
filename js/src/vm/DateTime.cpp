@@ -769,18 +769,6 @@ static bool ReadTimeZoneLink(std::string_view tz,
 
 void js::DateTimeInfo::internalResyncICUDefaultTimeZone() {
 #if JS_HAS_INTL_API
-<<<<<<< HEAD
-  // In the future we should not be setting a default ICU time zone at all,
-  // instead all accesses should go through the appropriate DateTimeInfo
-  // instance depending on the resist fingerprinting status. For now we return
-  // early to prevent overwriting the default time zone with the UTC time zone
-  // used by RFP.
-  if (shouldResistFingerprinting_) {
-    return;
-  }
-
-||||||| parent of 582a65a908d6... chore(ff-beta): bootstrap build #1398
-=======
   if (!timeZoneOverride_.empty()) {
     mozilla::Span<const char> tzid = mozilla::Span(timeZoneOverride_.data(), timeZoneOverride_.length());
     auto result = mozilla::intl::TimeZone::SetDefaultTimeZone(tzid);
@@ -790,7 +778,15 @@ void js::DateTimeInfo::internalResyncICUDefaultTimeZone() {
     return;
   }
 
->>>>>>> 582a65a908d6... chore(ff-beta): bootstrap build #1398
+  // In the future we should not be setting a default ICU time zone at all,
+  // instead all accesses should go through the appropriate DateTimeInfo
+  // instance depending on the resist fingerprinting status. For now we return
+  // early to prevent overwriting the default time zone with the UTC time zone
+  // used by RFP.
+  if (shouldResistFingerprinting_) {
+    return;
+  }
+
   if (const char* tzenv = std::getenv("TZ")) {
     std::string_view tz(tzenv);
     mozilla::Span<const char> tzid;
