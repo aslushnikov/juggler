@@ -65,6 +65,8 @@ enum class ResetTimeZoneMode : bool {
  */
 extern void ResetTimeZoneInternal(ResetTimeZoneMode mode);
 
+extern void SetTimeZoneOverrideInternal(std::string timeZone);
+
 /**
  * Stores date/time information, particularly concerning the current local
  * time zone, and implements a small cache for daylight saving time offset
@@ -226,6 +228,13 @@ class DateTimeInfo {
  private:
   // The method below should only be called via js::ResetTimeZoneInternal().
   friend void js::ResetTimeZoneInternal(ResetTimeZoneMode);
+<<<<<<< HEAD
+||||||| parent of 582a65a908d6... chore(ff-beta): bootstrap build #1398
+  friend void js::ResyncICUDefaultTimeZone();
+=======
+  friend void js::ResyncICUDefaultTimeZone();
+  friend void js::SetTimeZoneOverrideInternal(std::string);
+>>>>>>> 582a65a908d6... chore(ff-beta): bootstrap build #1398
 
   static void resetTimeZone(ResetTimeZoneMode mode) {
     {
@@ -322,6 +331,8 @@ class DateTimeInfo {
   JS::UniqueChars locale_;
   JS::UniqueTwoByteChars standardName_;
   JS::UniqueTwoByteChars daylightSavingsName_;
+
+  std::string timeZoneOverride_;
 #else
   // Restrict the data-time range to the minimum required time_t range as
   // specified in POSIX. Most operating systems support 64-bit time_t
@@ -336,6 +347,8 @@ class DateTimeInfo {
   static constexpr int64_t RangeExpansionAmount = 30 * SecondsPerDay;
 
   void internalResetTimeZone(ResetTimeZoneMode mode);
+
+  void internalSetTimeZoneOverride(std::string timeZone);
 
   void updateTimeZone();
 
