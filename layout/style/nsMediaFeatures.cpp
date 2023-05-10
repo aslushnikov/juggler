@@ -277,24 +277,11 @@ bool Gecko_MediaFeatures_MatchesPlatform(StylePlatform aPlatform) {
 }
 
 bool Gecko_MediaFeatures_PrefersReducedMotion(const Document* aDocument) {
-<<<<<<< HEAD
-  if (aDocument->ShouldResistFingerprinting(
-          RFPTarget::CSSPrefersReducedMotion)) {
-    return false;
-  }
-  return LookAndFeel::GetInt(LookAndFeel::IntID::PrefersReducedMotion, 0) == 1;
-||||||| parent of 9449bdbd21cd... chore(ff-beta): bootstrap build #1406
-  if (aDocument->ShouldResistFingerprinting()) {
-    return false;
-  }
-  return LookAndFeel::GetInt(LookAndFeel::IntID::PrefersReducedMotion, 0) == 1;
-=======
   return aDocument->PrefersReducedMotion();
 }
 
 bool Gecko_MediaFeatures_ForcedColors(const Document* aDocument) {
   return aDocument->ForcedColors();
->>>>>>> 9449bdbd21cd... chore(ff-beta): bootstrap build #1406
 }
 
 bool Gecko_MediaFeatures_PrefersReducedTransparency(const Document* aDocument) {
