@@ -492,6 +492,13 @@ void NativeKeyBindings::GetEditCommandsForTests(NativeKeyBindingsType aType,
       break;
     case KEY_NAME_INDEX_ArrowLeft:
       if (aEvent.IsAlt()) {
+        if (aEvent.IsMeta() || aEvent.IsControl())
+          break;
+        instance->AppendEditCommandsForSelector(
+            !aEvent.IsShift()
+                ? ToObjcSelectorPtr(@selector(moveWordLeft:))
+                : ToObjcSelectorPtr(@selector(moveWordLeftAndModifySelection:)),
+            aCommands);
         break;
       }
       if (aEvent.IsMeta() || (aEvent.IsControl() && aEvent.IsShift())) {
@@ -512,6 +519,13 @@ void NativeKeyBindings::GetEditCommandsForTests(NativeKeyBindingsType aType,
       break;
     case KEY_NAME_INDEX_ArrowRight:
       if (aEvent.IsAlt()) {
+        if (aEvent.IsMeta() || aEvent.IsControl())
+          break;
+        instance->AppendEditCommandsForSelector(
+            !aEvent.IsShift()
+                ? ToObjcSelectorPtr(@selector(moveWordRight:))
+                : ToObjcSelectorPtr(@selector(moveWordRightAndModifySelection:)),
+            aCommands);
         break;
       }
       if (aEvent.IsMeta() || (aEvent.IsControl() && aEvent.IsShift())) {
@@ -532,6 +546,10 @@ void NativeKeyBindings::GetEditCommandsForTests(NativeKeyBindingsType aType,
       break;
     case KEY_NAME_INDEX_ArrowUp:
       if (aEvent.IsControl()) {
+        if (aEvent.IsMeta() || aEvent.IsAlt())
+          break;
+        instance->AppendEditCommandsForSelector(
+          ToObjcSelectorPtr(@selector(scrollPageUp:)), aCommands);
         break;
       }
       if (aEvent.IsMeta()) {
@@ -541,7 +559,7 @@ void NativeKeyBindings::GetEditCommandsForTests(NativeKeyBindingsType aType,
         instance->AppendEditCommandsForSelector(
             !aEvent.IsShift()
                 ? ToObjcSelectorPtr(@selector(moveToBeginningOfDocument:))
-                : ToObjcSelectorPtr(@selector(moveToBegginingOfDocumentAndModifySelection:)),
+                : ToObjcSelectorPtr(@selector(moveToBeginningOfDocumentAndModifySelection:)),
             aCommands);
         break;
       }
@@ -564,6 +582,10 @@ void NativeKeyBindings::GetEditCommandsForTests(NativeKeyBindingsType aType,
       break;
     case KEY_NAME_INDEX_ArrowDown:
       if (aEvent.IsControl()) {
+        if (aEvent.IsMeta() || aEvent.IsAlt())
+          break;
+        instance->AppendEditCommandsForSelector(
+          ToObjcSelectorPtr(@selector(scrollPageDown:)), aCommands);
         break;
       }
       if (aEvent.IsMeta()) {
