@@ -16,9 +16,9 @@ HeadlessCompositorWidget::HeadlessCompositorWidget(
     const layers::CompositorOptions& aOptions, HeadlessWidget* aWindow)
     : CompositorWidget(aOptions),
       mWidget(aWindow),
+      mMon("snapshotListener"),
       mClientSize(LayoutDeviceIntSize(aInitData.InitialClientSize()),
-                  "HeadlessCompositorWidget::mClientSize"),
-      mMon("snapshotListener") {}
+                  "HeadlessCompositorWidget::mClientSize") {}
 
 void HeadlessCompositorWidget::SetSnapshotListener(HeadlessWidget::SnapshotListener&& listener) {
   MOZ_ASSERT(NS_IsMainThread());

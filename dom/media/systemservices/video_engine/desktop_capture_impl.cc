@@ -477,8 +477,8 @@ DesktopCaptureImpl::DesktopCaptureImpl(const int32_t aId, const char* aUniqueId,
       mDeviceUniqueId(aUniqueId),
       mDeviceType(aType),
       mControlThread(mozilla::GetCurrentSerialEventTarget()),
-      mNextFrameMinimumTime(Timestamp::Zero()),
       capture_cursor_(aCaptureCursor),
+      mNextFrameMinimumTime(Timestamp::Zero()),
       mRunning(false),
       mCallbacks("DesktopCaptureImpl::mCallbacks") {}
 
