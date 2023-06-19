@@ -134,13 +134,12 @@ function writeHttpResponse(output, response) {
  * Process the WebSocket handshake headers and return the key to be sent in
  * Sec-WebSocket-Accept response header.
  */
-function processRequest({ requestLine, headers }) {
+function processRequest({ requestLine, headers }, expectedPath) {
   const [method, path] = requestLine.split(" ");
   if (method !== "GET") {
     throw new Error("The handshake request must use GET method");
   }
-
-  if (path !== "/") {
+  if (path !== expectedPath) {
     throw new Error("The handshake request has unknown path");
   }
 
@@ -190,13 +189,19 @@ function computeKey(key) {
 /**
  * Perform the server part of a WebSocket opening handshake on an incoming connection.
  */
+<<<<<<< HEAD
 const serverHandshake = async function (input, output) {
+||||||| parent of 19058eb175d2 (chore(ff-beta): bootstrap build #1414)
+const serverHandshake = async function(input, output) {
+=======
+const serverHandshake = async function(input, output, expectedPath) {
+>>>>>>> 19058eb175d2 (chore(ff-beta): bootstrap build #1414)
   // Read the request
   const request = await readHttpRequest(input);
 
   try {
     // Check and extract info from the request
-    const { acceptKey } = processRequest(request);
+    const { acceptKey } = processRequest(request, expectedPath);
 
     // Send response headers
     await writeHttpResponse(output, [
@@ -218,8 +223,16 @@ const serverHandshake = async function (input, output) {
  * Performs the WebSocket handshake and waits for the WebSocket to open.
  * Returns Promise with a WebSocket ready to send and receive messages.
  */
+<<<<<<< HEAD
 const accept = async function (transport, input, output) {
   await serverHandshake(input, output);
+||||||| parent of 19058eb175d2 (chore(ff-beta): bootstrap build #1414)
+const accept = async function(transport, input, output) {
+  await serverHandshake(input, output);
+=======
+const accept = async function(transport, input, output, expectedPath) {
+  await serverHandshake(input, output, expectedPath || "/");
+>>>>>>> 19058eb175d2 (chore(ff-beta): bootstrap build #1414)
 
   const transportProvider = {
     setListener(upgradeListener) {

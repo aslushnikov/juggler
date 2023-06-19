@@ -95,7 +95,7 @@ function _isUndefined(value) {
 
 export var Utils = {
   get SERVER_URL() {
-    return lazy.allowServerURLOverride
+    return true || lazy.allowServerURLOverride
       ? lazy.gServerURL
       : AppConstants.REMOTE_SETTINGS_SERVER_URL;
   },

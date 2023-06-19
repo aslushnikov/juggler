@@ -155,6 +155,8 @@ class TimeZone final {
     return FillBufferWithICUCall(aBuffer, ucal_getHostTimeZone);
   }
 
+  static bool IsValidTimeZoneId(const char* timeZoneId);
+
   /**
    * Set the default time zone.
    */

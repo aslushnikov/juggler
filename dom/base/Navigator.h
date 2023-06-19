@@ -216,7 +216,7 @@ class Navigator final : public nsISupports, public nsWrapperCache {
 
   StorageManager* Storage();
 
-  static void GetAcceptLanguages(nsTArray<nsString>& aLanguages);
+  static void GetAcceptLanguages(const nsString* aLanguageOverride, nsTArray<nsString>& aLanguages);
 
   dom::MediaCapabilities* MediaCapabilities();
   dom::MediaSession* MediaSession();

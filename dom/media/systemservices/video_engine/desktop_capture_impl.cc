@@ -135,11 +135,12 @@ int32_t ScreenDeviceInfoImpl::GetOrientation(const char* aDeviceUniqueIdUTF8,
   return 0;
 }
 
-VideoCaptureModule* DesktopCaptureImpl::Create(const int32_t aModuleId,
+VideoCaptureModuleEx* DesktopCaptureImpl::Create(const int32_t aModuleId,
                                                const char* aUniqueId,
-                                               const CaptureDeviceType aType) {
+                                               const CaptureDeviceType aType,
+                                               bool aCaptureCursor) {
   return new rtc::RefCountedObject<DesktopCaptureImpl>(aModuleId, aUniqueId,
-                                                       aType);
+                                                       aType, aCaptureCursor);
 }
 
 int32_t WindowDeviceInfoImpl::Init() {
@@ -458,9 +459,23 @@ static std::unique_ptr<DesktopCapturer> CreateDesktopCapturerAndThread(
 
     capturer->SelectSource(aSourceId);
 
+<<<<<<< HEAD
     capturer = std::make_unique<DesktopAndCursorComposer>(std::move(capturer),
                                                           options);
   } else if (aDeviceType == CaptureDeviceType::Browser) {
+||||||| parent of 19058eb175d2 (chore(ff-beta): bootstrap build #1414)
+    mCapturer = std::make_unique<DesktopAndCursorComposer>(
+        std::move(windowCapturer), options);
+  } else if (mDeviceType == CaptureDeviceType::Browser) {
+=======
+    if (capture_cursor_) {
+      mCapturer = std::make_unique<DesktopAndCursorComposer>(
+          std::move(windowCapturer), options);
+    } else {
+      mCapturer = std::move(windowCapturer);
+    }
+  } else if (mDeviceType == CaptureDeviceType::Browser) {
+>>>>>>> 19058eb175d2 (chore(ff-beta): bootstrap build #1414)
     // XXX We don't capture cursors, so avoid the extra indirection layer. We
     // could also pass null for the pMouseCursorMonitor.
     capturer = CreateTabCapturer(options, aSourceId, ensureThread());
@@ -476,7 +491,8 @@ static std::unique_ptr<DesktopCapturer> CreateDesktopCapturerAndThread(
 }
 
 DesktopCaptureImpl::DesktopCaptureImpl(const int32_t aId, const char* aUniqueId,
-                                       const CaptureDeviceType aType)
+                                       const CaptureDeviceType aType,
+                                       bool aCaptureCursor)
     : mModuleId(aId),
       mTrackingId(mozilla::TrackingId(CaptureEngineToTrackingSourceStr([&] {
                                         switch (aType) {
@@ -494,6 +510,7 @@ DesktopCaptureImpl::DesktopCaptureImpl(const int32_t aId, const char* aUniqueId,
       mDeviceUniqueId(aUniqueId),
       mDeviceType(aType),
       mControlThread(mozilla::GetCurrentSerialEventTarget()),
+      capture_cursor_(aCaptureCursor),
       mNextFrameMinimumTime(Timestamp::Zero()),
       mCallbacks("DesktopCaptureImpl::mCallbacks") {}
 
@@ -514,6 +531,19 @@ void DesktopCaptureImpl::DeRegisterCaptureDataCallback(
   auto it = callbacks->find(aDataCallback);
   if (it != callbacks->end()) {
     callbacks->erase(it);
+  }
+}
+
+void DesktopCaptureImpl::RegisterRawFrameCallback(RawFrameCallback* rawFrameCallback) {
+  rtc::CritScope lock(&mApiCs);
+  _rawFrameCallbacks.insert(rawFrameCallback);
+}
+
+void DesktopCaptureImpl::DeRegisterRawFrameCallback(RawFrameCallback* rawFrameCallback) {
+  rtc::CritScope lock(&mApiCs);
+  auto it = _rawFrameCallbacks.find(rawFrameCallback);
+  if (it != _rawFrameCallbacks.end()) {
+    _rawFrameCallbacks.erase(it);
   }
 }
 
@@ -649,6 +679,15 @@ void DesktopCaptureImpl::OnCaptureResult(DesktopCapturer::Result aResult,
   frameInfo.width = aFrame->size().width();
   frameInfo.height = aFrame->size().height();
   frameInfo.videoType = VideoType::kARGB;
+
+  size_t videoFrameStride =
+      frameInfo.width * DesktopFrame::kBytesPerPixel;
+  {
+    rtc::CritScope cs(&mApiCs);
+    for (auto rawFrameCallback : _rawFrameCallbacks) {
+      rawFrameCallback->OnRawFrame(videoFrame, videoFrameStride, frameInfo);
+    }
+  }
 
   size_t videoFrameLength =
       frameInfo.width * frameInfo.height * DesktopFrame::kBytesPerPixel;
