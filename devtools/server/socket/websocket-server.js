@@ -189,13 +189,7 @@ function computeKey(key) {
 /**
  * Perform the server part of a WebSocket opening handshake on an incoming connection.
  */
-<<<<<<< HEAD
-const serverHandshake = async function (input, output) {
-||||||| parent of 19058eb175d2 (chore(ff-beta): bootstrap build #1414)
-const serverHandshake = async function(input, output) {
-=======
-const serverHandshake = async function(input, output, expectedPath) {
->>>>>>> 19058eb175d2 (chore(ff-beta): bootstrap build #1414)
+const serverHandshake = async function (input, output, expectedPath) {
   // Read the request
   const request = await readHttpRequest(input);
 
@@ -223,16 +217,8 @@ const serverHandshake = async function(input, output, expectedPath) {
  * Performs the WebSocket handshake and waits for the WebSocket to open.
  * Returns Promise with a WebSocket ready to send and receive messages.
  */
-<<<<<<< HEAD
-const accept = async function (transport, input, output) {
-  await serverHandshake(input, output);
-||||||| parent of 19058eb175d2 (chore(ff-beta): bootstrap build #1414)
-const accept = async function(transport, input, output) {
-  await serverHandshake(input, output);
-=======
-const accept = async function(transport, input, output, expectedPath) {
+const accept = async function (transport, input, output, expectedPath) {
   await serverHandshake(input, output, expectedPath || "/");
->>>>>>> 19058eb175d2 (chore(ff-beta): bootstrap build #1414)
 
   const transportProvider = {
     setListener(upgradeListener) {

@@ -18467,9 +18467,6 @@ bool Document::PrefersReducedMotion() const {
     }
   }
 
-  if (ShouldResistFingerprinting()) {
-    return false;
-  }
   return LookAndFeel::GetInt(LookAndFeel::IntID::PrefersReducedMotion, 0) == 1;
 }
 

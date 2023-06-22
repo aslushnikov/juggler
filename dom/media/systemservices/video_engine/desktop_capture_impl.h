@@ -234,9 +234,10 @@ class DesktopCaptureImpl : public DesktopCapturer::Callback,
   // Notifies all mCallbacks of OnFrame(). mCaptureThread only.
   void NotifyOnFrame(const VideoFrame& aFrame);
 
+  bool capture_cursor_ = true;
+
   // Control thread on which the public API is called.
   const nsCOMPtr<nsISerialEventTarget> mControlThread;
-<<<<<<< HEAD
   // Set in StartCapture.
   mozilla::Maybe<VideoCaptureCapability> mRequestedCapability
       RTC_GUARDED_BY(mControlThreadChecker);
@@ -248,26 +249,6 @@ class DesktopCaptureImpl : public DesktopCapturer::Callback,
   nsCOMPtr<nsIThread> mCaptureThread RTC_GUARDED_BY(mControlThreadChecker);
   // Checks that API methods are called on mControlThread.
   webrtc::SequenceChecker mControlThreadChecker;
-||||||| parent of 19058eb175d2 (chore(ff-beta): bootstrap build #1414)
-  // Set in StartCapture. mControlThread only.
-  VideoCaptureCapability mRequestedCapability;
-  // This is created on mControlThread and accessed on both mControlThread and
-  // mCaptureThread. It is created prior to mCaptureThread starting and is
-  // destroyed after it is stopped.
-  std::unique_ptr<DesktopCapturer> mCapturer;
-  // Dedicated thread that does the capturing. Only used on mControlThread.
-  nsCOMPtr<nsIThread> mCaptureThread;
-=======
-  // Set in StartCapture. mControlThread only.
-  VideoCaptureCapability mRequestedCapability;
-  bool capture_cursor_ = true;
-  // This is created on mControlThread and accessed on both mControlThread and
-  // mCaptureThread. It is created prior to mCaptureThread starting and is
-  // destroyed after it is stopped.
-  std::unique_ptr<DesktopCapturer> mCapturer;
-  // Dedicated thread that does the capturing. Only used on mControlThread.
-  nsCOMPtr<nsIThread> mCaptureThread;
->>>>>>> 19058eb175d2 (chore(ff-beta): bootstrap build #1414)
   // Checks that frame delivery only happens on mCaptureThread.
   webrtc::SequenceChecker mCaptureThreadChecker;
   // Timer that triggers frame captures. Only used on mCaptureThread.

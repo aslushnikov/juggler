@@ -409,7 +409,7 @@ static bool UsePipewire() {
 
 static std::unique_ptr<DesktopCapturer> CreateDesktopCapturerAndThread(
     CaptureDeviceType aDeviceType, DesktopCapturer::SourceId aSourceId,
-    nsIThread** aOutThread) {
+    nsIThread** aOutThread, bool aCaptureCursor) {
   DesktopCaptureOptions options = CreateDesktopCaptureOptions();
   std::unique_ptr<DesktopCapturer> capturer;
 
@@ -459,23 +459,11 @@ static std::unique_ptr<DesktopCapturer> CreateDesktopCapturerAndThread(
 
     capturer->SelectSource(aSourceId);
 
-<<<<<<< HEAD
-    capturer = std::make_unique<DesktopAndCursorComposer>(std::move(capturer),
-                                                          options);
-  } else if (aDeviceType == CaptureDeviceType::Browser) {
-||||||| parent of 19058eb175d2 (chore(ff-beta): bootstrap build #1414)
-    mCapturer = std::make_unique<DesktopAndCursorComposer>(
-        std::move(windowCapturer), options);
-  } else if (mDeviceType == CaptureDeviceType::Browser) {
-=======
-    if (capture_cursor_) {
-      mCapturer = std::make_unique<DesktopAndCursorComposer>(
-          std::move(windowCapturer), options);
-    } else {
-      mCapturer = std::move(windowCapturer);
+    if (aCaptureCursor) {
+      capturer = std::make_unique<DesktopAndCursorComposer>(
+          std::move(capturer), options);
     }
-  } else if (mDeviceType == CaptureDeviceType::Browser) {
->>>>>>> 19058eb175d2 (chore(ff-beta): bootstrap build #1414)
+  } else if (aDeviceType == CaptureDeviceType::Browser) {
     // XXX We don't capture cursors, so avoid the extra indirection layer. We
     // could also pass null for the pMouseCursorMonitor.
     capturer = CreateTabCapturer(options, aSourceId, ensureThread());
@@ -509,8 +497,8 @@ DesktopCaptureImpl::DesktopCaptureImpl(const int32_t aId, const char* aUniqueId,
                                       aId)),
       mDeviceUniqueId(aUniqueId),
       mDeviceType(aType),
-      mControlThread(mozilla::GetCurrentSerialEventTarget()),
       capture_cursor_(aCaptureCursor),
+      mControlThread(mozilla::GetCurrentSerialEventTarget()),
       mNextFrameMinimumTime(Timestamp::Zero()),
       mCallbacks("DesktopCaptureImpl::mCallbacks") {}
 
@@ -579,7 +567,7 @@ int32_t DesktopCaptureImpl::StartCapture(
 
   DesktopCapturer::SourceId sourceId = std::stoi(mDeviceUniqueId);
   std::unique_ptr capturer = CreateDesktopCapturerAndThread(
-      mDeviceType, sourceId, getter_AddRefs(mCaptureThread));
+      mDeviceType, sourceId, getter_AddRefs(mCaptureThread), capture_cursor_);
 
   MOZ_ASSERT(!capturer == !mCaptureThread);
   if (!capturer) {

@@ -9,7 +9,6 @@ const {Preferences} = ChromeUtils.import("resource://gre/modules/Preferences.jsm
 const {ContextualIdentityService} = ChromeUtils.import("resource://gre/modules/ContextualIdentityService.jsm");
 const {NetUtil} = ChromeUtils.import('resource://gre/modules/NetUtil.jsm');
 const {AppConstants} = ChromeUtils.import("resource://gre/modules/AppConstants.jsm");
-const {OS} = ChromeUtils.import("resource://gre/modules/osfile.jsm");
 
 const Cr = Components.results;
 
@@ -650,7 +649,7 @@ class PageTarget {
     // NSWindow.windowNumber may be -1, so we wait until the window is known
     // to be initialized and visible.
     await this.windowReady();
-    const file = OS.Path.join(dir, helper.generateId() + '.webm');
+    const file = PathUtils.join(dir, helper.generateId() + '.webm');
     if (width < 10 || width > 10000 || height < 10 || height > 10000)
       throw new Error("Invalid size");
 
