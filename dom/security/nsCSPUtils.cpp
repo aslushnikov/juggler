@@ -132,6 +132,11 @@ void CSP_ApplyMetaCSPToDoc(mozilla::dom::Document& aDoc,
     return;
   }
 
+  if (aDoc.GetDocShell() &&
+      nsDocShell::Cast(aDoc.GetDocShell())->IsBypassCSPEnabled()) {
+    return;
+  }
+
   nsAutoString policyStr(
       nsContentUtils::TrimWhitespace<nsContentUtils::IsHTMLWhitespace>(
           aPolicyStr));
