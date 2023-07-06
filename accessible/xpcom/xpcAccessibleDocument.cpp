@@ -132,32 +132,6 @@ xpcAccessibleDocument::GetChildDocumentAt(uint32_t aIndex,
   return *aDocument ? NS_OK : NS_ERROR_INVALID_ARG;
 }
 
-<<<<<<< HEAD
-||||||| parent of 9b1f4a82ef66... chore(ff-beta): bootstrap build #1417
-NS_IMETHODIMP
-xpcAccessibleDocument::GetVirtualCursor(nsIAccessiblePivot** aVirtualCursor) {
-  NS_ENSURE_ARG_POINTER(aVirtualCursor);
-  *aVirtualCursor = nullptr;
-
-  if (!Intl()) return NS_ERROR_FAILURE;
-
-  NS_ADDREF(*aVirtualCursor = Intl()->VirtualCursor());
-  return NS_OK;
-}
-
-=======
-NS_IMETHODIMP
-xpcAccessibleDocument::GetVirtualCursor(nsIAccessiblePivot** aVirtualCursor) {
-  NS_ENSURE_ARG_POINTER(aVirtualCursor);
-  *aVirtualCursor = nullptr;
-
-  if (!Intl()) return NS_ERROR_FAILURE;
-
-  NS_ADDREF(*aVirtualCursor = Intl()->VirtualCursor());
-  return NS_OK;
-}
-
-
 NS_IMETHODIMP
 xpcAccessibleDocument::GetIsUpdatePendingForJugglerAccessibility(bool* updating) {
   NS_ENSURE_ARG_POINTER(updating);
@@ -165,8 +139,6 @@ xpcAccessibleDocument::GetIsUpdatePendingForJugglerAccessibility(bool* updating)
   return NS_OK;
 }
 
-
->>>>>>> 9b1f4a82ef66... chore(ff-beta): bootstrap build #1417
 ////////////////////////////////////////////////////////////////////////////////
 // xpcAccessibleDocument
 

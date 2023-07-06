@@ -22,6 +22,7 @@
 #include "nsSandboxFlags.h"
 #include "nsServiceManagerUtils.h"
 #include "nsWhitespaceTokenizer.h"
+#include "nsDocShell.h"
 
 #include "mozilla/Components.h"
 #include "mozilla/dom/CSPDictionariesBinding.h"
