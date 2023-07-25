@@ -6,7 +6,7 @@
 loadSubScript('chrome://juggler/content/content/Runtime.js');
 loadSubScript('chrome://juggler/content/SimpleChannel.js');
 
-const channel = new SimpleChannel('worker::worker');
+const channel = new SimpleChannel('worker::worker', 'unknown_worker_process');
 const eventListener = event => channel._onMessage(JSON.parse(event.data));
 this.addEventListener('message', eventListener);
 channel.setTransport({

@@ -9,29 +9,7 @@
 const SIMPLE_CHANNEL_MESSAGE_NAME = 'juggler:simplechannel';
 
 class SimpleChannel {
-  static createForActor(actor) {
-    const channel = new SimpleChannel('');
-    channel.bindToActor(actor);
-    return channel;
-  }
-
-  static createForMessageManager(name, mm) {
-    const channel = new SimpleChannel(name);
-
-    const messageListener = {
-      receiveMessage: message => channel._onMessage(message.data)
-    };
-    mm.addMessageListener(SIMPLE_CHANNEL_MESSAGE_NAME, messageListener);
-
-    channel.setTransport({
-      sendMessage: obj => mm.sendAsyncMessage(SIMPLE_CHANNEL_MESSAGE_NAME, obj),
-      dispose: () => mm.removeMessageListener(SIMPLE_CHANNEL_MESSAGE_NAME, messageListener),
-    });
-
-    return channel;
-  }
-
-  constructor(name) {
+  constructor(name, processIdentifier = 'unknown_process') {
     this._name = name;
     this._messageId = 0;
     this._connectorId = 0;
@@ -45,6 +23,10 @@ class SimpleChannel {
     this._ready = false;
     this._paused = false;
     this._disposed = false;
+
+    this._bufferedResponses = new Map();
+    this._connectedToPID = null;
+    this._pid = processIdentifier;
   }
 
   bindToActor(actor) {
@@ -78,7 +60,7 @@ class SimpleChannel {
     //    `READY_ACK`. We assume at least one of the ends will receive "READY" event from the other, since
     //    channel ends have a "parent-child" relation, i.e. one end is always created before the other one.
     // 5. Once channel end receives either `READY` or `READY_ACK`, it transitions to `ready` state.
-    this.transport.sendMessage('READY');
+    this.transport.sendMessage({ ack: 'READY', pid: this._pid });
   }
 
   pause() {
@@ -176,13 +158,23 @@ class SimpleChannel {
   }
 
   _onMessage(data) {
-    if (data === 'READY') {
-      this.transport.sendMessage('READY_ACK');
+    if (data?.ack === 'READY') {
+      if (this._connectedToPID !== data.pid)
+        this._bufferedResponses.clear();
+      this._connectedToPID = data.pid;
+      this.transport.sendMessage({ ack: 'READY_ACK', pid: this._pid });
       this._markAsReady();
       return;
     }
-    if (data === 'READY_ACK') {
+    if (data?.ack === 'READY_ACK') {
+      if (this._connectedToPID !== data.pid)
+        this._bufferedResponses.clear();
+      this._connectedToPID = data.pid;
       this._markAsReady();
+      return;
+    }
+    if (data?.ack === 'RESPONSE_ACK') {
+      this._bufferedResponses.delete(data.responseId);
       return;
     }
     if (this._paused)
@@ -193,9 +185,10 @@ class SimpleChannel {
 
   async _onMessageInternal(data) {
     if (data.responseId) {
+      this.transport.sendMessage({ ack: 'RESPONSE_ACK', responseId: data.responseId });
       const message = this._pendingMessages.get(data.responseId);
       if (!message) {
-        // During corss-process navigation, we might receive a response for
+        // During cross-process navigation, we might receive a response for
         // the message sent by another process.
         // TODO: consider events that are marked as "no-response" to avoid
         // unneeded responses altogether.
@@ -207,6 +200,16 @@ class SimpleChannel {
       else
         message.resolve(data.result);
     } else if (data.requestId) {
+      // There is a race: sometimes, as the actors reconnect to the given channel,
+      // the event from the renderer migth not receive response from the browser,
+      // so it'll result in a double-emit.
+      //
+      // To solve this issue, we record incoming request
+      if (this._bufferedResponses.has(data.requestId)) {
+        this.transport.sendMessage(this._bufferedResponses.get(data.requestId));
+        return;
+      }
+
       const namespace = data.namespace;
       const handler = this._handlers.get(namespace);
       if (!handler) {
@@ -218,13 +221,15 @@ class SimpleChannel {
         this.transport.sendMessage({responseId: data.requestId, error: `error in channel "${this._name}": No method "${data.methodName}" in namespace "${namespace}"`});
         return;
       }
+      let response;
       try {
         const result = await method.call(handler, ...data.params);
-        this.transport.sendMessage({responseId: data.requestId, result});
+        response = {responseId: data.requestId, result};
       } catch (error) {
-        this.transport.sendMessage({responseId: data.requestId, error: `error in channel "${this._name}": exception while running method "${data.methodName}" in namespace "${namespace}": ${error.message} ${error.stack}`});
-        return;
+        response = {responseId: data.requestId, error: `error in channel "${this._name}": exception while running method "${data.methodName}" in namespace "${namespace}": ${error.message} ${error.stack}`};
       }
+      this._bufferedResponses.set(data.requestId, response);
+      this.transport.sendMessage(response);
     } else {
       dump(`WARNING: unknown message in channel "${this._name}": ${JSON.stringify(data)}\n`);
     }

@@ -349,7 +349,7 @@ class PageTarget {
     this._openerId = opener ? opener.id() : undefined;
     this._actor = undefined;
     this._actorSequenceNumber = 0;
-    this._channel = new SimpleChannel(`browser::page[${this._targetId}]`);
+    this._channel = new SimpleChannel(`browser::page[${this._targetId}]`, Services.appinfo.processID);
     this._videoRecordingInfo = undefined;
     this._screencastRecordingInfo = undefined;
     this._dialogs = new Map();
