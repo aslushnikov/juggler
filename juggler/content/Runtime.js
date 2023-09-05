@@ -63,7 +63,6 @@ class Runtime {
     if (isWorker) {
       this._registerWorkerConsoleHandler();
     } else {
-      const {Services} = ChromeUtils.import("resource://gre/modules/Services.jsm");
       this._registerConsoleServiceListener(Services);
       this._registerConsoleAPIListener(Services);
     }
