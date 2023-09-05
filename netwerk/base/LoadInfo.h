@@ -387,6 +387,8 @@ class LoadInfo final : public nsILoadInfo {
   nsCOMPtr<nsIInterceptionInfo> mInterceptionInfo;
 
   bool mHasInjectedCookieForCookieBannerHandling = false;
+
+  uint64_t mJugglerLoadIdentifier = 0;
 };
 
 // This is exposed solely for testing purposes and should not be used outside of
