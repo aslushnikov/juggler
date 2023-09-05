@@ -638,7 +638,8 @@ LoadInfo::LoadInfo(const LoadInfo& rhs)
       mUnstrippedURI(rhs.mUnstrippedURI),
       mInterceptionInfo(rhs.mInterceptionInfo),
       mHasInjectedCookieForCookieBannerHandling(
-          rhs.mHasInjectedCookieForCookieBannerHandling) {}
+          rhs.mHasInjectedCookieForCookieBannerHandling),
+      mJugglerLoadIdentifier(rhs.mJugglerLoadIdentifier) {}
 
 LoadInfo::LoadInfo(
     nsIPrincipal* aLoadingPrincipal, nsIPrincipal* aTriggeringPrincipal,
@@ -2288,6 +2289,18 @@ LoadInfo::SetHasInjectedCookieForCookieBannerHandling(
     bool aHasInjectedCookieForCookieBannerHandling) {
   mHasInjectedCookieForCookieBannerHandling =
       aHasInjectedCookieForCookieBannerHandling;
+  return NS_OK;
+}
+
+NS_IMETHODIMP
+LoadInfo::GetJugglerLoadIdentifier(uint64_t* aResult) {
+  *aResult = mJugglerLoadIdentifier;
+  return NS_OK;
+}
+
+NS_IMETHODIMP
+LoadInfo::SetJugglerLoadIdentifier(uint64_t aID) {
+  mJugglerLoadIdentifier = aID;
   return NS_OK;
 }
 
