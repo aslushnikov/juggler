@@ -10,6 +10,7 @@ webidl BrowsingContext;
 interface nsIHelperAppLauncher;
 interface nsIURI;
 interface nsIChannel;
+interface nsIRequest;
 interface nsIStreamListener;
 interface nsIFile;
 interface nsIMIMEInfo;
