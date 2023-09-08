@@ -110,6 +110,12 @@ EnterprisePoliciesManager.prototype = {
       Services.prefs.clearUserPref(PREF_POLICIES_APPLIED);
     }
 
+    // Playwright: Disable enterprise policies
+    if (true) {
+      this.status = Ci.nsIEnterprisePolicies.INACTIVE;
+      return;
+    }
+
     let provider = this._chooseProvider();
 
     if (provider.failed) {
