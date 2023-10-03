@@ -131,6 +131,13 @@ xpcAccessibleDocument::GetChildDocumentAt(uint32_t aIndex,
   return *aDocument ? NS_OK : NS_ERROR_INVALID_ARG;
 }
 
+NS_IMETHODIMP
+xpcAccessibleDocument::GetIsUpdatePendingForJugglerAccessibility(bool* updating) {
+  NS_ENSURE_ARG_POINTER(updating);
+  *updating = Intl()->Controller()->IsUpdatePendingForJugglerAccessibility();
+  return NS_OK;
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // xpcAccessibleDocument
 

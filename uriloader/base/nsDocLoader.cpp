@@ -828,6 +828,13 @@ void nsDocLoader::DocLoaderIsEmpty(bool aFlushLayout,
                         ("DocLoader:%p: Firing load event for document.open\n",
                          this));
 
+                nsCOMPtr<nsIObserverService> os = mozilla::services::GetObserverService();
+                if (os) {
+                  nsIPrincipal* principal = doc->NodePrincipal();
+                  if (!principal->IsSystemPrincipal())
+                    os->NotifyObservers(ToSupports(doc), "juggler-document-open-loaded", nullptr);
+                }
+
                 // This is a very cut-down version of
                 // nsDocumentViewer::LoadComplete that doesn't do various things
                 // that are not relevant here because this wasn't an actual
