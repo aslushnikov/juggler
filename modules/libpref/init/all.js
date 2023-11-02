@@ -3933,7 +3933,9 @@ pref("devtools.f12_enabled", true);
 // doesn't provide a way to lock the pref
 pref("dom.postMessage.sharedArrayBuffer.bypassCOOP_COEP.insecure.enabled", false);
 #else
-pref("dom.postMessage.sharedArrayBuffer.bypassCOOP_COEP.insecure.enabled", false, locked);
+// Playwright: DO NOT make preference locked so that we can overwrite it
+// later in our playwright.cfg file.
+pref("dom.postMessage.sharedArrayBuffer.bypassCOOP_COEP.insecure.enabled", false);
 #endif
 
 // Whether sites require the open-protocol-handler permission to open a

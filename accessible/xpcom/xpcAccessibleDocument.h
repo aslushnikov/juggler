@@ -47,6 +47,8 @@ class xpcAccessibleDocument : public xpcAccessibleHyperText,
   NS_IMETHOD GetChildDocumentAt(uint32_t aIndex,
                                 nsIAccessibleDocument** aDocument) final;
 
+  NS_IMETHOD GetIsUpdatePendingForJugglerAccessibility(bool* aUpdating) final;
+
   /**
    * Return XPCOM wrapper for the internal accessible.
    */

@@ -845,5 +845,16 @@ TRRLoadInfo::SetHasInjectedCookieForCookieBannerHandling(
   return NS_ERROR_NOT_IMPLEMENTED;
 }
 
+NS_IMETHODIMP
+TRRLoadInfo::GetJugglerLoadIdentifier(uint64_t* aResult) {
+  return NS_ERROR_NOT_IMPLEMENTED;
+}
+
+NS_IMETHODIMP
+TRRLoadInfo::SetJugglerLoadIdentifier(uint64_t aResult) {
+  return NS_ERROR_NOT_IMPLEMENTED;
+}
+
+
 }  // namespace net
 }  // namespace mozilla

@@ -23,6 +23,7 @@
 #include "nsComponentManagerUtils.h"
 #include "nsContentPermissionHelper.h"
 #include "nsContentUtils.h"
+#include "nsDocShell.h"
 #include "nsGlobalWindowInner.h"
 #include "mozilla/dom/Document.h"
 #include "nsINamed.h"
@@ -259,10 +260,8 @@ nsGeolocationRequest::Allow(JS::Handle<JS::Value> aChoices) {
     return NS_OK;
   }
 
-  RefPtr<nsGeolocationService> gs =
-      nsGeolocationService::GetGeolocationService();
-
-  bool canUseCache = false;
+  nsGeolocationService* gs = mLocator->GetGeolocationService();
+  bool canUseCache = gs != nsGeolocationService::sService.get();
   CachedPositionAndAccuracy lastPosition = gs->GetCachedPosition();
   if (lastPosition.position) {
     EpochTimeStamp cachedPositionTime_ms;
@@ -440,8 +439,7 @@ void nsGeolocationRequest::Shutdown() {
   // If there are no other high accuracy requests, the geolocation service will
   // notify the provider to switch to the default accuracy.
   if (mOptions && mOptions->mEnableHighAccuracy) {
-    RefPtr<nsGeolocationService> gs =
-        nsGeolocationService::GetGeolocationService();
+    nsGeolocationService* gs = mLocator ? mLocator->GetGeolocationService() : nullptr;
     if (gs) {
       gs->UpdateAccuracy();
     }
@@ -730,8 +728,14 @@ void nsGeolocationService::StopDevice() {
 StaticRefPtr<nsGeolocationService> nsGeolocationService::sService;
 
 already_AddRefed<nsGeolocationService>
-nsGeolocationService::GetGeolocationService() {
+nsGeolocationService::GetGeolocationService(nsDocShell* docShell) {
   RefPtr<nsGeolocationService> result;
+  if (docShell) {
+    result = docShell->GetGeolocationServiceOverride();
+    if (result)
+      return result.forget();
+  }
+
   if (nsGeolocationService::sService) {
     result = nsGeolocationService::sService;
 
@@ -823,7 +827,9 @@ nsresult Geolocation::Init(nsPIDOMWindowInner* aContentDom) {
   // If no aContentDom was passed into us, we are being used
   // by chrome/c++ and have no mOwner, no mPrincipal, and no need
   // to prompt.
-  mService = nsGeolocationService::GetGeolocationService();
+  nsCOMPtr<Document> doc = aContentDom ? aContentDom->GetDoc() : nullptr;
+  mService = nsGeolocationService::GetGeolocationService(
+      doc ? static_cast<nsDocShell*>(doc->GetDocShell()) : nullptr);
   if (mService) {
     mService->AddLocator(this);
   }

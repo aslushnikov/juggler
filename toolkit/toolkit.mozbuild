@@ -154,6 +154,7 @@ if CONFIG['ENABLE_WEBDRIVER']:
         '/remote',
         '/testing/firefox-ui',
         '/testing/marionette',
+        '/juggler',
         '/toolkit/components/telemetry/tests/marionette',
     ]
 

@@ -1505,4 +1505,6 @@ interface nsILoadInfo : nsISupports
    * handle a cookie banner. This is only done for top-level requests.
    */
   [infallible] attribute boolean hasInjectedCookieForCookieBannerHandling;
+
+  [infallible] attribute unsigned long long jugglerLoadIdentifier;
 };
