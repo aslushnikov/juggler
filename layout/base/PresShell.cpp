@@ -10925,15 +10925,9 @@ bool PresShell::ComputeActiveness() const {
     if (!browserChild->IsVisible()) {
       MOZ_LOG(gLog, LogLevel::Debug,
               (" > BrowserChild %p is not visible", browserChild));
-<<<<<<< HEAD
-      return false;
-||||||| parent of a8cdc76d9a1b (chore(ff): bootstrap build #1428)
-      return {false, inActiveTab};
-=======
       bool isActive;
       root->GetDocShell()->GetForceActiveState(&isActive);
-      return {isActive, inActiveTab};
->>>>>>> a8cdc76d9a1b (chore(ff): bootstrap build #1428)
+      return isActive;
     }
 
     // If the browser is visible but just due to be preserving layers

@@ -599,14 +599,8 @@ void NativeKeyBindings::GetEditCommandsForTests(
         instance->AppendEditCommandsForSelector(
             !aEvent.IsShift()
                 ? ToObjcSelectorPtr(@selector(moveToBeginningOfDocument:))
-<<<<<<< HEAD
                 : ToObjcSelectorPtr(
-                      @selector(moveToBegginingOfDocumentAndModifySelection:)),
-||||||| parent of a8cdc76d9a1b (chore(ff): bootstrap build #1428)
-                : ToObjcSelectorPtr(@selector(moveToBegginingOfDocumentAndModifySelection:)),
-=======
-                : ToObjcSelectorPtr(@selector(moveToBeginningOfDocumentAndModifySelection:)),
->>>>>>> a8cdc76d9a1b (chore(ff): bootstrap build #1428)
+                      @selector(moveToBeginningOfDocumentAndModifySelection:)),
             aCommands);
         break;
       }
