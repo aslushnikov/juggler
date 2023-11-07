@@ -365,7 +365,6 @@ nsDocShell::nsDocShell(BrowsingContext* aBrowsingContext,
       mBypassCSPEnabled(false),
       mForceActiveState(false),
       mDisallowBFCache(false),
-      mOnlineOverride(nsIDocShell::ONLINE_OVERRIDE_NONE),
       mReducedMotionOverride(REDUCED_MOTION_OVERRIDE_NONE),
       mForcedColorsOverride(FORCED_COLORS_OVERRIDE_NO_OVERRIDE),
       mAllowAuth(mItemType == typeContent),
@@ -3381,26 +3380,6 @@ nsDocShell::SetGeolocationOverride(nsIDOMGeoPosition* aGeolocationOverride) {
   } else {
     mGeolocationServiceOverride = nullptr;
   }
-  return NS_OK;
-}
-
-NS_IMETHODIMP
-nsDocShell::GetOnlineOverride(OnlineOverride* aOnlineOverride) {
-  *aOnlineOverride = GetRootDocShell()->mOnlineOverride;
-  return NS_OK;
-}
-
-NS_IMETHODIMP
-nsDocShell::SetOnlineOverride(OnlineOverride aOnlineOverride) {
-  // We don't have a way to verify this coming from Javascript, so this check is
-  // still needed.
-  if (!(aOnlineOverride == ONLINE_OVERRIDE_NONE ||
-        aOnlineOverride == ONLINE_OVERRIDE_ONLINE ||
-        aOnlineOverride == ONLINE_OVERRIDE_OFFLINE)) {
-    return NS_ERROR_INVALID_ARG;
-  }
-
-  mOnlineOverride = aOnlineOverride;
   return NS_OK;
 }
 
@@ -13171,15 +13150,9 @@ nsresult nsDocShell::OnLinkClick(
   nsCOMPtr<nsIRunnable> ev =
       new OnLinkClickEvent(this, aContent, loadState, noOpenerImplied,
                            aIsTrusted, aTriggeringPrincipal);
-<<<<<<< HEAD
-  return Dispatch(ev.forget());
-||||||| parent of a87fe6b4f260 (chore(ff): bootstrap build #1429)
-  return Dispatch(TaskCategory::UI, ev.forget());
-=======
   nsCOMPtr<nsIObserverService> observerService = mozilla::services::GetObserverService();
   observerService->NotifyObservers(ToSupports(aContent), "juggler-link-click", nullptr);
-  return Dispatch(TaskCategory::UI, ev.forget());
->>>>>>> a87fe6b4f260 (chore(ff): bootstrap build #1429)
+  return Dispatch(ev.forget());
 }
 
 bool nsDocShell::ShouldOpenInBlankTarget(const nsAString& aOriginalTarget,

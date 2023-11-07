@@ -799,13 +799,6 @@ interface nsIDocShell : nsIDocShellTreeItem
 
   boolean overrideTimezone(in AString timezoneId);
 
-  cenum OnlineOverride: 8 {
-    ONLINE_OVERRIDE_NONE = 0,
-    ONLINE_OVERRIDE_ONLINE = 1,
-    ONLINE_OVERRIDE_OFFLINE = 2,
-  };
-  [infallible] attribute nsIDocShell_OnlineOverride onlineOverride;
-
   cenum ReducedMotionOverride : 8 {
     REDUCED_MOTION_OVERRIDE_REDUCE,
     REDUCED_MOTION_OVERRIDE_NO_PREFERENCE,

@@ -575,7 +575,6 @@ bool Navigator::CookieEnabled() {
   return granted;
 }
 
-<<<<<<< HEAD
 bool Navigator::OnLine() {
   if (mWindow) {
     // Check if this tab is set to be offline.
@@ -587,17 +586,6 @@ bool Navigator::OnLine() {
   // Return the default browser value
   return !NS_IsOffline();
 }
-||||||| parent of a87fe6b4f260 (chore(ff): bootstrap build #1429)
-bool Navigator::OnLine() { return !NS_IsOffline(); }
-=======
-bool Navigator::OnLine() {
-  nsDocShell* docShell = static_cast<nsDocShell*>(GetDocShell());
-  nsIDocShell::OnlineOverride onlineOverride;
-  if (!docShell || docShell->GetOnlineOverride(&onlineOverride) != NS_OK || onlineOverride == nsIDocShell::ONLINE_OVERRIDE_NONE)
-    return !NS_IsOffline();
-  return onlineOverride == nsIDocShell::ONLINE_OVERRIDE_ONLINE;
-}
->>>>>>> a87fe6b4f260 (chore(ff): bootstrap build #1429)
 
 void Navigator::GetBuildID(nsAString& aBuildID, CallerType aCallerType,
                            ErrorResult& aRv) const {

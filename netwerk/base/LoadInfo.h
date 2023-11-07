@@ -400,13 +400,9 @@ class LoadInfo final : public nsILoadInfo {
   nsCOMPtr<nsIInterceptionInfo> mInterceptionInfo;
 
   bool mHasInjectedCookieForCookieBannerHandling = false;
-<<<<<<< HEAD
   bool mWasSchemelessInput = false;
-||||||| parent of a87fe6b4f260 (chore(ff): bootstrap build #1429)
-=======
 
   uint64_t mJugglerLoadIdentifier = 0;
->>>>>>> a87fe6b4f260 (chore(ff): bootstrap build #1429)
 };
 
 // This is exposed solely for testing purposes and should not be used outside of

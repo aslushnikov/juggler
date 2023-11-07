@@ -1345,7 +1345,6 @@ class nsDocShell final : public nsDocLoader,
   bool mDisallowBFCache : 1;
   nsString mLanguageOverride;
   RefPtr<nsGeolocationService> mGeolocationServiceOverride;
-  OnlineOverride mOnlineOverride;
   ReducedMotionOverride mReducedMotionOverride;
   ForcedColorsOverride mForcedColorsOverride;
 

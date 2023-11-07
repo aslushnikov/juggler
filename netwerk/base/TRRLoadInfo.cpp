@@ -851,7 +851,6 @@ TRRLoadInfo::SetHasInjectedCookieForCookieBannerHandling(
   return NS_ERROR_NOT_IMPLEMENTED;
 }
 
-<<<<<<< HEAD
 NS_IMETHODIMP
 TRRLoadInfo::GetWasSchemelessInput(bool* aWasSchemelessInput) {
   return NS_ERROR_NOT_IMPLEMENTED;
@@ -862,8 +861,6 @@ TRRLoadInfo::SetWasSchemelessInput(bool aWasSchemelessInput) {
   return NS_ERROR_NOT_IMPLEMENTED;
 }
 
-||||||| parent of a87fe6b4f260 (chore(ff): bootstrap build #1429)
-=======
 NS_IMETHODIMP
 TRRLoadInfo::GetJugglerLoadIdentifier(uint64_t* aResult) {
   return NS_ERROR_NOT_IMPLEMENTED;
@@ -874,7 +871,5 @@ TRRLoadInfo::SetJugglerLoadIdentifier(uint64_t aResult) {
   return NS_ERROR_NOT_IMPLEMENTED;
 }
 
-
->>>>>>> a87fe6b4f260 (chore(ff): bootstrap build #1429)
 }  // namespace net
 }  // namespace mozilla
