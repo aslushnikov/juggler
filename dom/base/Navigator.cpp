@@ -331,14 +331,18 @@ void Navigator::GetAppName(nsAString& aAppName) const {
  * for more detail.
  */
 /* static */
-void Navigator::GetAcceptLanguages(nsTArray<nsString>& aLanguages) {
+void Navigator::GetAcceptLanguages(const nsString* aLanguageOverride, nsTArray<nsString>& aLanguages) {
   MOZ_ASSERT(NS_IsMainThread());
 
   aLanguages.Clear();
 
   // E.g. "de-de, en-us,en".
   nsAutoString acceptLang;
-  Preferences::GetLocalizedString("intl.accept_languages", acceptLang);
+  if (aLanguageOverride && aLanguageOverride->Length())
+    acceptLang = *aLanguageOverride;
+  else
+    Preferences::GetLocalizedString("intl.accept_languages", acceptLang);
+    
 
   // Split values on commas.
   for (nsDependentSubstring lang :
@@ -390,7 +394,13 @@ void Navigator::GetLanguage(nsAString& aLanguage) {
 }
 
 void Navigator::GetLanguages(nsTArray<nsString>& aLanguages) {
-  GetAcceptLanguages(aLanguages);
+  if (mWindow && mWindow->GetDocShell()) {
+    nsString languageOverride;
+    mWindow->GetDocShell()->GetLanguageOverride(languageOverride);
+    GetAcceptLanguages(&languageOverride, aLanguages);
+  } else {
+    GetAcceptLanguages(nullptr, aLanguages);
+  }
 
   // The returned value is cached by the binding code. The window listens to the
   // accept languages change and will clear the cache when needed. It has to
@@ -565,6 +575,7 @@ bool Navigator::CookieEnabled() {
   return granted;
 }
 
+<<<<<<< HEAD
 bool Navigator::OnLine() {
   if (mWindow) {
     // Check if this tab is set to be offline.
@@ -576,6 +587,17 @@ bool Navigator::OnLine() {
   // Return the default browser value
   return !NS_IsOffline();
 }
+||||||| parent of a87fe6b4f260 (chore(ff): bootstrap build #1429)
+bool Navigator::OnLine() { return !NS_IsOffline(); }
+=======
+bool Navigator::OnLine() {
+  nsDocShell* docShell = static_cast<nsDocShell*>(GetDocShell());
+  nsIDocShell::OnlineOverride onlineOverride;
+  if (!docShell || docShell->GetOnlineOverride(&onlineOverride) != NS_OK || onlineOverride == nsIDocShell::ONLINE_OVERRIDE_NONE)
+    return !NS_IsOffline();
+  return onlineOverride == nsIDocShell::ONLINE_OVERRIDE_ONLINE;
+}
+>>>>>>> a87fe6b4f260 (chore(ff): bootstrap build #1429)
 
 void Navigator::GetBuildID(nsAString& aBuildID, CallerType aCallerType,
                            ErrorResult& aRv) const {

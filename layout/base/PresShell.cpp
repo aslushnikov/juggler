@@ -10887,7 +10887,9 @@ bool PresShell::ComputeActiveness() const {
     if (!browserChild->IsVisible()) {
       MOZ_LOG(gLog, LogLevel::Debug,
               (" > BrowserChild %p is not visible", browserChild));
-      return false;
+      bool isActive;
+      root->GetDocShell()->GetForceActiveState(&isActive);
+      return isActive;
     }
 
     // If the browser is visible but just due to be preserving layers

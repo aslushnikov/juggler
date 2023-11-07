@@ -1673,6 +1673,10 @@ Maybe<uint64_t> nsFocusManager::SetFocusInner(Element* aNewContent,
         (GetActiveBrowsingContext() == newRootBrowsingContext);
   }
 
+  // In Playwright, we want to send focus events even if the element
+  // isn't actually in the active window.
+  isElementInActiveWindow = true;
+
   // Exit fullscreen if a website focuses another window
   if (StaticPrefs::full_screen_api_exit_on_windowRaise() &&
       !isElementInActiveWindow && (aFlags & FLAG_RAISE)) {
@@ -2946,7 +2950,9 @@ void nsFocusManager::RaiseWindow(nsPIDOMWindowOuter* aWindow,
     }
   }
 
-  if (sTestMode) {
+  // In Playwright, we still want to execte the embedder functions
+  // to actually show / focus windows.
+  if (false && sTestMode) {
     // In test mode, emulate raising the window. WindowRaised takes
     // care of lowering the present active window. This happens in
     // a separate runnable to avoid touching multiple windows in

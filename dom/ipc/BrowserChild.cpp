@@ -1647,6 +1647,21 @@ void BrowserChild::HandleRealMouseButtonEvent(const WidgetMouseEvent& aEvent,
   if (postLayerization) {
     postLayerization->Register();
   }
+
+  // Playwright: notify content that mouse event has been received and handled.
+  nsCOMPtr<nsIObserverService> observerService =
+      mozilla::services::GetObserverService();
+  if (observerService && aEvent.mJugglerEventId) {
+    if (aEvent.mMessage == eMouseUp) {
+      observerService->NotifyObservers(nullptr, "juggler-mouse-event-hit-renderer", NS_ConvertASCIItoUTF16(nsPrintfCString("mouseup %" PRIu32, aEvent.mJugglerEventId)).get());
+    } else if (aEvent.mMessage == eMouseDown) {
+      observerService->NotifyObservers(nullptr, "juggler-mouse-event-hit-renderer", NS_ConvertASCIItoUTF16(nsPrintfCString("mousedown %" PRIu32, aEvent.mJugglerEventId)).get());
+    } else if (aEvent.mMessage == eMouseMove) {
+      observerService->NotifyObservers(nullptr, "juggler-mouse-event-hit-renderer", NS_ConvertASCIItoUTF16(nsPrintfCString("mousemove %" PRIu32, aEvent.mJugglerEventId)).get());
+    } else if (aEvent.mMessage == eContextMenu) {
+      observerService->NotifyObservers(nullptr, "juggler-mouse-event-hit-renderer", NS_ConvertASCIItoUTF16(nsPrintfCString("contextmenu %" PRIu32, aEvent.mJugglerEventId)).get());
+    }
+  }
 }
 
 mozilla::ipc::IPCResult BrowserChild::RecvNormalPriorityRealMouseButtonEvent(

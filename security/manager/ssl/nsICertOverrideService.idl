@@ -137,7 +137,9 @@ interface nsICertOverrideService : nsISupports {
    *  @param aDisable If true, disable all security check and make
    *                  hasMatchingOverride always return true.
    */
-  void setDisableAllSecurityChecksAndLetAttackersInterceptMyData(in boolean aDisable);
+  void setDisableAllSecurityChecksAndLetAttackersInterceptMyData(
+      in boolean aDisable,
+      [optional] in uint32_t aUserContextId);
 
   readonly attribute boolean securityCheckDisabled;
 };

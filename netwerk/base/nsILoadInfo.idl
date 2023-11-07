@@ -1526,9 +1526,15 @@ interface nsILoadInfo : nsISupports
    * handle a cookie banner. This is only done for top-level requests.
    */
   [infallible] attribute boolean hasInjectedCookieForCookieBannerHandling;
+<<<<<<< HEAD
 
   /**
    * Whether the load has gone through the URL bar, where the fixup had to add * the protocol scheme.
    */
    [infallible] attribute boolean wasSchemelessInput;
+||||||| parent of a87fe6b4f260 (chore(ff): bootstrap build #1429)
+=======
+
+  [infallible] attribute unsigned long long jugglerLoadIdentifier;
+>>>>>>> a87fe6b4f260 (chore(ff): bootstrap build #1429)
 };
