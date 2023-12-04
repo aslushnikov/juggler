@@ -1376,6 +1376,10 @@ void nsHtml5TreeOpExecutor::UpdateReferrerInfoFromMeta(
 void nsHtml5TreeOpExecutor::AddSpeculationCSP(const nsAString& aCSP) {
   NS_ASSERTION(NS_IsMainThread(), "Wrong thread!");
 
+  if (mDocShell && static_cast<nsDocShell*>(mDocShell.get())->IsBypassCSPEnabled()) {
+    return;
+  }
+
   nsresult rv = NS_OK;
   nsCOMPtr<nsIContentSecurityPolicy> preloadCsp = mDocument->GetPreloadCsp();
   if (!preloadCsp) {

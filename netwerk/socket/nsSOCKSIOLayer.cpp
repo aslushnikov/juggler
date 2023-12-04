@@ -933,6 +933,7 @@ PRStatus nsSOCKSSocketInfo::ReadV5ConnectResponseTop() {
         break;
       case 0x03:
         LOGERROR(("socks5: connect failed: 03, Network unreachable."));
+        fprintf(stderr, "\n\n\n socks5: connect failed; network unreachable\n\n\n");
         c = PR_NETWORK_UNREACHABLE_ERROR;
         break;
       case 0x04:
@@ -1290,6 +1291,7 @@ static PRStatus nsSOCKSIOLayerConnect(PRFileDesc* fd, const PRNetAddr* addr,
 }
 
 static PRStatus nsSOCKSIOLayerConnectContinue(PRFileDesc* fd, int16_t oflags) {
+  fprintf(stderr, "\n\n nsSOCKSIOLayerConnectContinue \n\n");
   PRStatus status;
 
   nsSOCKSSocketInfo* info = (nsSOCKSSocketInfo*)fd->secret;

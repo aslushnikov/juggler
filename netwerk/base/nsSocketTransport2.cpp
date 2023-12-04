@@ -3,6 +3,7 @@
 /* This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+#include "mozilla/StackWalk.h"
 
 #include <algorithm>
 
@@ -169,6 +170,8 @@ nsresult ErrorAccordingToNSPR(PRErrorCode errorCode) {
     // Treat EACCES as a soft error since (at least on Linux) connect() returns
     // EACCES when an IPv6 connection is blocked by a firewall. See bug 270784.
     case PR_NO_ACCESS_RIGHTS_ERROR:
+      // fprintf(stderr, "\n\n PR_NO_ACCESS_RIGHTS_ERROR \n\n");
+      // MozWalkTheStack(stderr);
       rv = NS_ERROR_CONNECTION_REFUSED;
       break;
     case PR_ADDRESS_NOT_SUPPORTED_ERROR:

@@ -6,6 +6,8 @@
 
 /* API for getting a stack trace of the C/C++ stack on the current thread */
 
+#define MOZ_DEMANGLE_SYMBOLS 1
+
 #include "mozilla/ArrayUtils.h"
 #include "mozilla/Attributes.h"
 #include "mozilla/StackWalk.h"
