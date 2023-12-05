@@ -2490,13 +2490,7 @@ nsresult nsGlobalWindowOuter::SetNewDocument(Document* aDocument,
         &nsGlobalWindowInner::FireOnNewGlobalObject));
   }
 
-<<<<<<< HEAD
   if (!newInnerWindow->mHasNotifiedGlobalCreated && mDoc) {
-||||||| parent of 0afbacfb2b9c (chore(ff-beta): bootstrap build #1429)
-  if (newInnerWindow && !newInnerWindow->mHasNotifiedGlobalCreated && mDoc) {
-=======
-  if (newInnerWindow && mDoc) {
->>>>>>> 0afbacfb2b9c (chore(ff-beta): bootstrap build #1429)
     // We should probably notify. However if this is the, arguably bad,
     // situation when we're creating a temporary non-chrome-about-blank
     // document in a chrome docshell, don't notify just yet. Instead wait
