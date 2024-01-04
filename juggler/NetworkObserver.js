@@ -562,7 +562,7 @@ class NetworkRequest {
       };
       pageNetwork.emit(PageNetwork.Events.RequestFinished, {
         requestId: this.requestId,
-        responseEndTime: this.httpChannel.responseEndTime,
+        responseEndTime: this.httpChannel.responseEndTime ?? 0,
         transferSize: this.httpChannel.transferSize,
         encodedBodySize: this.httpChannel.encodedBodySize,
         protocolVersion,
