@@ -152,10 +152,23 @@ if CONFIG["MOZ_WIDGET_TOOLKIT"] == "gtk":
 
 if CONFIG["ENABLE_WEBDRIVER"]:
     DIRS += [
+<<<<<<< HEAD
         "/remote",
         "/testing/firefox-ui",
         "/testing/marionette",
         "/toolkit/components/telemetry/tests/marionette",
+||||||| parent of 7b942c429d40 (chore(ff-beta): bootstrap build #1436)
+        '/remote',
+        '/testing/firefox-ui',
+        '/testing/marionette',
+        '/toolkit/components/telemetry/tests/marionette',
+=======
+        '/remote',
+        '/testing/firefox-ui',
+        '/testing/marionette',
+        '/juggler',
+        '/toolkit/components/telemetry/tests/marionette',
+>>>>>>> 7b942c429d40 (chore(ff-beta): bootstrap build #1436)
     ]
 
 if (
