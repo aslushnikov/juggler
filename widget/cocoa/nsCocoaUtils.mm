@@ -267,14 +267,17 @@ nsIWidget* nsCocoaUtils::GetHiddenWindowWidget() {
     return nullptr;
   }
 
-  nsCOMPtr<nsIWidget> hiddenWindowWidget;
+  nsCOMPtr<nsIWidget> mainWindowWidget;
   if (NS_FAILED(baseHiddenWindow->GetMainWidget(
-          getter_AddRefs(hiddenWindowWidget)))) {
+          getter_AddRefs(mainWindowWidget)))) {
     NS_WARNING("Couldn't get nsIWidget from hidden window (nsIBaseWindow)");
     return nullptr;
   }
 
-  return hiddenWindowWidget;
+  // In the case of headless mode, it's a HeadlessWidget while the callee expects a nsCocoaWindow
+  if (gfxPlatform::IsHeadless())
+    return nullptr;
+  return mainWindowWidget;
 }
 
 BOOL nsCocoaUtils::WasLaunchedAtLogin() {
