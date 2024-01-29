@@ -55,6 +55,8 @@ namespace JS {
  */
 extern JS_PUBLIC_API void ResetTimeZone();
 
+extern JS_PUBLIC_API bool SetTimeZoneOverride(const char* timezoneId);
+
 class ClippedTime;
 inline ClippedTime TimeClip(double time);
 

@@ -813,6 +813,7 @@ void nsDocLoader::DocLoaderIsEmpty(bool aFlushLayout,
                       ("DocLoader:%p: Firing load event for document.open\n",
                        this));
 
+<<<<<<< HEAD
               // This is a very cut-down version of
               // nsDocumentViewer::LoadComplete that doesn't do various things
               // that are not relevant here because this wasn't an actual
@@ -830,6 +831,50 @@ void nsDocLoader::DocLoaderIsEmpty(bool aFlushLayout,
                   MOZ_KnownLive(nsGlobalWindowOuter::Cast(window)), nullptr,
                   &event, nullptr, &unused);
               doc->SetLoadEventFiring(false);
+||||||| parent of ad865d4ec3c2 (chore(ff-beta): bootstrap build #1438)
+                // This is a very cut-down version of
+                // nsDocumentViewer::LoadComplete that doesn't do various things
+                // that are not relevant here because this wasn't an actual
+                // navigation.
+                WidgetEvent event(true, eLoad);
+                event.mFlags.mBubbles = false;
+                event.mFlags.mCancelable = false;
+                // Dispatching to |window|, but using |document| as the target,
+                // per spec.
+                event.mTarget = doc;
+                nsEventStatus unused = nsEventStatus_eIgnore;
+                doc->SetLoadEventFiring(true);
+                // MOZ_KnownLive due to bug 1506441
+                EventDispatcher::Dispatch(
+                    MOZ_KnownLive(nsGlobalWindowOuter::Cast(window)), nullptr,
+                    &event, nullptr, &unused);
+                doc->SetLoadEventFiring(false);
+=======
+                nsCOMPtr<nsIObserverService> os = mozilla::services::GetObserverService();
+                if (os) {
+                  nsIPrincipal* principal = doc->NodePrincipal();
+                  if (!principal->IsSystemPrincipal())
+                    os->NotifyObservers(ToSupports(doc), "juggler-document-open-loaded", nullptr);
+                }
+
+                // This is a very cut-down version of
+                // nsDocumentViewer::LoadComplete that doesn't do various things
+                // that are not relevant here because this wasn't an actual
+                // navigation.
+                WidgetEvent event(true, eLoad);
+                event.mFlags.mBubbles = false;
+                event.mFlags.mCancelable = false;
+                // Dispatching to |window|, but using |document| as the target,
+                // per spec.
+                event.mTarget = doc;
+                nsEventStatus unused = nsEventStatus_eIgnore;
+                doc->SetLoadEventFiring(true);
+                // MOZ_KnownLive due to bug 1506441
+                EventDispatcher::Dispatch(
+                    MOZ_KnownLive(nsGlobalWindowOuter::Cast(window)), nullptr,
+                    &event, nullptr, &unused);
+                doc->SetLoadEventFiring(false);
+>>>>>>> ad865d4ec3c2 (chore(ff-beta): bootstrap build #1438)
 
               // Now unsuppress painting on the presshell, if we
               // haven't done that yet.

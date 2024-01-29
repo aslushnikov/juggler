@@ -3853,6 +3853,8 @@ UpdateService.prototype = {
   },
 
   get disabledForTesting() {
+    /* playwright */
+    return true;
     return (
       (Cu.isInAutomation ||
         lazy.Marionette.running ||
