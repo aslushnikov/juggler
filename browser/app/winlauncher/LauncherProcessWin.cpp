@@ -22,6 +22,7 @@
 #include "mozilla/WinHeaderOnlyUtils.h"
 #include "nsWindowsHelpers.h"
 
+#include <io.h>
 #include <windows.h>
 #include <processthreadsapi.h>
 
@@ -421,8 +422,18 @@ Maybe<int> LauncherMain(int& argc, wchar_t* argv[],
   HANDLE stdHandles[] = {::GetStdHandle(STD_INPUT_HANDLE),
                          ::GetStdHandle(STD_OUTPUT_HANDLE),
                          ::GetStdHandle(STD_ERROR_HANDLE)};
-
   attrs.AddInheritableHandles(stdHandles);
+  // Playwright pipe installation.
+  bool hasJugglerPipe =
+      mozilla::CheckArg(argc, argv, "juggler-pipe", nullptr,
+                        mozilla::CheckArgFlag::None) == mozilla::ARG_FOUND;
+  if (hasJugglerPipe) {
+    intptr_t stdio3 = _get_osfhandle(3);
+    intptr_t stdio4 = _get_osfhandle(4);
+    HANDLE pipeHandles[] = {reinterpret_cast<HANDLE>(stdio3),
+                            reinterpret_cast<HANDLE>(stdio4)};
+    attrs.AddInheritableHandles(pipeHandles);
+  }
 
   DWORD creationFlags = CREATE_SUSPENDED | CREATE_UNICODE_ENVIRONMENT;
 
