@@ -685,7 +685,7 @@ class UpdateContextOptionsRunnable final : public WorkerControlRunnable {
 class ResetDefaultLocaleRunnable final : public WorkerControlRunnable {
  public:
   explicit ResetDefaultLocaleRunnable(WorkerPrivate* aWorkerPrivate)
-      : WorkerControlRunnable(aWorkerPrivate, WorkerThread) {}
+      : WorkerControlRunnable(aWorkerPrivate, "ResetDefaultLocaleRunnable", WorkerThread) {}
 
   virtual bool WorkerRun(JSContext* aCx,
                          WorkerPrivate* aWorkerPrivate) override {
