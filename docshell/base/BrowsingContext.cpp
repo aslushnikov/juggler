@@ -106,22 +106,15 @@ struct ParamTraits<mozilla::dom::DisplayMode>
 
 template <>
 struct ParamTraits<mozilla::dom::PrefersColorSchemeOverride>
-    : public mozilla::dom::WebIDLEnumSerializer<
-          mozilla::dom::PrefersColorSchemeOverride> {};
+    : public mozilla::dom::WebIDLEnumSerializer<mozilla::dom::PrefersColorSchemeOverride> {};
 
 template <>
 struct ParamTraits<mozilla::dom::PrefersReducedMotionOverride>
-    : public ContiguousEnumSerializer<
-          mozilla::dom::PrefersReducedMotionOverride,
-          mozilla::dom::PrefersReducedMotionOverride::None,
-          mozilla::dom::PrefersReducedMotionOverride::EndGuard_> {};
+    : public mozilla::dom::WebIDLEnumSerializer<mozilla::dom::PrefersReducedMotionOverride> {};
 
 template <>
 struct ParamTraits<mozilla::dom::ForcedColorsOverride>
-    : public ContiguousEnumSerializer<
-          mozilla::dom::ForcedColorsOverride,
-          mozilla::dom::ForcedColorsOverride::None,
-          mozilla::dom::ForcedColorsOverride::EndGuard_> {};
+    : public mozilla::dom::WebIDLEnumSerializer<mozilla::dom::ForcedColorsOverride> {};
 
 template <>
 struct ParamTraits<mozilla::dom::ExplicitActiveStatus>

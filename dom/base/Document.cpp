@@ -18883,7 +18883,6 @@ bool Document::PrefersReducedMotion() const {
       case dom::PrefersReducedMotionOverride::No_preference:
         return false;
       case dom::PrefersReducedMotionOverride::None:
-      case dom::PrefersReducedMotionOverride::EndGuard_:
         break;
     }
   }
@@ -18912,7 +18911,6 @@ bool Document::ForcedColors() const {
       case dom::ForcedColorsOverride::None:
         return false;
       case dom::ForcedColorsOverride::No_override:
-      case dom::ForcedColorsOverride::EndGuard_:
         break;
     }
   }

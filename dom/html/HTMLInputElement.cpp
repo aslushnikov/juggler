@@ -784,7 +784,8 @@ nsresult HTMLInputElement::InitFilePicker(FilePickerType aType) {
     return NS_ERROR_FAILURE;
   }
 
-  nsDocShell* docShell = static_cast<nsDocShell*>(win->GetDocShell());
+  nsCOMPtr<nsPIDOMWindowOuter> win = doc->GetWindow();
+  nsDocShell* docShell = win ? static_cast<nsDocShell*>(win->GetDocShell()) : nullptr;
   if (docShell && docShell->IsFileInputInterceptionEnabled()) {
     docShell->FilePickerShown(this);
     return NS_OK;
