@@ -138,10 +138,7 @@ void RemovePrefetchArguments(int& argc, WCHAR** argv) {
 int wmain(int argc, WCHAR** argv) {
   SanitizeEnvironmentVariables();
   SetDllDirectoryW(L"");
-<<<<<<< HEAD
   RemovePrefetchArguments(argc, argv);
-||||||| parent of 6f388f85a203 (chore(ff-beta): bootstrap build #1445)
-=======
   bool hasJugglerPipe =
       mozilla::CheckArg(argc, argv, "juggler-pipe", nullptr,
                         mozilla::CheckArgFlag::None) == mozilla::ARG_FOUND;
@@ -155,7 +152,6 @@ int wmain(int argc, WCHAR** argv) {
     SetEnvironmentVariableA("PW_PIPE_READ", stdio3str);
     SetEnvironmentVariableA("PW_PIPE_WRITE", stdio4str);
   }
->>>>>>> 6f388f85a203 (chore(ff-beta): bootstrap build #1445)
 
   // Only run this code if LauncherProcessWin.h was included beforehand, thus
   // signalling that the hosting process should support launcher mode.
