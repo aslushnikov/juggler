@@ -1532,4 +1532,6 @@ interface nsILoadInfo : nsISupports
    * Whether the load has gone through the URL bar, where the fixup had to add * the protocol scheme.
    */
    [infallible] attribute boolean wasSchemelessInput;
+
+  [infallible] attribute unsigned long long jugglerLoadIdentifier;
 };

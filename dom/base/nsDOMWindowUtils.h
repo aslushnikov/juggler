@@ -93,7 +93,7 @@ class nsDOMWindowUtils final : public nsIDOMWindowUtils,
       int32_t aClickCount, int32_t aModifiers, bool aIgnoreRootScrollFrame,
       float aPressure, unsigned short aInputSourceArg, uint32_t aIdentifier,
       bool aToWindow, bool* aPreventDefault, bool aIsDOMEventSynthesized,
-      bool aIsWidgetEventSynthesized, int32_t aButtons);
+      bool aIsWidgetEventSynthesized, int32_t aButtons, bool aConvertToPointer = true, uint32_t aJugglerEventId = 0);
 
   MOZ_CAN_RUN_SCRIPT
   nsresult SendTouchEventCommon(
