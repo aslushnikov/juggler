@@ -24,7 +24,7 @@ webidl BrowsingContext;
 [scriptable, uuid(9a20e9b0-75d0-11ea-bc55-0242ac130003)]
 interface nsIDownloadInterceptor : nsISupports
 {
-  bool interceptDownloadRequest(in nsIHelperAppLauncher aHandler, in nsIRequest aRequest, in BrowsingContext aBrowsingContext, out nsIFile file);
+  boolean interceptDownloadRequest(in nsIHelperAppLauncher aHandler, in nsIRequest aRequest, in BrowsingContext aBrowsingContext, out nsIFile file);
 
   void onDownloadComplete(in nsIHelperAppLauncher aHandler, in ACString aErrorName);
 };
