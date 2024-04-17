@@ -59,6 +59,7 @@ interface nsIInterceptedChannel : nsISupports
      * results in the resulting client not being controlled.
      */
     void resetInterception(in boolean bypass);
+    void resetInterceptionWithURI(in nsIURI aURI);
 
     /**
      * Set the status and reason for the forthcoming synthesized response.
