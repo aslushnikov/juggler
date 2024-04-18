@@ -258,6 +258,7 @@ class WidgetMouseEvent : public WidgetMouseEventBase,
       : mReason(eReal),
         mContextMenuTrigger(eNormal),
         mClickCount(0),
+        mJugglerEventId(0),
         mIgnoreRootScrollFrame(false),
         mClickEventPrevented(false) {}
 
@@ -269,6 +270,7 @@ class WidgetMouseEvent : public WidgetMouseEventBase,
         mReason(aReason),
         mContextMenuTrigger(eNormal),
         mClickCount(0),
+        mJugglerEventId(0),
         mIgnoreRootScrollFrame(false),
         mClickEventPrevented(false) {}
 
@@ -288,6 +290,7 @@ class WidgetMouseEvent : public WidgetMouseEventBase,
         mReason(aReason),
         mContextMenuTrigger(aContextMenuTrigger),
         mClickCount(0),
+        mJugglerEventId(0),
         mIgnoreRootScrollFrame(false),
         mClickEventPrevented(false) {
     if (aMessage == eContextMenu) {
@@ -336,6 +339,9 @@ class WidgetMouseEvent : public WidgetMouseEventBase,
   // Otherwise, this must be 0.
   uint32_t mClickCount;
 
+  // Unique event ID
+  uint32_t mJugglerEventId;
+
   // Whether the event should ignore scroll frame bounds during dispatch.
   bool mIgnoreRootScrollFrame;
 
@@ -348,6 +354,7 @@ class WidgetMouseEvent : public WidgetMouseEventBase,
 
     mExitFrom = aEvent.mExitFrom;
     mClickCount = aEvent.mClickCount;
+    mJugglerEventId = aEvent.mJugglerEventId;
     mIgnoreRootScrollFrame = aEvent.mIgnoreRootScrollFrame;
     mClickEventPrevented = aEvent.mClickEventPrevented;
   }
