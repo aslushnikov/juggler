@@ -2246,6 +2246,7 @@ bool nsFocusManager::BlurImpl(BrowsingContext* aBrowsingContextToClear,
                               bool aIsLeavingDocument, bool aAdjustWidget,
                               bool aRemainActive, Element* aElementToFocus,
                               uint64_t aActionId) {
+
   LOGFOCUS(("<<Blur begin actionid: %" PRIu64 ">>", aActionId));
 
   // hold a reference to the focused content, which may be null
@@ -2289,6 +2290,11 @@ bool nsFocusManager::BlurImpl(BrowsingContext* aBrowsingContextToClear,
     // preview.
     SetFocusedBrowsingContext(nullptr, aActionId);
     mFocusedElement = nullptr;
+    return true;
+  }
+
+  // Playwright: emulate focused page by never bluring when leaving document.
+  if (XRE_IsContentProcess() && aIsLeavingDocument && docShell && nsDocShell::Cast(docShell)->ShouldOverrideHasFocus()) {
     return true;
   }
 
