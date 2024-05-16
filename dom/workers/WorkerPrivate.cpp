@@ -675,15 +675,10 @@ class UpdateContextOptionsRunnable final : public WorkerControlRunnable {
   }
 };
 
-<<<<<<< HEAD
-class UpdateLanguagesRunnable final : public WorkerThreadRunnable {
-||||||| parent of f418a193b90f (chore(ff-beta): bootstrap build #1449)
-class UpdateLanguagesRunnable final : public WorkerRunnable {
-=======
 class ResetDefaultLocaleRunnable final : public WorkerControlRunnable {
  public:
   explicit ResetDefaultLocaleRunnable(WorkerPrivate* aWorkerPrivate)
-      : WorkerControlRunnable(aWorkerPrivate, "ResetDefaultLocaleRunnable", WorkerThread) {}
+      : WorkerControlRunnable("ResetDefaultLocaleRunnable") {}
 
   virtual bool WorkerRun(JSContext* aCx,
                          WorkerPrivate* aWorkerPrivate) override {
@@ -692,8 +687,7 @@ class ResetDefaultLocaleRunnable final : public WorkerControlRunnable {
   }
 };
 
-class UpdateLanguagesRunnable final : public WorkerRunnable {
->>>>>>> f418a193b90f (chore(ff-beta): bootstrap build #1449)
+class UpdateLanguagesRunnable final : public WorkerThreadRunnable {
   nsTArray<nsString> mLanguages;
 
  public:
@@ -2069,7 +2063,7 @@ void WorkerPrivate::ResetDefaultLocale() {
 
   RefPtr<ResetDefaultLocaleRunnable> runnable =
       new ResetDefaultLocaleRunnable(this);
-  if (!runnable->Dispatch()) {
+  if (!runnable->Dispatch(this)) {
     NS_WARNING("Failed to reset default locale in worker!");
   }
 }

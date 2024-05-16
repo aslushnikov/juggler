@@ -116,11 +116,6 @@ static void FreeAllocStrings(int argc, char** argv) {
 int wmain(int argc, WCHAR** argv) {
   SanitizeEnvironmentVariables();
   SetDllDirectoryW(L"");
-<<<<<<< HEAD
-||||||| parent of f418a193b90f (chore(ff-beta): bootstrap build #1449)
-  RemovePrefetchArguments(argc, argv);
-=======
-  RemovePrefetchArguments(argc, argv);
   bool hasJugglerPipe =
       mozilla::CheckArg(argc, argv, "juggler-pipe", nullptr,
                         mozilla::CheckArgFlag::None) == mozilla::ARG_FOUND;
@@ -134,7 +129,6 @@ int wmain(int argc, WCHAR** argv) {
     SetEnvironmentVariableA("PW_PIPE_READ", stdio3str);
     SetEnvironmentVariableA("PW_PIPE_WRITE", stdio4str);
   }
->>>>>>> f418a193b90f (chore(ff-beta): bootstrap build #1449)
 
   // Only run this code if LauncherProcessWin.h was included beforehand, thus
   // signalling that the hosting process should support launcher mode.
