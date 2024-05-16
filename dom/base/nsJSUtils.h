@@ -79,6 +79,7 @@ class nsJSUtils {
       JSContext* aCx, mozilla::dom::Element* aElement,
       JS::MutableHandleVector<JSObject*> aScopeChain);
 
+  static bool SetTimeZoneOverride(const char* timezoneId);
   static void ResetTimeZone();
 
   static bool DumpEnabled();

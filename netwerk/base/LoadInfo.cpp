@@ -657,7 +657,8 @@ LoadInfo::LoadInfo(const LoadInfo& rhs)
       mInterceptionInfo(rhs.mInterceptionInfo),
       mHasInjectedCookieForCookieBannerHandling(
           rhs.mHasInjectedCookieForCookieBannerHandling),
-      mWasSchemelessInput(rhs.mWasSchemelessInput) {
+      mWasSchemelessInput(rhs.mWasSchemelessInput),
+      mJugglerLoadIdentifier(rhs.mJugglerLoadIdentifier) {
 }
 
 LoadInfo::LoadInfo(
@@ -2370,6 +2371,18 @@ LoadInfo::GetWasSchemelessInput(bool* aWasSchemelessInput) {
 NS_IMETHODIMP
 LoadInfo::SetWasSchemelessInput(bool aWasSchemelessInput) {
   mWasSchemelessInput = aWasSchemelessInput;
+  return NS_OK;
+}
+
+NS_IMETHODIMP
+LoadInfo::GetJugglerLoadIdentifier(uint64_t* aResult) {
+  *aResult = mJugglerLoadIdentifier;
+  return NS_OK;
+}
+
+NS_IMETHODIMP
+LoadInfo::SetJugglerLoadIdentifier(uint64_t aID) {
+  mJugglerLoadIdentifier = aID;
   return NS_OK;
 }
 
