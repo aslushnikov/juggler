@@ -16,6 +16,8 @@ dictionary BoxQuadOptions {
   GeometryNode relativeTo;
   [ChromeOnly]
   boolean createFramesForSuppressedWhitespace = true;
+  [ChromeOnly]
+  boolean recurseWhenNoFrame = false;
 };
 
 dictionary ConvertCoordinateOptions {
@@ -26,6 +28,9 @@ dictionary ConvertCoordinateOptions {
 interface mixin GeometryUtils {
   [Throws, Func="nsINode::HasBoxQuadsSupport", NeedsCallerType]
   sequence<DOMQuad> getBoxQuads(optional BoxQuadOptions options = {});
+
+  [ChromeOnly, Throws, Func="nsINode::HasBoxQuadsSupport"]
+  undefined scrollRectIntoViewIfNeeded(long x, long y, long w, long h);
 
   /* getBoxQuadsFromWindowOrigin is similar to getBoxQuads, but the
    * returned quads are further translated relative to the window

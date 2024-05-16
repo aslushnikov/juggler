@@ -3850,6 +3850,8 @@ export class UpdateService {
   }
 
   get disabledForTesting() {
+    /* playwright */
+    return true;
     return (
       (Cu.isInAutomation ||
         lazy.Marionette.running ||

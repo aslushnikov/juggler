@@ -675,7 +675,25 @@ class UpdateContextOptionsRunnable final : public WorkerControlRunnable {
   }
 };
 
+<<<<<<< HEAD
 class UpdateLanguagesRunnable final : public WorkerThreadRunnable {
+||||||| parent of f418a193b90f (chore(ff-beta): bootstrap build #1449)
+class UpdateLanguagesRunnable final : public WorkerRunnable {
+=======
+class ResetDefaultLocaleRunnable final : public WorkerControlRunnable {
+ public:
+  explicit ResetDefaultLocaleRunnable(WorkerPrivate* aWorkerPrivate)
+      : WorkerControlRunnable(aWorkerPrivate, "ResetDefaultLocaleRunnable", WorkerThread) {}
+
+  virtual bool WorkerRun(JSContext* aCx,
+                         WorkerPrivate* aWorkerPrivate) override {
+    aWorkerPrivate->ResetDefaultLocaleInternal(aCx);
+    return true;
+  }
+};
+
+class UpdateLanguagesRunnable final : public WorkerRunnable {
+>>>>>>> f418a193b90f (chore(ff-beta): bootstrap build #1449)
   nsTArray<nsString> mLanguages;
 
  public:
@@ -2043,6 +2061,16 @@ void WorkerPrivate::UpdateContextOptions(
       new UpdateContextOptionsRunnable(this, aContextOptions);
   if (!runnable->Dispatch(this)) {
     NS_WARNING("Failed to update worker context options!");
+  }
+}
+
+void WorkerPrivate::ResetDefaultLocale() {
+  AssertIsOnParentThread();
+
+  RefPtr<ResetDefaultLocaleRunnable> runnable =
+      new ResetDefaultLocaleRunnable(this);
+  if (!runnable->Dispatch()) {
+    NS_WARNING("Failed to reset default locale in worker!");
   }
 }
 
@@ -5569,6 +5597,15 @@ void WorkerPrivate::UpdateContextOptionsInternal(
 
   for (uint32_t index = 0; index < data->mChildWorkers.Length(); index++) {
     data->mChildWorkers[index]->UpdateContextOptions(aContextOptions);
+  }
+}
+
+void WorkerPrivate::ResetDefaultLocaleInternal(JSContext* aCx) {
+  JS_ResetDefaultLocale(JS_GetRuntime(aCx));
+  auto data = mWorkerThreadAccessible.Access();
+
+  for (uint32_t index = 0; index < data->mChildWorkers.Length(); index++) {
+    data->mChildWorkers[index]->ResetDefaultLocale();
   }
 }
 
