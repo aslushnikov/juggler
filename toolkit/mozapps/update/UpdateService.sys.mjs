@@ -3875,7 +3875,25 @@ export class UpdateService {
   }
 
   get disabledForTesting() {
+<<<<<<< HEAD
     return lazy.UpdateServiceStub.updateDisabledForTesting;
+||||||| parent of b03d52c4c851 (chore(ff-beta): bootstrap build #1453)
+    return (
+      (Cu.isInAutomation ||
+        lazy.Marionette.running ||
+        lazy.RemoteAgent.running) &&
+      Services.prefs.getBoolPref(PREF_APP_UPDATE_DISABLEDFORTESTING, false)
+    );
+=======
+    /* playwright */
+    return true;
+    return (
+      (Cu.isInAutomation ||
+        lazy.Marionette.running ||
+        lazy.RemoteAgent.running) &&
+      Services.prefs.getBoolPref(PREF_APP_UPDATE_DISABLEDFORTESTING, false)
+    );
+>>>>>>> b03d52c4c851 (chore(ff-beta): bootstrap build #1453)
   }
 
   /**

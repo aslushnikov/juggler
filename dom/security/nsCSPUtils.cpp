@@ -22,6 +22,7 @@
 #include "nsSandboxFlags.h"
 #include "nsServiceManagerUtils.h"
 #include "nsWhitespaceTokenizer.h"
+#include "nsDocShell.h"
 
 #include "mozilla/Assertions.h"
 #include "mozilla/Components.h"
@@ -130,6 +131,11 @@ bool CSP_ShouldResponseInheritCSP(nsIChannel* aChannel) {
 void CSP_ApplyMetaCSPToDoc(mozilla::dom::Document& aDoc,
                            const nsAString& aPolicyStr) {
   if (aDoc.IsLoadedAsData()) {
+    return;
+  }
+
+  if (aDoc.GetDocShell() &&
+      nsDocShell::Cast(aDoc.GetDocShell())->IsBypassCSPEnabled()) {
     return;
   }
 
