@@ -71,12 +71,8 @@
 #include "mozilla/dom/ContentFrameMessageManager.h"
 #include "mozilla/dom/DocGroup.h"
 #include "mozilla/dom/Element.h"
-<<<<<<< HEAD
 #include "mozilla/dom/FragmentDirective.h"
-||||||| parent of b03d52c4c851 (chore(ff-beta): bootstrap build #1453)
-=======
 #include "mozilla/dom/Geolocation.h"
->>>>>>> b03d52c4c851 (chore(ff-beta): bootstrap build #1453)
 #include "mozilla/dom/HTMLAnchorElement.h"
 #include "mozilla/dom/HTMLIFrameElement.h"
 #include "mozilla/dom/PerformanceNavigation.h"

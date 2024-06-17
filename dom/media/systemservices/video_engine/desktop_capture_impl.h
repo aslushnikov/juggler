@@ -24,12 +24,8 @@
 #include "api/video/video_sink_interface.h"
 #include "modules/desktop_capture/desktop_capturer.h"
 #include "modules/video_capture/video_capture.h"
-<<<<<<< HEAD
 #include "rtc_base/synchronization/mutex.h"
-||||||| parent of b03d52c4c851 (chore(ff-beta): bootstrap build #1453)
-=======
 #include "rtc_base/deprecated/recursive_critical_section.h"
->>>>>>> b03d52c4c851 (chore(ff-beta): bootstrap build #1453)
 
 #include "desktop_device_info.h"
 #include "MediaEngineSource.h"
@@ -184,13 +180,7 @@ class DesktopCaptureImpl : public DesktopCapturer::Callback,
  public:
   /* Create a screen capture modules object
    */
-<<<<<<< HEAD
   static DesktopCaptureImpl* Create(
-||||||| parent of b03d52c4c851 (chore(ff-beta): bootstrap build #1453)
-  static VideoCaptureModule* Create(
-=======
-  static VideoCaptureModuleEx* Create(
->>>>>>> b03d52c4c851 (chore(ff-beta): bootstrap build #1453)
       const int32_t aModuleId, const char* aUniqueId,
       const mozilla::camera::CaptureDeviceType aType, bool aCaptureCursor = true);
 

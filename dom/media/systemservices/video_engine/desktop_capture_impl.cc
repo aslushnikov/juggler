@@ -135,13 +135,7 @@ int32_t ScreenDeviceInfoImpl::GetOrientation(const char* aDeviceUniqueIdUTF8,
   return 0;
 }
 
-<<<<<<< HEAD
 DesktopCaptureImpl* DesktopCaptureImpl::Create(const int32_t aModuleId,
-||||||| parent of b03d52c4c851 (chore(ff-beta): bootstrap build #1453)
-VideoCaptureModule* DesktopCaptureImpl::Create(const int32_t aModuleId,
-=======
-VideoCaptureModuleEx* DesktopCaptureImpl::Create(const int32_t aModuleId,
->>>>>>> b03d52c4c851 (chore(ff-beta): bootstrap build #1453)
                                                const char* aUniqueId,
                                                const CaptureDeviceType aType,
                                                bool aCaptureCursor) {
