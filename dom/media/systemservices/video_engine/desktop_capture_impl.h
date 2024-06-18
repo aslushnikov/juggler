@@ -57,6 +57,18 @@ class VideoCaptureModuleEx : public VideoCaptureModule {
 
   virtual void RegisterRawFrameCallback(RawFrameCallback* rawFrameCallback) = 0;
   virtual void DeRegisterRawFrameCallback(RawFrameCallback* rawFrameCallback) = 0;
+  int32_t StartCaptureCounted(const VideoCaptureCapability& aCapability) {
+    ++capture_counter_;
+    return capture_counter_ == 1 ? StartCapture(aCapability) : 0;
+  }
+
+  int32_t StopCaptureCounted() {
+    --capture_counter_;
+    return capture_counter_ == 0 ? StopCapture() : 0;
+  }
+
+ private:
+  int32_t capture_counter_ = 0;
 };
 
 // simulate deviceInfo interface for video engine, bridge screen/application and
