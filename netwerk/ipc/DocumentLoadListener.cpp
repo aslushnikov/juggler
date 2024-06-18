@@ -167,6 +167,7 @@ static auto CreateDocumentLoadInfo(CanonicalBrowsingContext* aBrowsingContext,
   loadInfo->SetHasValidUserGestureActivation(
       aLoadState->HasValidUserGestureActivation());
   loadInfo->SetIsMetaRefresh(aLoadState->IsMetaRefresh());
+  loadInfo->SetJugglerLoadIdentifier(aLoadState->GetLoadIdentifier());
 
   return loadInfo.forget();
 }

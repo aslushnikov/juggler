@@ -373,6 +373,26 @@ interface nsIDOMWindowUtils : nsISupports {
                          [optional] in long aButtons,
                          [optional] in unsigned long aIdentifier);
 
+  /**
+   * Playwright: a separate method to dispatch mouse event with a
+   * specific `jugglerEventId`.
+   */
+  [can_run_script]
+  unsigned long jugglerSendMouseEvent(in AString aType,
+                         in float aX,
+                         in float aY,
+                         in long aButton,
+                         in long aClickCount,
+                         in long aModifiers,
+                         in boolean aIgnoreRootScrollFrame,
+                         in float aPressure,
+                         in unsigned short aInputSourceArg,
+                         in boolean aIsDOMEventSynthesized,
+                         in boolean aIsWidgetEventSynthesized,
+                         in long aButtons,
+                         in unsigned long aIdentifier,
+                         in boolean aDisablePointerEvent);
+
   /** Synthesize a touch event. The event types supported are:
    *    touchstart, touchend, touchmove, and touchcancel
    *

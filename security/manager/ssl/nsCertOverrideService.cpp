@@ -438,7 +438,12 @@ nsCertOverrideService::HasMatchingOverride(
   bool disableAllSecurityCheck = false;
   {
     MutexAutoLock lock(mMutex);
-    disableAllSecurityCheck = mDisableAllSecurityCheck;
+    if (aOriginAttributes.mUserContextId) {
+      disableAllSecurityCheck = mUserContextIdsWithDisabledSecurityChecks.has(
+          aOriginAttributes.mUserContextId);
+    } else {
+      disableAllSecurityCheck = mDisableAllSecurityCheck;
+    }
   }
   if (disableAllSecurityCheck) {
     *aIsTemporary = false;
@@ -650,14 +655,24 @@ static bool IsDebugger() {
 
 NS_IMETHODIMP
 nsCertOverrideService::
-    SetDisableAllSecurityChecksAndLetAttackersInterceptMyData(bool aDisable) {
-  if (!(PR_GetEnv("XPCSHELL_TEST_PROFILE_DIR") || IsDebugger())) {
+    SetDisableAllSecurityChecksAndLetAttackersInterceptMyData(
+      bool aDisable, uint32_t aUserContextId) {
+  if (false /* juggler hacks */ && !(PR_GetEnv("XPCSHELL_TEST_PROFILE_DIR") || IsDebugger())) {
     return NS_ERROR_NOT_AVAILABLE;
   }
 
   {
     MutexAutoLock lock(mMutex);
-    mDisableAllSecurityCheck = aDisable;
+    if (aUserContextId) {
+      if (aDisable) {
+        mozilla::Unused << mUserContextIdsWithDisabledSecurityChecks.put(aUserContextId);
+      } else {
+        mUserContextIdsWithDisabledSecurityChecks.remove(aUserContextId);
+      }
+      return NS_OK;
+    } else {
+      mDisableAllSecurityCheck = aDisable;
+    }
   }
 
   nsCOMPtr<nsINSSComponent> nss(do_GetService(PSM_COMPONENT_CONTRACTID));
