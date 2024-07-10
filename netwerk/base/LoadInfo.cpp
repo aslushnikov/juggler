@@ -692,8 +692,15 @@ LoadInfo::LoadInfo(const LoadInfo& rhs)
       mInterceptionInfo(rhs.mInterceptionInfo),
       mHasInjectedCookieForCookieBannerHandling(
           rhs.mHasInjectedCookieForCookieBannerHandling),
+<<<<<<< HEAD
       mWasSchemelessInput(rhs.mWasSchemelessInput),
       mHttpsUpgradeTelemetry(rhs.mHttpsUpgradeTelemetry) {
+||||||| parent of 85d86873c25c (chore(ff-beta): bootstrap build #1456)
+      mWasSchemelessInput(rhs.mWasSchemelessInput) {
+=======
+      mWasSchemelessInput(rhs.mWasSchemelessInput),
+      mJugglerLoadIdentifier(rhs.mJugglerLoadIdentifier) {
+>>>>>>> 85d86873c25c (chore(ff-beta): bootstrap build #1456)
 }
 
 LoadInfo::LoadInfo(
@@ -2447,6 +2454,7 @@ LoadInfo::SetWasSchemelessInput(bool aWasSchemelessInput) {
   return NS_OK;
 }
 
+<<<<<<< HEAD
 NS_IMETHODIMP
 LoadInfo::GetHttpsUpgradeTelemetry(
     nsILoadInfo::HTTPSUpgradeTelemetryType* aOutHttpsUpgradeTelemetry) {
@@ -2461,4 +2469,19 @@ LoadInfo::SetHttpsUpgradeTelemetry(
   return NS_OK;
 }
 
+||||||| parent of 85d86873c25c (chore(ff-beta): bootstrap build #1456)
+=======
+NS_IMETHODIMP
+LoadInfo::GetJugglerLoadIdentifier(uint64_t* aResult) {
+  *aResult = mJugglerLoadIdentifier;
+  return NS_OK;
+}
+
+NS_IMETHODIMP
+LoadInfo::SetJugglerLoadIdentifier(uint64_t aID) {
+  mJugglerLoadIdentifier = aID;
+  return NS_OK;
+}
+
+>>>>>>> 85d86873c25c (chore(ff-beta): bootstrap build #1456)
 }  // namespace mozilla::net

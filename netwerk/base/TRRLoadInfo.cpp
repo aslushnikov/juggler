@@ -891,6 +891,7 @@ TRRLoadInfo::SetWasSchemelessInput(bool aWasSchemelessInput) {
   return NS_ERROR_NOT_IMPLEMENTED;
 }
 
+<<<<<<< HEAD
 NS_IMETHODIMP
 TRRLoadInfo::GetHttpsUpgradeTelemetry(
     nsILoadInfo::HTTPSUpgradeTelemetryType* aOutHttpsTelemetry) {
@@ -903,5 +904,18 @@ TRRLoadInfo::SetHttpsUpgradeTelemetry(
   return NS_ERROR_NOT_IMPLEMENTED;
 }
 
+||||||| parent of 85d86873c25c (chore(ff-beta): bootstrap build #1456)
+=======
+NS_IMETHODIMP
+TRRLoadInfo::GetJugglerLoadIdentifier(uint64_t* aResult) {
+  return NS_ERROR_NOT_IMPLEMENTED;
+}
+
+NS_IMETHODIMP
+TRRLoadInfo::SetJugglerLoadIdentifier(uint64_t aResult) {
+  return NS_ERROR_NOT_IMPLEMENTED;
+}
+
+>>>>>>> 85d86873c25c (chore(ff-beta): bootstrap build #1456)
 }  // namespace net
 }  // namespace mozilla

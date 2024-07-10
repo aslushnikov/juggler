@@ -1567,6 +1567,7 @@ interface nsILoadInfo : nsISupports
    * Whether the load has gone through the URL bar, where the fixup had to add * the protocol scheme.
    */
    [infallible] attribute boolean wasSchemelessInput;
+<<<<<<< HEAD
 
   cenum HTTPSUpgradeTelemetryType : 32 {
     NO_UPGRADE = 0,
@@ -1586,4 +1587,9 @@ interface nsILoadInfo : nsISupports
    */
   [infallible] attribute nsILoadInfo_HTTPSUpgradeTelemetryType httpsUpgradeTelemetry;
 
+||||||| parent of 85d86873c25c (chore(ff-beta): bootstrap build #1456)
+=======
+
+  [infallible] attribute unsigned long long jugglerLoadIdentifier;
+>>>>>>> 85d86873c25c (chore(ff-beta): bootstrap build #1456)
 };

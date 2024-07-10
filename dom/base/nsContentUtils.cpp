@@ -8840,7 +8840,8 @@ nsresult nsContentUtils::SendMouseEvent(
     bool aIgnoreRootScrollFrame, float aPressure,
     unsigned short aInputSourceArg, uint32_t aIdentifier, bool aToWindow,
     PreventDefaultResult* aPreventDefault, bool aIsDOMEventSynthesized,
-    bool aIsWidgetEventSynthesized) {
+    bool aIsWidgetEventSynthesized,
+    bool convertToPointer, uint32_t aJugglerEventId) {
   nsPoint offset;
   nsCOMPtr<nsIWidget> widget = GetWidget(aPresShell, &offset);
   if (!widget) return NS_ERROR_FAILURE;
@@ -8848,6 +8849,7 @@ nsresult nsContentUtils::SendMouseEvent(
   EventMessage msg;
   Maybe<WidgetMouseEvent::ExitFrom> exitFrom;
   bool contextMenuKey = false;
+  bool isDragEvent = false;
   if (aType.EqualsLiteral("mousedown")) {
     msg = eMouseDown;
   } else if (aType.EqualsLiteral("mouseup")) {
@@ -8872,6 +8874,12 @@ nsresult nsContentUtils::SendMouseEvent(
     msg = eMouseHitTest;
   } else if (aType.EqualsLiteral("MozMouseExploreByTouch")) {
     msg = eMouseExploreByTouch;
+  } else if (aType.EqualsLiteral("dragover")) {
+    msg = eDragOver;
+    isDragEvent = true;
+  } else if (aType.EqualsLiteral("drop")) {
+    msg = eDrop;
+    isDragEvent = true;
   } else {
     return NS_ERROR_FAILURE;
   }
@@ -8880,6 +8888,7 @@ nsresult nsContentUtils::SendMouseEvent(
     aInputSourceArg = MouseEvent_Binding::MOZ_SOURCE_MOUSE;
   }
 
+<<<<<<< HEAD
   Maybe<WidgetPointerEvent> pointerEvent;
   Maybe<WidgetMouseEvent> mouseEvent;
   if (IsPointerEventMessage(msg)) {
@@ -8891,7 +8900,26 @@ nsresult nsContentUtils::SendMouseEvent(
       return NS_ERROR_INVALID_ARG;
     }
     pointerEvent.emplace(true, msg, widget,
+||||||| parent of 85d86873c25c (chore(ff-beta): bootstrap build #1456)
+  WidgetMouseEvent event(true, msg, widget,
+                         aIsWidgetEventSynthesized
+                             ? WidgetMouseEvent::eSynthesized
+                             : WidgetMouseEvent::eReal,
+=======
+  std::unique_ptr<WidgetMouseEvent> eventOwner;
+  if (isDragEvent) {
+    eventOwner.reset(new WidgetDragEvent(true, msg, widget));
+    eventOwner->mReason = aIsWidgetEventSynthesized
+                             ? WidgetMouseEvent::eSynthesized
+                             : WidgetMouseEvent::eReal;
+  } else {
+    eventOwner.reset(new WidgetMouseEvent(true, msg, widget,
+                         aIsWidgetEventSynthesized
+                             ? WidgetMouseEvent::eSynthesized
+                             : WidgetMouseEvent::eReal,
+>>>>>>> 85d86873c25c (chore(ff-beta): bootstrap build #1456)
                          contextMenuKey ? WidgetMouseEvent::eContextMenuKey
+<<<<<<< HEAD
                                         : WidgetMouseEvent::eNormal);
   } else {
     mouseEvent.emplace(true, msg, widget,
@@ -8915,6 +8943,39 @@ nsresult nsContentUtils::SendMouseEvent(
   mouseOrPointerEvent.mClickCount = aClickCount;
   mouseOrPointerEvent.mFlags.mIsSynthesizedForTests = aIsDOMEventSynthesized;
   mouseOrPointerEvent.mExitFrom = exitFrom;
+||||||| parent of 85d86873c25c (chore(ff-beta): bootstrap build #1456)
+                                        : WidgetMouseEvent::eNormal);
+  event.pointerId = aIdentifier;
+  event.mModifiers = GetWidgetModifiers(aModifiers);
+  event.mButton = aButton;
+  event.mButtons = aButtons != nsIDOMWindowUtils::MOUSE_BUTTONS_NOT_SPECIFIED
+                       ? aButtons
+                   : msg == eMouseUp ? 0
+                                     : GetButtonsFlagForButton(aButton);
+  event.mPressure = aPressure;
+  event.mInputSource = aInputSourceArg;
+  event.mClickCount = aClickCount;
+  event.mFlags.mIsSynthesizedForTests = aIsDOMEventSynthesized;
+  event.mExitFrom = exitFrom;
+=======
+                                        : WidgetMouseEvent::eNormal));
+  }
+  WidgetMouseEvent& event = *eventOwner.get();
+  event.pointerId = aIdentifier;
+  event.mModifiers = GetWidgetModifiers(aModifiers);
+  event.mButton = aButton;
+  event.mButtons = aButtons != nsIDOMWindowUtils::MOUSE_BUTTONS_NOT_SPECIFIED
+                       ? aButtons
+                   : msg == eMouseUp ? 0
+                                     : GetButtonsFlagForButton(aButton);
+  event.mPressure = aPressure;
+  event.mInputSource = aInputSourceArg;
+  event.mClickCount = aClickCount;
+  event.mJugglerEventId = aJugglerEventId;
+  event.mFlags.mIsSynthesizedForTests = aIsDOMEventSynthesized;
+  event.mExitFrom = exitFrom;
+  event.convertToPointer = convertToPointer;
+>>>>>>> 85d86873c25c (chore(ff-beta): bootstrap build #1456)
 
   nsPresContext* presContext = aPresShell->GetPresContext();
   if (!presContext) return NS_ERROR_FAILURE;
