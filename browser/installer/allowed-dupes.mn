@@ -67,34 +67,12 @@ browser/features/webcompat@mozilla.org/shims/empty-shim.txt
 removed-files
 #endif
 
-<<<<<<< HEAD
-||||||| parent of 85d86873c25c (chore(ff-beta): bootstrap build #1456)
-# Bug 1496075 - Switch searchplugins to Web Extensions
-browser/chrome/browser/search-extensions/amazon/favicon.ico
-browser/chrome/browser/search-extensions/amazondotcn/favicon.ico
-browser/chrome/browser/search-extensions/amazondotcom/favicon.ico
-browser/chrome/browser/search-extensions/mercadolibre/favicon.ico
-browser/chrome/browser/search-extensions/mercadolivre/favicon.ico
-browser/chrome/browser/search-extensions/qwant/favicon.ico
-browser/chrome/browser/search-extensions/qwantjr/favicon.ico
-
-=======
 # Juggler/marionette files
 chrome/juggler/content/content/floating-scrollbars.css
 browser/chrome/devtools/skin/floating-scrollbars-responsive-design.css
 chrome/juggler/content/server/stream-utils.js
 chrome/marionette/content/stream-utils.js
 
-# Bug 1496075 - Switch searchplugins to Web Extensions
-browser/chrome/browser/search-extensions/amazon/favicon.ico
-browser/chrome/browser/search-extensions/amazondotcn/favicon.ico
-browser/chrome/browser/search-extensions/amazondotcom/favicon.ico
-browser/chrome/browser/search-extensions/mercadolibre/favicon.ico
-browser/chrome/browser/search-extensions/mercadolivre/favicon.ico
-browser/chrome/browser/search-extensions/qwant/favicon.ico
-browser/chrome/browser/search-extensions/qwantjr/favicon.ico
-
->>>>>>> 85d86873c25c (chore(ff-beta): bootstrap build #1456)
 # Bug 1606928 - There's no reliable way to connect Top Sites favicons with the favicons in the Search Service
 browser/chrome/browser/content/activity-stream/data/content/tippytop/favicons/allegro-pl.ico
 browser/defaults/settings/main/search-config-icons/96327a73-c433-5eb4-a16d-b090cadfb80b

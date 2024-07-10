@@ -413,15 +413,10 @@ class LoadInfo final : public nsILoadInfo {
 
   bool mHasInjectedCookieForCookieBannerHandling = false;
   bool mWasSchemelessInput = false;
-<<<<<<< HEAD
-
   nsILoadInfo::HTTPSUpgradeTelemetryType mHttpsUpgradeTelemetry =
       nsILoadInfo::NO_UPGRADE;
-||||||| parent of 85d86873c25c (chore(ff-beta): bootstrap build #1456)
-=======
 
   uint64_t mJugglerLoadIdentifier = 0;
->>>>>>> 85d86873c25c (chore(ff-beta): bootstrap build #1456)
 };
 
 // This is exposed solely for testing purposes and should not be used outside of

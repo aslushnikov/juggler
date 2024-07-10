@@ -254,24 +254,7 @@ class WidgetMouseEvent : public WidgetMouseEventBase,
   };
 
  protected:
-<<<<<<< HEAD
   WidgetMouseEvent() = default;
-||||||| parent of 85d86873c25c (chore(ff-beta): bootstrap build #1456)
-  WidgetMouseEvent()
-      : mReason(eReal),
-        mContextMenuTrigger(eNormal),
-        mClickCount(0),
-        mIgnoreRootScrollFrame(false),
-        mClickEventPrevented(false) {}
-=======
-  WidgetMouseEvent()
-      : mReason(eReal),
-        mContextMenuTrigger(eNormal),
-        mClickCount(0),
-        mJugglerEventId(0),
-        mIgnoreRootScrollFrame(false),
-        mClickEventPrevented(false) {}
->>>>>>> 85d86873c25c (chore(ff-beta): bootstrap build #1456)
 
   WidgetMouseEvent(bool aIsTrusted, EventMessage aMessage, nsIWidget* aWidget,
                    EventClassID aEventClassID, Reason aReason,
@@ -280,20 +263,7 @@ class WidgetMouseEvent : public WidgetMouseEventBase,
       : WidgetMouseEventBase(aIsTrusted, aMessage, aWidget, aEventClassID,
                              aTime),
         mReason(aReason),
-<<<<<<< HEAD
         mContextMenuTrigger(aContextMenuTrigger) {}
-||||||| parent of 85d86873c25c (chore(ff-beta): bootstrap build #1456)
-        mContextMenuTrigger(eNormal),
-        mClickCount(0),
-        mIgnoreRootScrollFrame(false),
-        mClickEventPrevented(false) {}
-=======
-        mContextMenuTrigger(eNormal),
-        mClickCount(0),
-        mJugglerEventId(0),
-        mIgnoreRootScrollFrame(false),
-        mClickEventPrevented(false) {}
->>>>>>> 85d86873c25c (chore(ff-beta): bootstrap build #1456)
 
 #ifdef DEBUG
   void AssertContextMenuEventButtonConsistency() const;
@@ -309,21 +279,8 @@ class WidgetMouseEvent : public WidgetMouseEventBase,
       : WidgetMouseEventBase(aIsTrusted, aMessage, aWidget, eMouseEventClass,
                              aTime),
         mReason(aReason),
-<<<<<<< HEAD
         mContextMenuTrigger(aContextMenuTrigger) {
     MOZ_ASSERT_IF(aIsTrusted, !IsPointerEventMessage(mMessage));
-||||||| parent of 85d86873c25c (chore(ff-beta): bootstrap build #1456)
-        mContextMenuTrigger(aContextMenuTrigger),
-        mClickCount(0),
-        mIgnoreRootScrollFrame(false),
-        mClickEventPrevented(false) {
-=======
-        mContextMenuTrigger(aContextMenuTrigger),
-        mClickCount(0),
-        mJugglerEventId(0),
-        mIgnoreRootScrollFrame(false),
-        mClickEventPrevented(false) {
->>>>>>> 85d86873c25c (chore(ff-beta): bootstrap build #1456)
     if (aMessage == eContextMenu) {
       mButton = (mContextMenuTrigger == eNormal) ? MouseButton::eSecondary
                                                  : MouseButton::ePrimary;
@@ -371,7 +328,7 @@ class WidgetMouseEvent : public WidgetMouseEventBase,
   uint32_t mClickCount = 0;
 
   // Unique event ID
-  uint32_t mJugglerEventId;
+  uint32_t mJugglerEventId = 0;
 
   // Whether the event should ignore scroll frame bounds during dispatch.
   bool mIgnoreRootScrollFrame = false;

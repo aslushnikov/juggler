@@ -785,11 +785,6 @@ nsresult HTMLInputElement::InitFilePicker(FilePickerType aType) {
     return NS_ERROR_FAILURE;
   }
 
-<<<<<<< HEAD
-  if (IsPickerBlocked(doc)) {
-||||||| parent of 85d86873c25c (chore(ff-beta): bootstrap build #1456)
-  if (IsPopupBlocked(doc)) {
-=======
   nsCOMPtr<nsPIDOMWindowOuter> win = doc->GetWindow();
   nsDocShell* docShell = win ? static_cast<nsDocShell*>(win->GetDocShell()) : nullptr;
   if (docShell && docShell->IsFileInputInterceptionEnabled()) {
@@ -797,8 +792,7 @@ nsresult HTMLInputElement::InitFilePicker(FilePickerType aType) {
     return NS_OK;
   }
 
-  if (IsPopupBlocked(doc)) {
->>>>>>> 85d86873c25c (chore(ff-beta): bootstrap build #1456)
+  if (IsPickerBlocked(doc)) {
     return NS_OK;
   }
 
