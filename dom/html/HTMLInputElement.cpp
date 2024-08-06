@@ -60,15 +60,7 @@
 #include "mozilla/dom/Document.h"
 #include "mozilla/dom/HTMLDataListElement.h"
 #include "mozilla/dom/HTMLOptionElement.h"
-<<<<<<< HEAD
-||||||| parent of de27941a807b (chore(ff-beta): bootstrap build #1458)
-#include "nsIFormControlFrame.h"
-#include "nsITextControlFrame.h"
-=======
 #include "nsDocShell.h"
-#include "nsIFormControlFrame.h"
-#include "nsITextControlFrame.h"
->>>>>>> de27941a807b (chore(ff-beta): bootstrap build #1458)
 #include "nsIFrame.h"
 #include "nsRangeFrame.h"
 #include "nsError.h"

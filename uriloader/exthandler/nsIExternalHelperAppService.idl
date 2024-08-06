@@ -90,7 +90,6 @@ interface nsIExternalHelperAppService : nsISupports
   boolean applyDecodingForExtension(in AUTF8String aExtension,
                                     in ACString aEncodingType);
 
-<<<<<<< HEAD
   /**
    * Returns the current downloads directory, given the current preferences. May
    * perform synchronous I/O.
@@ -102,10 +101,8 @@ interface nsIExternalHelperAppService : nsISupports
    * `DownloadIntegration.sys.mjs`, which is implemented on all platforms.
    */
   nsIFile getPreferredDownloadsDirectory();
-||||||| parent of de27941a807b (chore(ff-beta): bootstrap build #1458)
-=======
+
   void setDownloadInterceptor(in nsIDownloadInterceptor interceptor);
->>>>>>> de27941a807b (chore(ff-beta): bootstrap build #1458)
 };
 
 /**
