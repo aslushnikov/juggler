@@ -1590,4 +1590,5 @@ interface nsILoadInfo : nsISupports
    */
   [infallible] attribute nsILoadInfo_HTTPSUpgradeTelemetryType httpsUpgradeTelemetry;
 
+  [infallible] attribute unsigned long long jugglerLoadIdentifier;
 };

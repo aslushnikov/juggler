@@ -4077,6 +4077,9 @@ class Document : public nsINode,
   // color-scheme meta tag.
   ColorScheme DefaultColorScheme() const;
 
+  bool PrefersReducedMotion() const;
+  bool ForcedColors() const;
+
   static bool HasRecentlyStartedForegroundLoads();
 
   static bool AutomaticStorageAccessPermissionCanBeGranted(

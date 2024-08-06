@@ -698,6 +698,10 @@ bool nsLayoutUtils::AllowZoomingForDocument(
       !aDocument->GetPresShell()->AsyncPanZoomEnabled()) {
     return false;
   }
+
+  /* Playwright: disable zooming as we don't support meta viewport tag */
+  if (1 == 1) return false;
+
   // True if we allow zooming for all documents on this platform, or if we are
   // in RDM.
   BrowsingContext* bc = aDocument->GetBrowsingContext();
@@ -9768,6 +9772,9 @@ void nsLayoutUtils::ComputeSystemFont(nsFont* aSystemFont,
 
 /* static */
 bool nsLayoutUtils::ShouldHandleMetaViewport(const Document* aDocument) {
+  /* Playwright: disable meta viewport handling since we don't require one */
+  if (1 == 1) return false;
+
   BrowsingContext* bc = aDocument->GetBrowsingContext();
   return StaticPrefs::dom_meta_viewport_enabled() || (bc && bc->InRDMPane());
 }

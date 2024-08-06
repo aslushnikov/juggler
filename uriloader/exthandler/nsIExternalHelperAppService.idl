@@ -6,14 +6,28 @@
 
 #include "nsICancelable.idl"
 
+webidl BrowsingContext;
+interface nsIHelperAppLauncher;
 interface nsIURI;
 interface nsIChannel;
+interface nsIRequest;
 interface nsIStreamListener;
 interface nsIFile;
 interface nsIMIMEInfo;
 interface nsIWebProgressListener2;
 interface nsIInterfaceRequestor;
 webidl BrowsingContext;
+
+/**
+ * Interceptor interface used by Juggler.
+ */
+[scriptable, uuid(9a20e9b0-75d0-11ea-bc55-0242ac130003)]
+interface nsIDownloadInterceptor : nsISupports
+{
+  boolean interceptDownloadRequest(in nsIHelperAppLauncher aHandler, in nsIRequest aRequest, in BrowsingContext aBrowsingContext, out nsIFile file);
+
+  void onDownloadComplete(in nsIHelperAppLauncher aHandler, in ACString aErrorName);
+};
 
 /**
  * The external helper app service is used for finding and launching
@@ -76,6 +90,7 @@ interface nsIExternalHelperAppService : nsISupports
   boolean applyDecodingForExtension(in AUTF8String aExtension,
                                     in ACString aEncodingType);
 
+<<<<<<< HEAD
   /**
    * Returns the current downloads directory, given the current preferences. May
    * perform synchronous I/O.
@@ -87,6 +102,10 @@ interface nsIExternalHelperAppService : nsISupports
    * `DownloadIntegration.sys.mjs`, which is implemented on all platforms.
    */
   nsIFile getPreferredDownloadsDirectory();
+||||||| parent of de27941a807b (chore(ff-beta): bootstrap build #1458)
+=======
+  void setDownloadInterceptor(in nsIDownloadInterceptor interceptor);
+>>>>>>> de27941a807b (chore(ff-beta): bootstrap build #1458)
 };
 
 /**

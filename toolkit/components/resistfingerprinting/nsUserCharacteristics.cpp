@@ -553,7 +553,7 @@ void PopulateLanguages() {
   // sufficient to only collect this information as the other properties are
   // just reformats of Navigator::GetAcceptLanguages.
   nsTArray<nsString> languages;
-  dom::Navigator::GetAcceptLanguages(languages);
+  dom::Navigator::GetAcceptLanguages(nullptr, languages);
   nsCString output = "["_ns;
 
   for (const auto& language : languages) {
