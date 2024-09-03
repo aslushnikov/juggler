@@ -237,6 +237,7 @@ struct ParamTraits<mozilla::WidgetMouseEvent> {
                               aParam.mExitFrom.value()));
     }
     WriteParam(aWriter, aParam.mClickCount);
+    WriteParam(aWriter, aParam.mJugglerEventId);
   }
 
   static bool Read(MessageReader* aReader, paramType* aResult) {
@@ -261,6 +262,7 @@ struct ParamTraits<mozilla::WidgetMouseEvent> {
       aResult->mExitFrom = Some(static_cast<paramType::ExitFrom>(exitFrom));
     }
     rv = rv && ReadParam(aReader, &aResult->mClickCount);
+    rv = rv && ReadParam(aReader, &aResult->mJugglerEventId);
     return rv;
   }
 };

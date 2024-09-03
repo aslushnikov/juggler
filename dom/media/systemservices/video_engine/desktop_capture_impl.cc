@@ -52,9 +52,10 @@ namespace webrtc {
 
 DesktopCaptureImpl* DesktopCaptureImpl::Create(const int32_t aModuleId,
                                                const char* aUniqueId,
-                                               const CaptureDeviceType aType) {
+                                               const CaptureDeviceType aType,
+                                               bool aCaptureCursor) {
   return new rtc::RefCountedObject<DesktopCaptureImpl>(aModuleId, aUniqueId,
-                                                       aType);
+                                                       aType, aCaptureCursor);
 }
 
 static DesktopCaptureOptions CreateDesktopCaptureOptions() {
@@ -159,7 +160,7 @@ static bool UsePipewire() {
 
 static std::unique_ptr<DesktopCapturer> CreateDesktopCapturerAndThread(
     CaptureDeviceType aDeviceType, DesktopCapturer::SourceId aSourceId,
-    nsIThread** aOutThread) {
+    nsIThread** aOutThread, bool aCaptureCursor) {
   DesktopCaptureOptions options = CreateDesktopCaptureOptions();
   auto ensureThread = [&]() {
     if (*aOutThread) {
@@ -226,6 +227,7 @@ static std::unique_ptr<DesktopCapturer> CreateDesktopCapturerAndThread(
         return capturer;
       }
 
+<<<<<<< HEAD
       capturer->SelectSource(aSourceId);
 
       return std::make_unique<DesktopAndCursorComposer>(std::move(capturer),
@@ -243,6 +245,27 @@ static std::unique_ptr<DesktopCapturer> CreateDesktopCapturerAndThread(
 
   std::unique_ptr<DesktopCapturer> capturer = createCapturer();
   if (!capturer) {
+||||||| parent of e3cee8e5df7b (chore(ff-beta): bootstrap build #1462)
+    capturer = std::make_unique<DesktopAndCursorComposer>(std::move(capturer),
+                                                          options);
+  } else if (aDeviceType == CaptureDeviceType::Browser) {
+    // XXX We don't capture cursors, so avoid the extra indirection layer. We
+    // could also pass null for the pMouseCursorMonitor.
+    capturer = CreateTabCapturer(options, aSourceId, ensureThread());
+  } else {
+    MOZ_ASSERT(!capturer);
+=======
+    if (aCaptureCursor) {
+      capturer = std::make_unique<DesktopAndCursorComposer>(
+          std::move(capturer), options);
+    }
+  } else if (aDeviceType == CaptureDeviceType::Browser) {
+    // XXX We don't capture cursors, so avoid the extra indirection layer. We
+    // could also pass null for the pMouseCursorMonitor.
+    capturer = CreateTabCapturer(options, aSourceId, ensureThread());
+  } else {
+    MOZ_ASSERT(!capturer);
+>>>>>>> e3cee8e5df7b (chore(ff-beta): bootstrap build #1462)
     return capturer;
   }
 
@@ -253,7 +276,8 @@ static std::unique_ptr<DesktopCapturer> CreateDesktopCapturerAndThread(
 }
 
 DesktopCaptureImpl::DesktopCaptureImpl(const int32_t aId, const char* aUniqueId,
-                                       const CaptureDeviceType aType)
+                                       const CaptureDeviceType aType,
+                                       bool aCaptureCursor)
     : mModuleId(aId),
       mTrackingId(mozilla::TrackingId(CaptureEngineToTrackingSourceStr([&] {
                                         switch (aType) {
@@ -270,6 +294,7 @@ DesktopCaptureImpl::DesktopCaptureImpl(const int32_t aId, const char* aUniqueId,
                                       aId)),
       mDeviceUniqueId(aUniqueId),
       mDeviceType(aType),
+      capture_cursor_(aCaptureCursor),
       mControlThread(mozilla::GetCurrentSerialEventTarget()),
       mNextFrameMinimumTime(Timestamp::Zero()),
       mCallbacks("DesktopCaptureImpl::mCallbacks") {}
@@ -291,6 +316,19 @@ void DesktopCaptureImpl::DeRegisterCaptureDataCallback(
   auto it = callbacks->find(aDataCallback);
   if (it != callbacks->end()) {
     callbacks->erase(it);
+  }
+}
+
+void DesktopCaptureImpl::RegisterRawFrameCallback(RawFrameCallback* rawFrameCallback) {
+  rtc::CritScope lock(&mApiCs);
+  _rawFrameCallbacks.insert(rawFrameCallback);
+}
+
+void DesktopCaptureImpl::DeRegisterRawFrameCallback(RawFrameCallback* rawFrameCallback) {
+  rtc::CritScope lock(&mApiCs);
+  auto it = _rawFrameCallbacks.find(rawFrameCallback);
+  if (it != _rawFrameCallbacks.end()) {
+    _rawFrameCallbacks.erase(it);
   }
 }
 
@@ -326,7 +364,7 @@ int32_t DesktopCaptureImpl::StartCapture(
 
   DesktopCapturer::SourceId sourceId = std::stoi(mDeviceUniqueId);
   std::unique_ptr capturer = CreateDesktopCapturerAndThread(
-      mDeviceType, sourceId, getter_AddRefs(mCaptureThread));
+      mDeviceType, sourceId, getter_AddRefs(mCaptureThread), capture_cursor_);
 
   MOZ_ASSERT(!capturer == !mCaptureThread);
   if (!capturer) {
@@ -435,6 +473,15 @@ void DesktopCaptureImpl::OnCaptureResult(DesktopCapturer::Result aResult,
   frameInfo.width = aFrame->size().width();
   frameInfo.height = aFrame->size().height();
   frameInfo.videoType = VideoType::kARGB;
+
+  size_t videoFrameStride =
+      frameInfo.width * DesktopFrame::kBytesPerPixel;
+  {
+    rtc::CritScope cs(&mApiCs);
+    for (auto rawFrameCallback : _rawFrameCallbacks) {
+      rawFrameCallback->OnRawFrame(videoFrame, videoFrameStride, frameInfo);
+    }
+  }
 
   size_t videoFrameLength =
       frameInfo.width * frameInfo.height * DesktopFrame::kBytesPerPixel;

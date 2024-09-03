@@ -324,7 +324,13 @@ void CanonicalBrowsingContext::ReplacedBy(
   txn.SetHasRestoreData(GetHasRestoreData());
   txn.SetShouldDelayMediaFromStart(GetShouldDelayMediaFromStart());
   txn.SetForceOffline(GetForceOffline());
+<<<<<<< HEAD
   txn.SetTopInnerSizeForRFP(GetTopInnerSizeForRFP());
+||||||| parent of e3cee8e5df7b (chore(ff-beta): bootstrap build #1462)
+=======
+  txn.SetPrefersReducedMotionOverride(GetPrefersReducedMotionOverride());
+  txn.SetForcedColorsOverride(GetForcedColorsOverride());
+>>>>>>> e3cee8e5df7b (chore(ff-beta): bootstrap build #1462)
 
   // Propagate some settings on BrowsingContext replacement so they're not lost
   // on bfcached navigations. These are important for GeckoView (see bug
@@ -1595,6 +1601,12 @@ void CanonicalBrowsingContext::LoadURI(nsIURI* aURI,
     return;
   }
 
+  {
+    nsCOMPtr<nsIObserverService> observerService = mozilla::services::GetObserverService();
+    if (observerService) {
+      observerService->NotifyObservers(ToSupports(this), "juggler-navigation-started-browser", NS_ConvertASCIItoUTF16(nsPrintfCString("%" PRIu64, loadState->GetLoadIdentifier())).get());
+    }
+  }
   LoadURI(loadState, true);
 }
 

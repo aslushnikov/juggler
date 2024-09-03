@@ -303,10 +303,16 @@ impl ForcedColors {
 
 /// https://drafts.csswg.org/mediaqueries-5/#forced-colors
 fn eval_forced_colors(context: &Context, query_value: Option<ForcedColors>) -> bool {
-    let forced = context.device().forced_colors();
+    let prefers_forced_colors =
+        unsafe { bindings::Gecko_MediaFeatures_ForcedColors(context.device().document()) };
+    let query_value = match query_value {
+        Some(v) => v,
+        None => return prefers_forced_colors,
+    };
     match query_value {
-        Some(query_value) => query_value == forced,
-        None => forced != ForcedColors::None,
+        ForcedColors::Active => prefers_forced_colors,
+        ForcedColors::Requested => prefers_forced_colors,
+        ForcedColors::None => !prefers_forced_colors,
     }
 }
 

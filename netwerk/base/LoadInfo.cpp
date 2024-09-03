@@ -693,7 +693,8 @@ LoadInfo::LoadInfo(const LoadInfo& rhs)
       mHasInjectedCookieForCookieBannerHandling(
           rhs.mHasInjectedCookieForCookieBannerHandling),
       mWasSchemelessInput(rhs.mWasSchemelessInput),
-      mHttpsUpgradeTelemetry(rhs.mHttpsUpgradeTelemetry) {
+      mHttpsUpgradeTelemetry(rhs.mHttpsUpgradeTelemetry),
+      mJugglerLoadIdentifier(rhs.mJugglerLoadIdentifier) {
 }
 
 LoadInfo::LoadInfo(
@@ -2458,6 +2459,18 @@ NS_IMETHODIMP
 LoadInfo::SetHttpsUpgradeTelemetry(
     nsILoadInfo::HTTPSUpgradeTelemetryType aHttpsUpgradeTelemetry) {
   mHttpsUpgradeTelemetry = aHttpsUpgradeTelemetry;
+  return NS_OK;
+}
+
+NS_IMETHODIMP
+LoadInfo::GetJugglerLoadIdentifier(uint64_t* aResult) {
+  *aResult = mJugglerLoadIdentifier;
+  return NS_OK;
+}
+
+NS_IMETHODIMP
+LoadInfo::SetJugglerLoadIdentifier(uint64_t aID) {
+  mJugglerLoadIdentifier = aID;
   return NS_OK;
 }
 
