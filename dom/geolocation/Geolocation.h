@@ -184,7 +184,6 @@ class Geolocation final : public nsIGeolocationUpdate, public nsWrapperCache {
   // null.
   static already_AddRefed<Geolocation> NonWindowSingleton();
 
-<<<<<<< HEAD
   static geolocation::SystemGeolocationPermissionBehavior
   GetLocationOSPermission();
 
@@ -192,11 +191,8 @@ class Geolocation final : public nsIGeolocationUpdate, public nsWrapperCache {
       BrowsingContext* aBrowsingContext,
       geolocation::ParentRequestResolver&& aResolver);
 
-||||||| parent of e3cee8e5df7b (chore(ff-beta): bootstrap build #1462)
-=======
   nsGeolocationService* GetGeolocationService() { return mService; };
 
->>>>>>> e3cee8e5df7b (chore(ff-beta): bootstrap build #1462)
  private:
   ~Geolocation();
 

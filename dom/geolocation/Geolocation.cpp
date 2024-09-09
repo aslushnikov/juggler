@@ -384,7 +384,6 @@ nsGeolocationRequest::Allow(JS::Handle<JS::Value> aChoices) {
     return NS_OK;
   }
 
-<<<<<<< HEAD
   if (mBehavior != SystemGeolocationPermissionBehavior::NoPrompt) {
     // Asynchronously present the system dialog or open system preferences
     // (RequestGeolocationPermissionFromUser will know which to do), and wait
@@ -417,19 +416,8 @@ nsGeolocationRequest::Allow(JS::Handle<JS::Value> aChoices) {
     return NS_OK;
   }
 
-  RefPtr<nsGeolocationService> gs =
-      nsGeolocationService::GetGeolocationService();
-
-  bool canUseCache = false;
-||||||| parent of e3cee8e5df7b (chore(ff-beta): bootstrap build #1462)
-  RefPtr<nsGeolocationService> gs =
-      nsGeolocationService::GetGeolocationService();
-
-  bool canUseCache = false;
-=======
   nsGeolocationService* gs = mLocator->GetGeolocationService();
   bool canUseCache = gs != nsGeolocationService::sService.get();
->>>>>>> e3cee8e5df7b (chore(ff-beta): bootstrap build #1462)
   CachedPositionAndAccuracy lastPosition = gs->GetCachedPosition();
   if (lastPosition.position) {
     EpochTimeStamp cachedPositionTime_ms;

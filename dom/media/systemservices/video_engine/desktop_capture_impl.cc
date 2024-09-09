@@ -162,6 +162,8 @@ static std::unique_ptr<DesktopCapturer> CreateDesktopCapturerAndThread(
     CaptureDeviceType aDeviceType, DesktopCapturer::SourceId aSourceId,
     nsIThread** aOutThread, bool aCaptureCursor) {
   DesktopCaptureOptions options = CreateDesktopCaptureOptions();
+  if (aCaptureCursor)
+    options.set_prefer_cursor_embedded(aCaptureCursor);
   auto ensureThread = [&]() {
     if (*aOutThread) {
       return *aOutThread;
@@ -227,7 +229,6 @@ static std::unique_ptr<DesktopCapturer> CreateDesktopCapturerAndThread(
         return capturer;
       }
 
-<<<<<<< HEAD
       capturer->SelectSource(aSourceId);
 
       return std::make_unique<DesktopAndCursorComposer>(std::move(capturer),
@@ -245,27 +246,6 @@ static std::unique_ptr<DesktopCapturer> CreateDesktopCapturerAndThread(
 
   std::unique_ptr<DesktopCapturer> capturer = createCapturer();
   if (!capturer) {
-||||||| parent of e3cee8e5df7b (chore(ff-beta): bootstrap build #1462)
-    capturer = std::make_unique<DesktopAndCursorComposer>(std::move(capturer),
-                                                          options);
-  } else if (aDeviceType == CaptureDeviceType::Browser) {
-    // XXX We don't capture cursors, so avoid the extra indirection layer. We
-    // could also pass null for the pMouseCursorMonitor.
-    capturer = CreateTabCapturer(options, aSourceId, ensureThread());
-  } else {
-    MOZ_ASSERT(!capturer);
-=======
-    if (aCaptureCursor) {
-      capturer = std::make_unique<DesktopAndCursorComposer>(
-          std::move(capturer), options);
-    }
-  } else if (aDeviceType == CaptureDeviceType::Browser) {
-    // XXX We don't capture cursors, so avoid the extra indirection layer. We
-    // could also pass null for the pMouseCursorMonitor.
-    capturer = CreateTabCapturer(options, aSourceId, ensureThread());
-  } else {
-    MOZ_ASSERT(!capturer);
->>>>>>> e3cee8e5df7b (chore(ff-beta): bootstrap build #1462)
     return capturer;
   }
 
