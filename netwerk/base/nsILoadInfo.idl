@@ -1590,14 +1590,10 @@ interface nsILoadInfo : nsISupports
    */
   [infallible] attribute nsILoadInfo_HTTPSUpgradeTelemetryType httpsUpgradeTelemetry;
 
-<<<<<<< HEAD
   /**
    * Is this the first load in a new pop-up window/tab?
    */
   [infallible] attribute boolean isNewWindowTarget;
 
-||||||| parent of 70e3f57e865e (chore(ff-beta): bootstrap build #1464)
-=======
   [infallible] attribute unsigned long long jugglerLoadIdentifier;
->>>>>>> 70e3f57e865e (chore(ff-beta): bootstrap build #1464)
 };

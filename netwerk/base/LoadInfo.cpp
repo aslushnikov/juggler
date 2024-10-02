@@ -693,15 +693,9 @@ LoadInfo::LoadInfo(const LoadInfo& rhs)
       mHasInjectedCookieForCookieBannerHandling(
           rhs.mHasInjectedCookieForCookieBannerHandling),
       mWasSchemelessInput(rhs.mWasSchemelessInput),
-<<<<<<< HEAD
       mHttpsUpgradeTelemetry(rhs.mHttpsUpgradeTelemetry),
-      mIsNewWindowTarget(rhs.mIsNewWindowTarget) {
-||||||| parent of 70e3f57e865e (chore(ff-beta): bootstrap build #1464)
-      mHttpsUpgradeTelemetry(rhs.mHttpsUpgradeTelemetry) {
-=======
-      mHttpsUpgradeTelemetry(rhs.mHttpsUpgradeTelemetry),
+      mIsNewWindowTarget(rhs.mIsNewWindowTarget),
       mJugglerLoadIdentifier(rhs.mJugglerLoadIdentifier) {
->>>>>>> 70e3f57e865e (chore(ff-beta): bootstrap build #1464)
 }
 
 LoadInfo::LoadInfo(
@@ -2471,7 +2465,6 @@ LoadInfo::SetHttpsUpgradeTelemetry(
   return NS_OK;
 }
 
-<<<<<<< HEAD
 NS_IMETHODIMP
 LoadInfo::GetIsNewWindowTarget(bool* aIsNewWindowTarget) {
   *aIsNewWindowTarget = mIsNewWindowTarget;
@@ -2484,8 +2477,6 @@ LoadInfo::SetIsNewWindowTarget(bool aIsNewWindowTarget) {
   return NS_OK;
 }
 
-||||||| parent of 70e3f57e865e (chore(ff-beta): bootstrap build #1464)
-=======
 NS_IMETHODIMP
 LoadInfo::GetJugglerLoadIdentifier(uint64_t* aResult) {
   *aResult = mJugglerLoadIdentifier;
@@ -2498,5 +2489,4 @@ LoadInfo::SetJugglerLoadIdentifier(uint64_t aID) {
   return NS_OK;
 }
 
->>>>>>> 70e3f57e865e (chore(ff-beta): bootstrap build #1464)
 }  // namespace mozilla::net
