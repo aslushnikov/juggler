@@ -19503,37 +19503,6 @@ bool Document::PrefersReducedMotion() const {
   return LookAndFeel::GetInt(LookAndFeel::IntID::PrefersReducedMotion, 0) == 1;
 }
 
-bool Document::ForcedColors() const {
-  auto* docShell = static_cast<nsDocShell*>(GetDocShell());
-  nsIDocShell::ForcedColorsOverride forcedColors;
-  if (docShell && docShell->GetForcedColorsOverride(&forcedColors) == NS_OK) {
-    switch (forcedColors) {
-      case nsIDocShell::FORCED_COLORS_OVERRIDE_ACTIVE:
-        return true;
-      case nsIDocShell::FORCED_COLORS_OVERRIDE_NONE:
-        return false;
-      case nsIDocShell::FORCED_COLORS_OVERRIDE_NO_OVERRIDE:
-        break;
-    };
-  }
-
-  if (auto* bc = GetBrowsingContext()) {
-    switch (bc->Top()->ForcedColorsOverride()) {
-      case dom::ForcedColorsOverride::Active:
-        return true;
-      case dom::ForcedColorsOverride::None:
-        return false;
-      case dom::ForcedColorsOverride::No_override:
-        break;
-    }
-  }
-
-  if (mIsBeingUsedAsImage) {
-    return false;
-  }
-  return !PreferenceSheet::PrefsFor(*this).mUseDocumentColors;
-}
-
 bool Document::HasRecentlyStartedForegroundLoads() {
   if (!sLoadingForegroundTopLevelContentDocument) {
     return false;

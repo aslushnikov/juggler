@@ -248,8 +248,6 @@ struct EmbedderColorSchemes {
   FIELD(DisplayMode, dom::DisplayMode)                                        \
   /* playwright addition */                                                   \
   FIELD(PrefersReducedMotionOverride, dom::PrefersReducedMotionOverride)      \
-  /* playwright addition */                                                   \
-  FIELD(ForcedColorsOverride, dom::ForcedColorsOverride)                      \
   /* The number of entries added to the session history because of this       \
    * browsing context. */                                                     \
   FIELD(HistoryEntryCount, uint32_t)                                          \
@@ -946,22 +944,14 @@ class BrowsingContext : public nsILoadContext, public nsWrapperCache {
     return GetPrefersColorSchemeOverride();
   }
 
-<<<<<<< HEAD
   dom::ForcedColorsOverride ForcedColorsOverride() const {
     return GetForcedColorsOverride();
   }
 
-||||||| parent of 70e3f57e865e (chore(ff-beta): bootstrap build #1464)
-=======
   dom::PrefersReducedMotionOverride PrefersReducedMotionOverride() const {
     return GetPrefersReducedMotionOverride();
   }
 
-  dom::ForcedColorsOverride ForcedColorsOverride() const {
-    return GetForcedColorsOverride();
-  }
-
->>>>>>> 70e3f57e865e (chore(ff-beta): bootstrap build #1464)
   bool IsInBFCache() const;
 
   bool AllowJavascript() const { return GetAllowJavascript(); }
@@ -1149,14 +1139,6 @@ class BrowsingContext : public nsILoadContext, public nsWrapperCache {
   void DidSet(FieldIndex<IDX_PrefersReducedMotionOverride>,
               dom::PrefersReducedMotionOverride aOldValue);
 
-
-  bool CanSet(FieldIndex<IDX_ForcedColorsOverride>,
-              dom::ForcedColorsOverride, ContentParent*) {
-    return IsTop();
-  }
-
-  void DidSet(FieldIndex<IDX_ForcedColorsOverride>,
-              dom::ForcedColorsOverride aOldValue);
 
   void DidSet(FieldIndex<IDX_MediumOverride>, nsString&& aOldValue);
 

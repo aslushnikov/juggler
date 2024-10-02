@@ -114,10 +114,6 @@ struct ParamTraits<mozilla::dom::PrefersReducedMotionOverride>
 
 template <>
 struct ParamTraits<mozilla::dom::ForcedColorsOverride>
-    : public mozilla::dom::WebIDLEnumSerializer<mozilla::dom::ForcedColorsOverride> {};
-
-template <>
-struct ParamTraits<mozilla::dom::ForcedColorsOverride>
     : public mozilla::dom::WebIDLEnumSerializer<
           mozilla::dom::ForcedColorsOverride> {};
 
@@ -2863,7 +2859,6 @@ void BrowsingContext::DidSet(FieldIndex<IDX_PrefersColorSchemeOverride>,
   PresContextAffectingFieldChanged();
 }
 
-<<<<<<< HEAD
 void BrowsingContext::DidSet(FieldIndex<IDX_ForcedColorsOverride>,
                              dom::ForcedColorsOverride aOldValue) {
   MOZ_ASSERT(IsTop());
@@ -2873,8 +2868,6 @@ void BrowsingContext::DidSet(FieldIndex<IDX_ForcedColorsOverride>,
   PresContextAffectingFieldChanged();
 }
 
-||||||| parent of 70e3f57e865e (chore(ff-beta): bootstrap build #1464)
-=======
 void BrowsingContext::DidSet(FieldIndex<IDX_PrefersReducedMotionOverride>,
                              dom::PrefersReducedMotionOverride aOldValue) {
   MOZ_ASSERT(IsTop());
@@ -2892,24 +2885,6 @@ void BrowsingContext::DidSet(FieldIndex<IDX_PrefersReducedMotionOverride>,
   });
 }
 
-void BrowsingContext::DidSet(FieldIndex<IDX_ForcedColorsOverride>,
-                             dom::ForcedColorsOverride aOldValue) {
-  MOZ_ASSERT(IsTop());
-  if (ForcedColorsOverride() == aOldValue) {
-    return;
-  }
-  PreOrderWalk([&](BrowsingContext* aContext) {
-    if (nsIDocShell* shell = aContext->GetDocShell()) {
-      if (nsPresContext* pc = shell->GetPresContext()) {
-        pc->MediaFeatureValuesChanged(
-            {MediaFeatureChangeReason::SystemMetricsChange},
-            MediaFeatureChangePropagation::JustThisDocument);
-      }
-    }
-  });
-}
-
->>>>>>> 70e3f57e865e (chore(ff-beta): bootstrap build #1464)
 void BrowsingContext::DidSet(FieldIndex<IDX_MediumOverride>,
                              nsString&& aOldValue) {
   MOZ_ASSERT(IsTop());

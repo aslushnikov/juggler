@@ -4109,7 +4109,6 @@ class Document : public nsINode,
   ColorScheme DefaultColorScheme() const;
 
   bool PrefersReducedMotion() const;
-  bool ForcedColors() const;
 
   static bool HasRecentlyStartedForegroundLoads();
 
