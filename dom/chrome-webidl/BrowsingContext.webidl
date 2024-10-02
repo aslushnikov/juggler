@@ -54,6 +54,7 @@ enum PrefersColorSchemeOverride {
 };
 
 /**
+<<<<<<< HEAD
  * CSS forced-colors values.
  */
 enum ForcedColorsOverride {
@@ -62,6 +63,27 @@ enum ForcedColorsOverride {
 };
 
 /**
+||||||| parent of 70e3f57e865e (chore(ff-beta): bootstrap build #1464)
+=======
+ * CSS prefers-reduced-motion values.
+ */
+enum PrefersReducedMotionOverride {
+  "none",
+  "reduce",
+  "no-preference",
+};
+
+/**
+ * CSS forced-colors values.
+ */
+enum ForcedColorsOverride {
+  "none",
+  "active",
+  "no-override",  /* This clears the override. */
+};
+
+/**
+>>>>>>> 70e3f57e865e (chore(ff-beta): bootstrap build #1464)
  * Allowed overrides of platform/pref default behaviour for touch events.
  */
 enum TouchEventsOverride {
@@ -217,9 +239,19 @@ interface BrowsingContext {
   // Color-scheme simulation, for DevTools.
   [SetterThrows] attribute PrefersColorSchemeOverride prefersColorSchemeOverride;
 
+<<<<<<< HEAD
   // Forced-colors simulation, for DevTools
   [SetterThrows] attribute ForcedColorsOverride forcedColorsOverride;
 
+||||||| parent of 70e3f57e865e (chore(ff-beta): bootstrap build #1464)
+=======
+  // Reduced-Motion simulation, for DevTools.
+  [SetterThrows] attribute PrefersReducedMotionOverride prefersReducedMotionOverride;
+
+  // Forced-Colors simulation, for DevTools.
+  [SetterThrows] attribute ForcedColorsOverride forcedColorsOverride;
+
+>>>>>>> 70e3f57e865e (chore(ff-beta): bootstrap build #1464)
   /**
    * A unique identifier for the browser element that is hosting this
    * BrowsingContext tree. Every BrowsingContext in the element's tree will
