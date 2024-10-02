@@ -903,6 +903,7 @@ TRRLoadInfo::SetHttpsUpgradeTelemetry(
   return NS_ERROR_NOT_IMPLEMENTED;
 }
 
+<<<<<<< HEAD
 NS_IMETHODIMP
 TRRLoadInfo::GetIsNewWindowTarget(bool* aIsNewWindowTarget) {
   return NS_ERROR_NOT_IMPLEMENTED;
@@ -913,5 +914,18 @@ TRRLoadInfo::SetIsNewWindowTarget(bool aIsNewWindowTarget) {
   return NS_ERROR_NOT_IMPLEMENTED;
 }
 
+||||||| parent of 70e3f57e865e (chore(ff-beta): bootstrap build #1464)
+=======
+NS_IMETHODIMP
+TRRLoadInfo::GetJugglerLoadIdentifier(uint64_t* aResult) {
+  return NS_ERROR_NOT_IMPLEMENTED;
+}
+
+NS_IMETHODIMP
+TRRLoadInfo::SetJugglerLoadIdentifier(uint64_t aResult) {
+  return NS_ERROR_NOT_IMPLEMENTED;
+}
+
+>>>>>>> 70e3f57e865e (chore(ff-beta): bootstrap build #1464)
 }  // namespace net
 }  // namespace mozilla
