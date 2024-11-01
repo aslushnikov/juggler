@@ -15,8 +15,14 @@ enum CSSBoxType { "margin", "border", "padding", "content" };
 dictionary GeometryUtilsOptions {
   [ChromeOnly]
   boolean createFramesForSuppressedWhitespace = true;
+<<<<<<< HEAD
   [ChromeOnly]
   boolean flush = true;
+||||||| parent of 30a100e6da6b (chore(ff-beta): bootstrap build #1465)
+=======
+  [ChromeOnly]
+  boolean recurseWhenNoFrame = false;
+>>>>>>> 30a100e6da6b (chore(ff-beta): bootstrap build #1465)
 };
 
 dictionary BoxQuadOptions : GeometryUtilsOptions {
@@ -32,6 +38,9 @@ dictionary ConvertCoordinateOptions : GeometryUtilsOptions {
 interface mixin GeometryUtils {
   [Throws, Func="nsINode::HasBoxQuadsSupport", NeedsCallerType]
   sequence<DOMQuad> getBoxQuads(optional BoxQuadOptions options = {});
+
+  [ChromeOnly, Throws, Func="nsINode::HasBoxQuadsSupport"]
+  undefined scrollRectIntoViewIfNeeded(long x, long y, long w, long h);
 
   /* getBoxQuadsFromWindowOrigin is similar to getBoxQuads, but the
    * returned quads are further translated relative to the window

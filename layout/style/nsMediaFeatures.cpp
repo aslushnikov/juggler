@@ -265,11 +265,7 @@ bool Gecko_MediaFeatures_MatchesPlatform(StylePlatform aPlatform) {
 }
 
 bool Gecko_MediaFeatures_PrefersReducedMotion(const Document* aDocument) {
-  if (aDocument->ShouldResistFingerprinting(
-          RFPTarget::CSSPrefersReducedMotion)) {
-    return false;
-  }
-  return LookAndFeel::GetInt(LookAndFeel::IntID::PrefersReducedMotion, 0) == 1;
+  return aDocument->PrefersReducedMotion();
 }
 
 bool Gecko_MediaFeatures_PrefersReducedTransparency(const Document* aDocument) {

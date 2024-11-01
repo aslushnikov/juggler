@@ -1601,8 +1601,13 @@ interface nsILoadInfo : nsISupports
    */
   [infallible] attribute boolean isNewWindowTarget;
 
+<<<<<<< HEAD
   /**
    * When true, this load will never be upgraded to HTTPS.
    */
   [infallible] attribute boolean skipHTTPSUpgrade;
+||||||| parent of 30a100e6da6b (chore(ff-beta): bootstrap build #1465)
+=======
+  [infallible] attribute unsigned long long jugglerLoadIdentifier;
+>>>>>>> 30a100e6da6b (chore(ff-beta): bootstrap build #1465)
 };

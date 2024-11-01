@@ -695,7 +695,8 @@ LoadInfo::LoadInfo(const LoadInfo& rhs)
           rhs.mHasInjectedCookieForCookieBannerHandling),
       mWasSchemelessInput(rhs.mWasSchemelessInput),
       mHttpsUpgradeTelemetry(rhs.mHttpsUpgradeTelemetry),
-      mIsNewWindowTarget(rhs.mIsNewWindowTarget) {
+      mIsNewWindowTarget(rhs.mIsNewWindowTarget),
+      mJugglerLoadIdentifier(rhs.mJugglerLoadIdentifier) {
 }
 
 LoadInfo::LoadInfo(
@@ -2491,6 +2492,7 @@ LoadInfo::SetIsNewWindowTarget(bool aIsNewWindowTarget) {
   return NS_OK;
 }
 
+<<<<<<< HEAD
 NS_IMETHODIMP
 LoadInfo::GetSkipHTTPSUpgrade(bool* aSkipHTTPSUpgrade) {
   *aSkipHTTPSUpgrade = mSkipHTTPSUpgrade;
@@ -2503,4 +2505,19 @@ LoadInfo::SetSkipHTTPSUpgrade(bool aSkipHTTPSUpgrade) {
   return NS_OK;
 }
 
+||||||| parent of 30a100e6da6b (chore(ff-beta): bootstrap build #1465)
+=======
+NS_IMETHODIMP
+LoadInfo::GetJugglerLoadIdentifier(uint64_t* aResult) {
+  *aResult = mJugglerLoadIdentifier;
+  return NS_OK;
+}
+
+NS_IMETHODIMP
+LoadInfo::SetJugglerLoadIdentifier(uint64_t aID) {
+  mJugglerLoadIdentifier = aID;
+  return NS_OK;
+}
+
+>>>>>>> 30a100e6da6b (chore(ff-beta): bootstrap build #1465)
 }  // namespace mozilla::net

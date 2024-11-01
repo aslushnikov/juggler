@@ -61,6 +61,7 @@
 #include "mozilla/dom/Document.h"
 #include "mozilla/dom/HTMLDataListElement.h"
 #include "mozilla/dom/HTMLOptionElement.h"
+#include "nsDocShell.h"
 #include "nsIFrame.h"
 #include "nsRangeFrame.h"
 #include "nsError.h"
@@ -782,6 +783,13 @@ nsresult HTMLInputElement::InitFilePicker(FilePickerType aType) {
   RefPtr<BrowsingContext> bc = doc->GetBrowsingContext();
   if (!bc) {
     return NS_ERROR_FAILURE;
+  }
+
+  nsCOMPtr<nsPIDOMWindowOuter> win = doc->GetWindow();
+  nsDocShell* docShell = win ? static_cast<nsDocShell*>(win->GetDocShell()) : nullptr;
+  if (docShell && docShell->IsFileInputInterceptionEnabled()) {
+    docShell->FilePickerShown(this);
+    return NS_OK;
   }
 
   if (IsPickerBlocked(doc)) {
