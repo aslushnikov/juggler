@@ -913,7 +913,6 @@ TRRLoadInfo::SetIsNewWindowTarget(bool aIsNewWindowTarget) {
   return NS_ERROR_NOT_IMPLEMENTED;
 }
 
-<<<<<<< HEAD
 NS_IMETHODIMP
 TRRLoadInfo::GetSkipHTTPSUpgrade(bool* aSkipHTTPSUpgrade) {
   return NS_ERROR_NOT_IMPLEMENTED;
@@ -924,8 +923,6 @@ TRRLoadInfo::SetSkipHTTPSUpgrade(bool aSkipHTTPSUpgrade) {
   return NS_ERROR_NOT_IMPLEMENTED;
 }
 
-||||||| parent of 30a100e6da6b (chore(ff-beta): bootstrap build #1465)
-=======
 NS_IMETHODIMP
 TRRLoadInfo::GetJugglerLoadIdentifier(uint64_t* aResult) {
   return NS_ERROR_NOT_IMPLEMENTED;
@@ -936,6 +933,5 @@ TRRLoadInfo::SetJugglerLoadIdentifier(uint64_t aResult) {
   return NS_ERROR_NOT_IMPLEMENTED;
 }
 
->>>>>>> 30a100e6da6b (chore(ff-beta): bootstrap build #1465)
 }  // namespace net
 }  // namespace mozilla
