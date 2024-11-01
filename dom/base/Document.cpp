@@ -3745,6 +3745,9 @@ void Document::SendToConsole(nsCOMArray<nsISecurityConsoleMessage>& aMessages) {
 }
 
 void Document::ApplySettingsFromCSP(bool aSpeculative) {
+  if (mDocumentContainer && mDocumentContainer->IsBypassCSPEnabled())
+    return;
+
   nsresult rv = NS_OK;
   if (!aSpeculative) {
     // 1) apply settings from regular CSP
@@ -3801,6 +3804,11 @@ void Document::ApplySettingsFromCSP(bool aSpeculative) {
 nsresult Document::InitCSP(nsIChannel* aChannel) {
   MOZ_ASSERT(!mScriptGlobalObject,
              "CSP must be initialized before mScriptGlobalObject is set!");
+
+  nsCOMPtr<nsIDocShell> shell(mDocumentContainer);
+  if (shell && nsDocShell::Cast(shell)->IsBypassCSPEnabled()) {
+    return NS_OK;
+  }
 
   // If this is a data document - no need to set CSP.
   if (mLoadedAsData) {
@@ -4601,6 +4609,10 @@ bool Document::HasFocus(ErrorResult& rv) const {
   BrowsingContext* bc = GetBrowsingContext();
   if (!bc) {
     return false;
+  }
+
+  if (IsActive() && mDocumentContainer->ShouldOverrideHasFocus()) {
+    return true;
   }
 
   if (!fm->IsInActiveWindow(bc)) {
@@ -19460,6 +19472,35 @@ ColorScheme Document::PreferredColorScheme(IgnoreRFP aIgnoreRFP) const {
   }
 
   return PreferenceSheet::PrefsFor(*this).mColorScheme;
+}
+
+bool Document::PrefersReducedMotion() const {
+  auto* docShell = static_cast<nsDocShell*>(GetDocShell());
+  nsIDocShell::ReducedMotionOverride reducedMotion;
+  if (docShell && docShell->GetReducedMotionOverride(&reducedMotion) == NS_OK &&
+      reducedMotion != nsIDocShell::REDUCED_MOTION_OVERRIDE_NONE) {
+    switch (reducedMotion) {
+      case nsIDocShell::REDUCED_MOTION_OVERRIDE_REDUCE:
+        return true;
+      case nsIDocShell::REDUCED_MOTION_OVERRIDE_NO_PREFERENCE:
+        return false;
+      case nsIDocShell::REDUCED_MOTION_OVERRIDE_NONE:
+        break;
+    };
+  }
+
+  if (auto* bc = GetBrowsingContext()) {
+    switch (bc->Top()->PrefersReducedMotionOverride()) {
+      case dom::PrefersReducedMotionOverride::Reduce:
+        return true;
+      case dom::PrefersReducedMotionOverride::No_preference:
+        return false;
+      case dom::PrefersReducedMotionOverride::None:
+        break;
+    }
+  }
+
+  return LookAndFeel::GetInt(LookAndFeel::IntID::PrefersReducedMotion, 0) == 1;
 }
 
 bool Document::HasRecentlyStartedForegroundLoads() {

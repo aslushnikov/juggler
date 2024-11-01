@@ -31,6 +31,7 @@
 
 #include "nsIGeolocationProvider.h"
 #include "mozilla/Attributes.h"
+#include "nsDocShell.h"
 
 class nsGeolocationService;
 class nsGeolocationRequest;
@@ -51,13 +52,14 @@ struct CachedPositionAndAccuracy {
   bool isHighAccuracy;
 };
 
+
 /**
  * Singleton that manages the geolocation provider
  */
 class nsGeolocationService final : public nsIGeolocationUpdate,
                                    public nsIObserver {
  public:
-  static already_AddRefed<nsGeolocationService> GetGeolocationService();
+  static already_AddRefed<nsGeolocationService> GetGeolocationService(nsDocShell* docShell = nullptr);
   static mozilla::StaticRefPtr<nsGeolocationService> sService;
 
   NS_DECL_THREADSAFE_ISUPPORTS
@@ -188,6 +190,8 @@ class Geolocation final : public nsIGeolocationUpdate, public nsWrapperCache {
   static MOZ_CAN_RUN_SCRIPT void ReallowWithSystemPermissionOrCancel(
       BrowsingContext* aBrowsingContext,
       geolocation::ParentRequestResolver&& aResolver);
+
+  nsGeolocationService* GetGeolocationService() { return mService; };
 
  private:
   ~Geolocation();
