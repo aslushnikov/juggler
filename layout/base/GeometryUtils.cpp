@@ -262,14 +262,14 @@ static bool CheckFramesInSameTopLevelBrowsingContext(nsIFrame* aFrame1,
   return false;
 }
 
-static nsIFrame* GetFrameForNode(nsINode* aNode,
-                                 bool aCreateFramesForSuppressedWhitespace,
+static nsIFrame* GetFrameForNodeRecursive(nsINode* aNode,
+                                 const GeometryUtilsOptions& aOptions,
                                  bool aRecurseWhenNoFrame) {
-  nsIFrame* frame = GetFrameForNode(aNode, aCreateFramesForSuppressedWhitespace);
+  nsIFrame* frame = GetFrameForNode(aNode, aOptions);
   if (!frame && aRecurseWhenNoFrame && aNode->IsContent()) {
     dom::FlattenedChildIterator iter(aNode->AsContent());
     for (nsIContent* child = iter.GetNextChild(); child; child = iter.GetNextChild()) {
-      frame = GetFrameForNode(child, aCreateFramesForSuppressedWhitespace, aRecurseWhenNoFrame);
+      frame = GetFrameForNodeRecursive(child, aOptions, aRecurseWhenNoFrame);
       if (frame) {
         break;
       }
@@ -281,15 +281,8 @@ static nsIFrame* GetFrameForNode(nsINode* aNode,
 void GetBoxQuads(nsINode* aNode, const dom::BoxQuadOptions& aOptions,
                  nsTArray<RefPtr<DOMQuad>>& aResult, CallerType aCallerType,
                  ErrorResult& aRv) {
-<<<<<<< HEAD
-  nsIFrame* frame = GetFrameForNode(aNode, aOptions);
-||||||| parent of 30a100e6da6b (chore(ff-beta): bootstrap build #1465)
   nsIFrame* frame =
-      GetFrameForNode(aNode, aOptions.mCreateFramesForSuppressedWhitespace);
-=======
-  nsIFrame* frame =
-      GetFrameForNode(aNode, aOptions.mCreateFramesForSuppressedWhitespace, aOptions.mRecurseWhenNoFrame);
->>>>>>> 30a100e6da6b (chore(ff-beta): bootstrap build #1465)
+      GetFrameForNodeRecursive(aNode, aOptions, aOptions.mRecurseWhenNoFrame);
   if (!frame) {
     // No boxes to return
     return;
@@ -302,15 +295,8 @@ void GetBoxQuads(nsINode* aNode, const dom::BoxQuadOptions& aOptions,
   // EnsureFrameForTextNode call.  We need to get the first frame again
   // when that happens and re-check it.
   if (!weakFrame.IsAlive()) {
-<<<<<<< HEAD
-    frame = GetFrameForNode(aNode, aOptions);
-||||||| parent of 30a100e6da6b (chore(ff-beta): bootstrap build #1465)
     frame =
-        GetFrameForNode(aNode, aOptions.mCreateFramesForSuppressedWhitespace);
-=======
-    frame =
-        GetFrameForNode(aNode, aOptions.mCreateFramesForSuppressedWhitespace, aOptions.mRecurseWhenNoFrame);
->>>>>>> 30a100e6da6b (chore(ff-beta): bootstrap build #1465)
+        GetFrameForNodeRecursive(aNode, aOptions, aOptions.mRecurseWhenNoFrame);
     if (!frame) {
       // No boxes to return
       return;

@@ -418,13 +418,9 @@ class LoadInfo final : public nsILoadInfo {
       nsILoadInfo::NOT_INITIALIZED;
 
   bool mIsNewWindowTarget = false;
-<<<<<<< HEAD
   bool mSkipHTTPSUpgrade = false;
-||||||| parent of 30a100e6da6b (chore(ff-beta): bootstrap build #1465)
-=======
 
   uint64_t mJugglerLoadIdentifier = 0;
->>>>>>> 30a100e6da6b (chore(ff-beta): bootstrap build #1465)
 };
 
 // This is exposed solely for testing purposes and should not be used outside of

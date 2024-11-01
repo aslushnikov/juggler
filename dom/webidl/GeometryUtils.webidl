@@ -15,14 +15,10 @@ enum CSSBoxType { "margin", "border", "padding", "content" };
 dictionary GeometryUtilsOptions {
   [ChromeOnly]
   boolean createFramesForSuppressedWhitespace = true;
-<<<<<<< HEAD
   [ChromeOnly]
   boolean flush = true;
-||||||| parent of 30a100e6da6b (chore(ff-beta): bootstrap build #1465)
-=======
   [ChromeOnly]
   boolean recurseWhenNoFrame = false;
->>>>>>> 30a100e6da6b (chore(ff-beta): bootstrap build #1465)
 };
 
 dictionary BoxQuadOptions : GeometryUtilsOptions {
