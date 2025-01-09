@@ -67,6 +67,12 @@ browser/features/webcompat@mozilla.org/shims/empty-shim.txt
 removed-files
 #endif
 
+# Juggler/marionette files
+chrome/juggler/content/content/floating-scrollbars.css
+browser/chrome/devtools/skin/floating-scrollbars-responsive-design.css
+chrome/juggler/content/server/stream-utils.js
+chrome/marionette/content/stream-utils.js
+
 # Bug 1606928 - There's no reliable way to connect Top Sites favicons with the favicons in the Search Service
 browser/chrome/browser/content/activity-stream/data/content/tippytop/favicons/allegro-pl.ico
 browser/defaults/settings/main/search-config-icons/96327a73-c433-5eb4-a16d-b090cadfb80b

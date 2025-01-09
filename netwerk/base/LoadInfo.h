@@ -415,14 +415,23 @@ class LoadInfo final : public nsILoadInfo {
   nsCOMPtr<nsIInterceptionInfo> mInterceptionInfo;
 
   bool mHasInjectedCookieForCookieBannerHandling = false;
+<<<<<<< HEAD
   nsILoadInfo::SchemelessInputType mSchemelessInput =
       nsILoadInfo::SchemelessInputTypeUnset;
 
+||||||| parent of 8cb8f82ab7ed (chore(ff): bootstrap build #1467)
+  bool mWasSchemelessInput = false;
+
+=======
+  bool mWasSchemelessInput = false;
+>>>>>>> 8cb8f82ab7ed (chore(ff): bootstrap build #1467)
   nsILoadInfo::HTTPSUpgradeTelemetryType mHttpsUpgradeTelemetry =
       nsILoadInfo::NOT_INITIALIZED;
 
   bool mIsNewWindowTarget = false;
   bool mSkipHTTPSUpgrade = false;
+
+  uint64_t mJugglerLoadIdentifier = 0;
 };
 
 // This is exposed solely for testing purposes and should not be used outside of

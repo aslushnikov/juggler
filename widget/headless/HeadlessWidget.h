@@ -136,6 +136,9 @@ class HeadlessWidget : public nsBaseWidget {
                                        int32_t aModifierFlags,
                                        nsIObserver* aObserver) override;
 
+  using SnapshotListener = std::function<void(RefPtr<gfx::DataSourceSurface>&&)>;
+  void SetSnapshotListener(SnapshotListener&& listener);
+
  private:
   ~HeadlessWidget();
   bool mEnabled;

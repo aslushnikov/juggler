@@ -931,10 +931,24 @@ TRRLoadInfo::SetSkipHTTPSUpgrade(bool aSkipHTTPSUpgrade) {
   return NS_ERROR_NOT_IMPLEMENTED;
 }
 
+<<<<<<< HEAD
 NS_IMETHODIMP
 TRRLoadInfo::GetFetchDestination(nsACString& aDestination) {
   return NS_ERROR_NOT_IMPLEMENTED;
 }
 
+||||||| parent of 8cb8f82ab7ed (chore(ff): bootstrap build #1467)
+=======
+NS_IMETHODIMP
+TRRLoadInfo::GetJugglerLoadIdentifier(uint64_t* aResult) {
+  return NS_ERROR_NOT_IMPLEMENTED;
+}
+
+NS_IMETHODIMP
+TRRLoadInfo::SetJugglerLoadIdentifier(uint64_t aResult) {
+  return NS_ERROR_NOT_IMPLEMENTED;
+}
+
+>>>>>>> 8cb8f82ab7ed (chore(ff): bootstrap build #1467)
 }  // namespace net
 }  // namespace mozilla
