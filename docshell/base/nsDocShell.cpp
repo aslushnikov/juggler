@@ -13040,20 +13040,10 @@ nsresult nsDocShell::OnLinkClick(
       ownerDoc->ConsumeTextDirectiveUserActivation() ||
       hasValidUserGestureActivation);
 
-<<<<<<< HEAD
   nsCOMPtr<nsIRunnable> ev = new OnLinkClickEvent(
       this, aContent, loadState, noOpenerImplied, aTriggeringPrincipal);
-||||||| parent of f681522367df (chore(ff): bootstrap build #1470)
-  nsCOMPtr<nsIRunnable> ev =
-      new OnLinkClickEvent(this, aContent, loadState, noOpenerImplied,
-                           aIsTrusted, aTriggeringPrincipal);
-=======
-  nsCOMPtr<nsIRunnable> ev =
-      new OnLinkClickEvent(this, aContent, loadState, noOpenerImplied,
-                           aIsTrusted, aTriggeringPrincipal);
   nsCOMPtr<nsIObserverService> observerService = mozilla::services::GetObserverService();
   observerService->NotifyObservers(ToSupports(aContent), "juggler-link-click", nullptr);
->>>>>>> f681522367df (chore(ff): bootstrap build #1470)
   return Dispatch(ev.forget());
 }
 

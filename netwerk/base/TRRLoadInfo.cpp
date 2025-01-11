@@ -931,14 +931,11 @@ TRRLoadInfo::SetSkipHTTPSUpgrade(bool aSkipHTTPSUpgrade) {
   return NS_ERROR_NOT_IMPLEMENTED;
 }
 
-<<<<<<< HEAD
 NS_IMETHODIMP
 TRRLoadInfo::GetFetchDestination(nsACString& aDestination) {
   return NS_ERROR_NOT_IMPLEMENTED;
 }
 
-||||||| parent of f681522367df (chore(ff): bootstrap build #1470)
-=======
 NS_IMETHODIMP
 TRRLoadInfo::GetJugglerLoadIdentifier(uint64_t* aResult) {
   return NS_ERROR_NOT_IMPLEMENTED;
@@ -949,6 +946,5 @@ TRRLoadInfo::SetJugglerLoadIdentifier(uint64_t aResult) {
   return NS_ERROR_NOT_IMPLEMENTED;
 }
 
->>>>>>> f681522367df (chore(ff): bootstrap build #1470)
 }  // namespace net
 }  // namespace mozilla
