@@ -1616,4 +1616,6 @@ interface nsILoadInfo : nsISupports
    * When true, this load will never be upgraded to HTTPS.
    */
   [infallible] attribute boolean skipHTTPSUpgrade;
+
+  [infallible] attribute unsigned long long jugglerLoadIdentifier;
 };
