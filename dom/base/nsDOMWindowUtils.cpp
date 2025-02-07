@@ -710,6 +710,26 @@ nsDOMWindowUtils::GetPresShellId(uint32_t* aPresShellId) {
   return NS_ERROR_FAILURE;
 }
 
+static uint32_t sJugglerEventId = 1000;
+
+NS_IMETHODIMP
+nsDOMWindowUtils::JugglerSendMouseEvent(
+    const nsAString& aType, float aX, float aY, int32_t aButton,
+    int32_t aClickCount, int32_t aModifiers, bool aIgnoreRootScrollFrame,
+    float aPressure, unsigned short aInputSourceArg,
+    bool aIsDOMEventSynthesized, bool aIsWidgetEventSynthesized,
+    int32_t aButtons, uint32_t aIdentifier, bool aDisablePointerEvent,
+    uint32_t* aJugglerEventId) {
+  *aJugglerEventId = ++sJugglerEventId;
+  return SendMouseEventCommon(
+      aType, aX, aY, aButton, aClickCount, aModifiers, aIgnoreRootScrollFrame,
+      aPressure, aInputSourceArg,
+      aIdentifier, false,
+      nullptr, aIsDOMEventSynthesized,
+      aIsWidgetEventSynthesized,
+      aButtons, !aDisablePointerEvent, *aJugglerEventId);
+}
+
 NS_IMETHODIMP
 nsDOMWindowUtils::SendMouseEvent(
     const nsAString& aType, float aX, float aY, int32_t aButton,
@@ -724,7 +744,7 @@ nsDOMWindowUtils::SendMouseEvent(
       aOptionalArgCount >= 7 ? aIdentifier : DEFAULT_MOUSE_POINTER_ID, false,
       aPreventDefault, aOptionalArgCount >= 4 ? aIsDOMEventSynthesized : true,
       aOptionalArgCount >= 5 ? aIsWidgetEventSynthesized : false,
-      aOptionalArgCount >= 6 ? aButtons : MOUSE_BUTTONS_NOT_SPECIFIED);
+      aOptionalArgCount >= 6 ? aButtons : MOUSE_BUTTONS_NOT_SPECIFIED, true, 0);
 }
 
 NS_IMETHODIMP
@@ -742,7 +762,7 @@ nsDOMWindowUtils::SendMouseEventToWindow(
       aOptionalArgCount >= 7 ? aIdentifier : DEFAULT_MOUSE_POINTER_ID, true,
       nullptr, aOptionalArgCount >= 4 ? aIsDOMEventSynthesized : true,
       aOptionalArgCount >= 5 ? aIsWidgetEventSynthesized : false,
-      aOptionalArgCount >= 6 ? aButtons : MOUSE_BUTTONS_NOT_SPECIFIED);
+      aOptionalArgCount >= 6 ? aButtons : MOUSE_BUTTONS_NOT_SPECIFIED, 0);
 }
 
 NS_IMETHODIMP
@@ -751,12 +771,30 @@ nsDOMWindowUtils::SendMouseEventCommon(
     int32_t aClickCount, int32_t aModifiers, bool aIgnoreRootScrollFrame,
     float aPressure, unsigned short aInputSourceArg, uint32_t aPointerId,
     bool aToWindow, bool* aPreventDefault, bool aIsDOMEventSynthesized,
-    bool aIsWidgetEventSynthesized, int32_t aButtons) {
+    bool aIsWidgetEventSynthesized, int32_t aButtons, bool aConvertToPointer, uint32_t aJugglerEventId) {
   RefPtr<PresShell> presShell = GetPresShell();
   return nsContentUtils::SendMouseEvent(
       presShell, aType, aX, aY, aButton, aButtons, aClickCount, aModifiers,
       aIgnoreRootScrollFrame, aPressure, aInputSourceArg, aPointerId, aToWindow,
+<<<<<<< HEAD
       aPreventDefault, aIsDOMEventSynthesized, aIsWidgetEventSynthesized);
+||||||| parent of c57e0cadb351 (chore(ff-beta): bootstrap build #1470)
+      &preventDefaultResult, aIsDOMEventSynthesized, aIsWidgetEventSynthesized);
+
+  if (aPreventDefault) {
+    *aPreventDefault = preventDefaultResult != PreventDefaultResult::No;
+  }
+
+  return rv;
+=======
+      &preventDefaultResult, aIsDOMEventSynthesized, aIsWidgetEventSynthesized, aConvertToPointer, aJugglerEventId);
+
+  if (aPreventDefault) {
+    *aPreventDefault = preventDefaultResult != PreventDefaultResult::No;
+  }
+
+  return rv;
+>>>>>>> c57e0cadb351 (chore(ff-beta): bootstrap build #1470)
 }
 
 NS_IMETHODIMP
