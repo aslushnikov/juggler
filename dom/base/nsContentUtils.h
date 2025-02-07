@@ -3020,17 +3020,9 @@ class nsContentUtils {
       float aY, int32_t aButton, int32_t aButtons, int32_t aClickCount,
       int32_t aModifiers, bool aIgnoreRootScrollFrame, float aPressure,
       unsigned short aInputSourceArg, uint32_t aIdentifier, bool aToWindow,
-<<<<<<< HEAD
-      bool* aPreventDefault, bool aIsDOMEventSynthesized,
-      bool aIsWidgetEventSynthesized);
-||||||| parent of c57e0cadb351 (chore(ff-beta): bootstrap build #1470)
-      mozilla::PreventDefaultResult* aPreventDefault,
-      bool aIsDOMEventSynthesized, bool aIsWidgetEventSynthesized);
-=======
-      mozilla::PreventDefaultResult* aPreventDefault,
+      bool* aPreventDefault,
       bool aIsDOMEventSynthesized, bool aIsWidgetEventSynthesized,
       bool convertToPointer = true, uint32_t aJugglerEventId = 0);
->>>>>>> c57e0cadb351 (chore(ff-beta): bootstrap build #1470)
 
   static void FirePageShowEventForFrameLoaderSwap(
       nsIDocShellTreeItem* aItem,

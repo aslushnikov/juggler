@@ -1612,7 +1612,6 @@ interface nsILoadInfo : nsISupports
    * When true, this load will never be upgraded to HTTPS.
    */
   [infallible] attribute boolean skipHTTPSUpgrade;
-<<<<<<< HEAD
 
   /**
    * see https://html.spec.whatwg.org/#user-navigation-involvement
@@ -1627,9 +1626,6 @@ interface nsILoadInfo : nsISupports
       return static_cast<mozilla::dom::UserNavigationInvolvement>(userNavigationInvolvement);
     }
 %}
-||||||| parent of c57e0cadb351 (chore(ff-beta): bootstrap build #1470)
-=======
 
   [infallible] attribute unsigned long long jugglerLoadIdentifier;
->>>>>>> c57e0cadb351 (chore(ff-beta): bootstrap build #1470)
 };

@@ -776,25 +776,7 @@ nsDOMWindowUtils::SendMouseEventCommon(
   return nsContentUtils::SendMouseEvent(
       presShell, aType, aX, aY, aButton, aButtons, aClickCount, aModifiers,
       aIgnoreRootScrollFrame, aPressure, aInputSourceArg, aPointerId, aToWindow,
-<<<<<<< HEAD
-      aPreventDefault, aIsDOMEventSynthesized, aIsWidgetEventSynthesized);
-||||||| parent of c57e0cadb351 (chore(ff-beta): bootstrap build #1470)
-      &preventDefaultResult, aIsDOMEventSynthesized, aIsWidgetEventSynthesized);
-
-  if (aPreventDefault) {
-    *aPreventDefault = preventDefaultResult != PreventDefaultResult::No;
-  }
-
-  return rv;
-=======
-      &preventDefaultResult, aIsDOMEventSynthesized, aIsWidgetEventSynthesized, aConvertToPointer, aJugglerEventId);
-
-  if (aPreventDefault) {
-    *aPreventDefault = preventDefaultResult != PreventDefaultResult::No;
-  }
-
-  return rv;
->>>>>>> c57e0cadb351 (chore(ff-beta): bootstrap build #1470)
+      aPreventDefault, aIsDOMEventSynthesized, aIsWidgetEventSynthesized, aConvertToPointer, aJugglerEventId);
 }
 
 NS_IMETHODIMP
