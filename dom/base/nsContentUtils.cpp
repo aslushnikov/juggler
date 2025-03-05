@@ -9146,38 +9146,14 @@ nsView* nsContentUtils::GetViewToDispatchEvent(nsPresContext* aPresContext,
 }
 
 nsresult nsContentUtils::SendMouseEvent(
-<<<<<<< HEAD
     mozilla::PresShell* aPresShell, nsIWidget* aWidget, const nsAString& aType,
     LayoutDeviceIntPoint& aRefPoint, int32_t aButton, int32_t aButtons,
     int32_t aClickCount, int32_t aModifiers, bool aIgnoreRootScrollFrame,
     float aPressure, unsigned short aInputSourceArg, uint32_t aIdentifier,
     bool aToWindow, bool* aPreventDefault, bool aIsDOMEventSynthesized,
-    bool aIsWidgetEventSynthesized) {
-  MOZ_ASSERT(aWidget);
-||||||| parent of c6c31c0d1a1c (chore(ff-beta): bootstrap build #1472)
-    mozilla::PresShell* aPresShell, const nsAString& aType, float aX, float aY,
-    int32_t aButton, int32_t aButtons, int32_t aClickCount, int32_t aModifiers,
-    bool aIgnoreRootScrollFrame, float aPressure,
-    unsigned short aInputSourceArg, uint32_t aIdentifier, bool aToWindow,
-    bool* aPreventDefault, bool aIsDOMEventSynthesized,
-    bool aIsWidgetEventSynthesized) {
-  nsPoint offset;
-  nsCOMPtr<nsIWidget> widget = GetWidget(aPresShell, &offset);
-  if (!widget) return NS_ERROR_FAILURE;
-
-=======
-    mozilla::PresShell* aPresShell, const nsAString& aType, float aX, float aY,
-    int32_t aButton, int32_t aButtons, int32_t aClickCount, int32_t aModifiers,
-    bool aIgnoreRootScrollFrame, float aPressure,
-    unsigned short aInputSourceArg, uint32_t aIdentifier, bool aToWindow,
-    bool* aPreventDefault, bool aIsDOMEventSynthesized,
     bool aIsWidgetEventSynthesized,
     bool convertToPointer, uint32_t aJugglerEventId) {
-  nsPoint offset;
-  nsCOMPtr<nsIWidget> widget = GetWidget(aPresShell, &offset);
-  if (!widget) return NS_ERROR_FAILURE;
-
->>>>>>> c6c31c0d1a1c (chore(ff-beta): bootstrap build #1472)
+  MOZ_ASSERT(aWidget);
   EventMessage msg;
   Maybe<WidgetMouseEvent::ExitFrom> exitFrom;
   bool contextMenuKey = false;
@@ -9226,7 +9202,7 @@ nsresult nsContentUtils::SendMouseEvent(
   Maybe<WidgetDragEvent> pwDragEvent;
 
   if (isPWDragEventMessage) {
-    pwDragEvent.emplace(true, msg, widget);
+    pwDragEvent.emplace(true, msg, aWidget);
     pwDragEvent->mReason = aIsWidgetEventSynthesized
                              ? WidgetMouseEvent::eSynthesized
                              : WidgetMouseEvent::eReal;

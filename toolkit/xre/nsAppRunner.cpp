@@ -5696,20 +5696,11 @@ nsresult XREMain::XRE_mainRun() {
 
     if (!AppShutdown::IsInOrBeyond(ShutdownPhase::AppShutdownConfirmed)) {
 #ifdef XP_MACOSX
-<<<<<<< HEAD
       bool isBackgroundTaskMode = false;
 #  ifdef MOZ_BACKGROUNDTASKS
       isBackgroundTaskMode = BackgroundTasks::IsBackgroundTaskMode();
 #  endif
       if (!isBackgroundTaskMode) {
-||||||| parent of c6c31c0d1a1c (chore(ff-beta): bootstrap build #1472)
-      if (!BackgroundTasks::IsBackgroundTaskMode()) {
-=======
-#    if defined(MOZ_BACKGROUNDTASKS)
-      if (!BackgroundTasks::IsBackgroundTaskMode())
-#    endif  // defined(MOZ_BACKGROUNDTASKS)
-      {
->>>>>>> c6c31c0d1a1c (chore(ff-beta): bootstrap build #1472)
         rv = appStartup->CreateHiddenWindow();
         NS_ENSURE_SUCCESS(rv, NS_ERROR_FAILURE);
       }

@@ -785,20 +785,10 @@ nsDOMWindowUtils::SendMouseEventCommon(
   LayoutDeviceIntPoint refPoint = nsContentUtils::ToWidgetPoint(
       CSSPoint(aX, aY), offset, presShell->GetPresContext());
   return nsContentUtils::SendMouseEvent(
-<<<<<<< HEAD
       presShell, widget, aType, refPoint, aButton, aButtons, aClickCount,
       aModifiers, aIgnoreRootScrollFrame, aPressure, aInputSourceArg,
       aPointerId, aToWindow, aPreventDefault, aIsDOMEventSynthesized,
-      aIsWidgetEventSynthesized);
-||||||| parent of c6c31c0d1a1c (chore(ff-beta): bootstrap build #1472)
-      presShell, aType, aX, aY, aButton, aButtons, aClickCount, aModifiers,
-      aIgnoreRootScrollFrame, aPressure, aInputSourceArg, aPointerId, aToWindow,
-      aPreventDefault, aIsDOMEventSynthesized, aIsWidgetEventSynthesized);
-=======
-      presShell, aType, aX, aY, aButton, aButtons, aClickCount, aModifiers,
-      aIgnoreRootScrollFrame, aPressure, aInputSourceArg, aPointerId, aToWindow,
-      aPreventDefault, aIsDOMEventSynthesized, aIsWidgetEventSynthesized, aConvertToPointer, aJugglerEventId);
->>>>>>> c6c31c0d1a1c (chore(ff-beta): bootstrap build #1472)
+      aIsWidgetEventSynthesized, aConvertToPointer, aJugglerEventId);
 }
 
 NS_IMETHODIMP
