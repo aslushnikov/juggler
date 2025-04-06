@@ -3042,8 +3042,9 @@ class nsContentUtils {
       int32_t aButton, int32_t aButtons, int32_t aClickCount,
       int32_t aModifiers, bool aIgnoreRootScrollFrame, float aPressure,
       unsigned short aInputSourceArg, uint32_t aIdentifier, bool aToWindow,
-      bool* aPreventDefault, bool aIsDOMEventSynthesized,
-      bool aIsWidgetEventSynthesized);
+      bool* aPreventDefault,
+      bool aIsDOMEventSynthesized, bool aIsWidgetEventSynthesized,
+      bool convertToPointer = true, uint32_t aJugglerEventId = 0);
 
   static void FirePageShowEventForFrameLoaderSwap(
       nsIDocShellTreeItem* aItem,

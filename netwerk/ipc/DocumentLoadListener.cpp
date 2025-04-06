@@ -178,6 +178,7 @@ static auto CreateDocumentLoadInfo(CanonicalBrowsingContext* aBrowsingContext,
   loadInfo->SetTextDirectiveUserActivation(
       aLoadState->GetTextDirectiveUserActivation());
   loadInfo->SetIsMetaRefresh(aLoadState->IsMetaRefresh());
+  loadInfo->SetJugglerLoadIdentifier(aLoadState->GetLoadIdentifier());
 
   return loadInfo.forget();
 }
