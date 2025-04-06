@@ -68,18 +68,14 @@ interface nsIAccessibleDocument : nsISupports
    * Return the child document accessible at the given index.
    */
   nsIAccessibleDocument getChildDocumentAt(in unsigned long index);
-<<<<<<< HEAD
 
   /**
    * The BrowsingContext of this document.
    */
   readonly attribute BrowsingContext browsingContext;
-||||||| parent of 1be702383afd (chore(ff-beta): bootstrap build #1476)
-=======
 
   /**
    * Return whether it is updating.
    */
   readonly attribute boolean isUpdatePendingForJugglerAccessibility;
->>>>>>> 1be702383afd (chore(ff-beta): bootstrap build #1476)
 };
