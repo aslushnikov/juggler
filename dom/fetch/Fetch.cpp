@@ -701,6 +701,12 @@ already_AddRefed<Promise> FetchRequest(nsIGlobalObject* aGlobal,
     ipcArgs.hasCSPEventListener() = false;
     ipcArgs.isWorkerRequest() = false;
 
+    /* --> Playwright: associate keep-alive fetch with the window */
+    BrowsingContext* bc = window ? window->GetBrowsingContext() : nullptr;
+    if (bc)
+      ipcArgs.associatedBrowsingContextID() = bc->Id();
+    /* <-- Playwright */
+
     actor->DoFetchOp(ipcArgs);
 
     mozilla::glean::networking::fetch_keepalive_request_count.Get("main"_ns)

@@ -60,6 +60,16 @@ interface nsIInterceptedChannel : nsISupports
      */
     void resetInterception(in boolean bypass);
 
+    // ----- Playwright begin -----
+
+    // Same as resetInterception, but updates the URI.
+    void resetInterceptionWithURI(in nsIURI aURI);
+
+    // After resetInterception is called, this request will be intercepted again.
+    void interceptAfterServiceWorkerResets();
+
+    // ----- Playwright end -------
+
     /**
      * Set the status and reason for the forthcoming synthesized response.
      * Multiple calls overwrite existing values.

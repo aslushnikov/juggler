@@ -729,9 +729,32 @@ NS_IMPL_ISUPPORTS(ResetInterceptionHeaderVisitor, nsIHttpHeaderVisitor)
 }  // anonymous namespace
 
 NS_IMETHODIMP
+InterceptedHttpChannel::InterceptAfterServiceWorkerResets() {
+  mInterceptAfterServiceWorkerResets = true;
+  return NS_OK;
+}
+
+NS_IMETHODIMP
+InterceptedHttpChannel::ResetInterceptionWithURI(nsIURI* aURI) {
+  if (aURI) {
+    mURI = aURI;
+  }
+  return ResetInterception(true);
+}
+
+NS_IMETHODIMP
 InterceptedHttpChannel::ResetInterception(bool aBypass) {
   INTERCEPTED_LOG(("InterceptedHttpChannel::ResetInterception [%p] bypass: %s",
                    this, aBypass ? "true" : "false"));
+  if (mInterceptAfterServiceWorkerResets) {
+    mInterceptAfterServiceWorkerResets = false;
+    nsCOMPtr<nsINetworkInterceptController> controller;
+    GetCallback(controller);
+    if (!controller)
+      return NS_ERROR_DOM_INVALID_STATE_ERR;
+    return controller->ChannelIntercepted(this);
+  }
+
   if (mCanceled) {
     return mStatus;
   }
@@ -1146,11 +1169,18 @@ InterceptedHttpChannel::OnStartRequest(nsIRequest* aRequest) {
     GetCallback(mProgressSink);
   }
 
+  // Playwright: main requests in firefox do not have loading principal.
+  // As they are intercepted by Playwright, they don't have
+  // serviceWorkerTainting as well.
+  // Thus these asserts are wrong for Playwright world.
+  // Note: these checks were added in https://github.com/mozilla/gecko-dev/commit/92e2cdde79c11510c3e4192e1b6264d00398ed95
+  /*
   MOZ_ASSERT_IF(!mLoadInfo->GetServiceWorkerTaintingSynthesized(),
                 mLoadInfo->GetLoadingPrincipal());
   // No need to do ORB checks if these conditions hold.
   MOZ_DIAGNOSTIC_ASSERT(mLoadInfo->GetServiceWorkerTaintingSynthesized() ||
                         mLoadInfo->GetLoadingPrincipal()->IsSystemPrincipal());
+  */
 
   if (mPump && mLoadFlags & LOAD_CALL_CONTENT_SNIFFERS) {
     mPump->PeekStream(CallTypeSniffers, static_cast<nsIChannel*>(this));

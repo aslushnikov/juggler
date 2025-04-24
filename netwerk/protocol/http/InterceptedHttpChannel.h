@@ -90,6 +90,11 @@ class InterceptedHttpChannel final
   Atomic<bool> mCallingStatusAndProgress;
   bool mInterceptionReset{false};
 
+  // ----- Playwright begin -----
+  // After resetInterception is called, this request will call into interceptors again.
+  bool mInterceptAfterServiceWorkerResets{false};
+  // ----- Playwright end -------
+
   /**
    *  InterceptionTimeStamps is used to record the time stamps of the
    *  interception.

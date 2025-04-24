@@ -133,6 +133,7 @@ xpcAccessibleDocument::GetChildDocumentAt(uint32_t aIndex,
   return *aDocument ? NS_OK : NS_ERROR_INVALID_ARG;
 }
 
+<<<<<<< HEAD
 NS_IMETHODIMP
 xpcAccessibleDocument::GetBrowsingContext(
     dom::BrowsingContext** aBrowsingContext) {
@@ -151,6 +152,16 @@ xpcAccessibleDocument::GetBrowsingContext(
   return NS_OK;
 }
 
+||||||| parent of 815f5c72d076 (chore(ff-beta): bootstrap build #1477)
+=======
+NS_IMETHODIMP
+xpcAccessibleDocument::GetIsUpdatePendingForJugglerAccessibility(bool* updating) {
+  NS_ENSURE_ARG_POINTER(updating);
+  *updating = Intl()->Controller()->IsUpdatePendingForJugglerAccessibility();
+  return NS_OK;
+}
+
+>>>>>>> 815f5c72d076 (chore(ff-beta): bootstrap build #1477)
 ////////////////////////////////////////////////////////////////////////////////
 // xpcAccessibleDocument
 
