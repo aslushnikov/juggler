@@ -166,7 +166,9 @@ export class BrowserHandler {
   ['Browser.clearCache']() {
     // Clearing only the context cache does not work: https://bugzilla.mozilla.org/show_bug.cgi?id=1819147
     Services.cache2.clear();
-    ChromeUtils.clearStyleSheetCache();
+    ChromeUtils.clearResourceCache({
+      types: ["stylesheet"],
+    });
   }
 
   ['Browser.setHTTPCredentials']({browserContextId, credentials}) {
